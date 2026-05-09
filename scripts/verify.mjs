@@ -225,15 +225,33 @@ try {
     munchHealth.bridge_name === "TripCore.Munch.g" &&
     munchHealth.status === "degraded" &&
     munchHealth.evidenceAuthority === "mock" &&
+    munchHealth.sourceKind === "mock" &&
+    munchHealth.retrievalMode === "mock" &&
+    munchHealth.authorityLevel === "planning-only" &&
+    munchHealth.writeApprovalEligible === false &&
+    munchHealth.applyEligible === false &&
+    munchHealth.approvalEvidence === false &&
     munchHealth.editAuthoritative === false &&
     munchRetrieve.status === "warn" &&
     munchRetrieve.capability === "code_search" &&
     munchRetrieve.evidenceAuthority === "mock" &&
+    munchRetrieve.sourceKind === "mock" &&
+    munchRetrieve.retrievalMode === "mock" &&
+    munchRetrieve.authorityLevel === "planning-only" &&
+    munchRetrieve.writeApprovalEligible === false &&
+    munchRetrieve.applyEligible === false &&
+    munchRetrieve.approvalEvidence === false &&
     munchRetrieve.editAuthoritative === false &&
     munchRetrieve.warnings?.some((warning) => warning.includes("cannot authorize edits")) &&
     munchRetrieve.fallback_chain?.includes("native-tripp-tools") &&
     munchMap.status === "warn" &&
     munchMap.evidenceAuthority === "mock" &&
+    munchMap.sourceKind === "mock" &&
+    munchMap.retrievalMode === "mock" &&
+    munchMap.authorityLevel === "planning-only" &&
+    munchMap.writeApprovalEligible === false &&
+    munchMap.applyEligible === false &&
+    munchMap.approvalEvidence === false &&
     munchMap.editAuthoritative === false &&
     munchMap.nodes?.some((node) => node.path === "server.mjs");
   console.log(`${munchPass ? "PASS" : "FAIL"} munch: health, retrieval, and context-map stubs`);
@@ -250,6 +268,12 @@ try {
     traceMap.role === "Trace.Drone" &&
     traceMap.executionAllowed === false &&
     traceMap.evidenceAuthority === "mock" &&
+    traceMap.sourceKind === "mock" &&
+    traceMap.retrievalMode === "mock" &&
+    traceMap.authorityLevel === "planning-only" &&
+    traceMap.writeApprovalEligible === false &&
+    traceMap.applyEligible === false &&
+    traceMap.approvalEvidence === false &&
     traceMap.editAuthoritative === false &&
     traceMap.warnings?.some((warning) => warning.includes("cannot authorize edits")) &&
     traceMap.owners?.some((owner) => owner.file === "server.mjs") &&
@@ -280,11 +304,19 @@ try {
     discoveryReply.task?.lifecycle?.state === "evidence_ready" &&
     discoveryReply.task?.retrieval?.backend === "tripp-munch-mock" &&
     discoveryReply.task?.retrieval?.evidenceAuthority === "mock" &&
+    discoveryReply.task?.retrieval?.sourceKind === "mock" &&
+    discoveryReply.task?.retrieval?.authorityLevel === "planning-only" &&
+    discoveryReply.task?.retrieval?.writeApprovalEligible === false &&
     discoveryReply.task?.retrieval?.editAuthoritative === false &&
     discoveryReply.task?.traceMap?.traceVerification?.terminalState === "TRACE_PASS_WITH_WARNINGS" &&
     discoveryReply.task?.evidenceGate?.status === "blocked" &&
     discoveryReply.task?.evidenceGate?.evidenceAuthority === "mock" &&
+    discoveryReply.task?.evidenceGate?.sourceKind === "mock" &&
+    discoveryReply.task?.evidenceGate?.authorityLevel === "planning-only" &&
+    discoveryReply.task?.evidenceGate?.writeApprovalEligible === false &&
+    discoveryReply.task?.evidenceGate?.applyEligible === false &&
     discoveryReply.task?.evidenceGate?.missing?.includes("live edit-authoritative evidence") &&
+    discoveryReply.task?.evidenceGate?.missing?.includes("write approval eligible evidence") &&
     discoveryReply.task?.evidenceGate?.missing?.includes("confidence >= medium") &&
     editReply.task?.routingDecision?.lane === "native" &&
     editReply.task?.lifecycle?.state === "routed" &&
@@ -609,7 +641,15 @@ try {
         event.eventType === "retrieval_event" &&
         event.descriptorId === "trial-munch-retrieval" &&
         event.evidenceAuthority === "mock" &&
-        event.editAuthoritative === false,
+        event.sourceKind === "mock" &&
+        event.retrievalMode === "mock" &&
+        event.authorityLevel === "planning-only" &&
+        event.writeApprovalEligible === false &&
+        event.applyEligible === false &&
+        event.approvalEvidence === false &&
+        event.editAuthoritative === false &&
+        event.invoked === false &&
+        event.decision === "planning_only",
     );
   console.log(`${cystLifecyclePass ? "PASS" : "FAIL"} cyst: denial, trial, retrieval, and lifecycle events persisted`);
   if (!cystLifecyclePass) {

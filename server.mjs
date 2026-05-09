@@ -294,6 +294,16 @@ function readMunchHealth() {
     status: "degraded",
     mode: "passive_assist",
     evidenceAuthority: "mock",
+    sourceKind: "mock",
+    retrievalMode: "mock",
+    authorityLevel: "planning-only",
+    degraded: true,
+    degradationReason: "real TripCore.Munch.g backend is not wired in this prototype",
+    planningAllowed: true,
+    narrowingAllowed: true,
+    writeApprovalEligible: false,
+    applyEligible: false,
+    approvalEvidence: false,
     editAuthoritative: false,
     checked_at: checkedAt,
     backends: {
@@ -333,6 +343,26 @@ function readMunchHealth() {
     ],
     warnings: ["passive mock mode only", "mock evidence cannot authorize edits"],
     recommended_action: "continue_native_tripp_tools",
+  };
+}
+
+function createMockEvidenceContract(overrides = {}) {
+  return {
+    sourceKind: "mock",
+    retrievalMode: "mock",
+    authorityLevel: "planning-only",
+    evidenceAuthority: "mock",
+    degraded: true,
+    degradationReason: "real TripCore.Munch.g backend is not wired in this prototype",
+    planningAllowed: true,
+    narrowingAllowed: true,
+    writeApprovalEligible: false,
+    applyEligible: false,
+    approvalEvidence: false,
+    editAuthoritative: false,
+    provenanceSummary: "Mock evidence can support planning and narrowing only.",
+    operatorWarning: "This evidence comes from mock retrieval and cannot authorize file changes.",
+    ...overrides,
   };
 }
 
@@ -388,14 +418,19 @@ function createMunchRetrieval(payload = {}) {
   const paths = Array.isArray(payload.paths) ? payload.paths.map(String).slice(0, 12) : [];
   const warning = query ? "real Munch backend not connected; returning contract-shaped planning response" : "query missing";
   const mockWarning = "mock retrieval is planning-only and cannot authorize edits";
+  const evidenceContract = createMockEvidenceContract({
+    evidenceId: id,
+    sourceSystem: "mock-retrieval",
+    traceConfidence: "low",
+    timestamp: new Date().toISOString(),
+  });
 
   return {
     id,
     status: query ? "warn" : "fail",
     backend: "tripp-munch-mock",
     capability: kind,
-    evidenceAuthority: "mock",
-    editAuthoritative: false,
+    ...evidenceContract,
     mock: true,
     mode: "passive_assist",
     summary: query
@@ -423,8 +458,7 @@ function createMunchRetrieval(payload = {}) {
       truncated: false,
       deduped: Boolean(payload.policy?.dedupe_key),
       elapsed_ms: 0,
-      evidenceAuthority: "mock",
-      editAuthoritative: false,
+      ...evidenceContract,
     },
   };
 }
@@ -435,6 +469,12 @@ function createMunchContextMap(payload = {}) {
   const scopePaths = Array.isArray(payload.scope_paths || payload.paths)
     ? (payload.scope_paths || payload.paths).map(String).slice(0, 12)
     : [];
+  const evidenceContract = createMockEvidenceContract({
+    evidenceId: id,
+    sourceSystem: "mock-context-map",
+    traceConfidence: "low",
+    timestamp: new Date().toISOString(),
+  });
 
   return {
     id,
@@ -443,8 +483,7 @@ function createMunchContextMap(payload = {}) {
     scope_paths: scopePaths,
     status: rootQuestion ? "warn" : "fail",
     backend: "tripp-munch-mock",
-    evidenceAuthority: "mock",
-    editAuthoritative: false,
+    ...evidenceContract,
     mock: true,
     mode: "passive_assist",
     summary: rootQuestion
@@ -474,8 +513,7 @@ function createMunchContextMap(payload = {}) {
       truncated: false,
       fallback_chain: ["tripp-munch-mock", "native-tripp-tools"],
       elapsed_ms: 0,
-      evidenceAuthority: "mock",
-      editAuthoritative: false,
+      ...evidenceContract,
     },
   };
 }
@@ -506,13 +544,18 @@ function createTraceDroneMap(payload = {}) {
     "mock trace evidence is planning-only and cannot authorize edits",
   ];
   const forbidden = ["node_modules/", ".git/", "dist/", "build/", "coverage/", "generated/", "vendor/"];
+  const evidenceContract = createMockEvidenceContract({
+    evidenceId: traceId,
+    sourceSystem: "mock-trace",
+    traceConfidence: confidenceLabel(confidence),
+    timestamp: new Date().toISOString(),
+  });
 
   const traceMap = {
     traceId,
     role: "Trace.Drone",
     status: "boundary_map",
-    evidenceAuthority: "mock",
-    editAuthoritative: false,
+    ...evidenceContract,
     mock: true,
     mode: "passive_assist",
     readOnly: true,
@@ -545,8 +588,11 @@ function createTraceDroneMap(payload = {}) {
     trace: {
       traceId,
       source: "trace-drone",
-      evidenceAuthority: "mock",
-      editAuthoritative: false,
+      sourceKind: evidenceContract.sourceKind,
+      retrievalMode: evidenceContract.retrievalMode,
+      authorityLevel: evidenceContract.authorityLevel,
+      evidenceAuthority: evidenceContract.evidenceAuthority,
+      editAuthoritative: evidenceContract.editAuthoritative,
     },
   };
   traceMap.traceVerification = verifyTraceDroneMap(traceMap);
@@ -2172,6 +2218,8 @@ function createEvidenceGate(task) {
     if (mockEvidence) {
       satisfied.push("mock evidence labeled");
       missing.push("live edit-authoritative evidence");
+      missing.push("write approval eligible evidence");
+      missing.push("apply eligible evidence");
     }
 
     return {
@@ -2188,6 +2236,16 @@ function createEvidenceGate(task) {
         ? ["wire real Munch backend", "retry retrieval with scoped query", "keep edits blocked until evidence is live"]
         : ["read exact target files natively", "prepare guarded edit plan if requested"],
       evidenceAuthority: mockEvidence ? "mock" : "live",
+      sourceKind: mockEvidence ? "mock" : "authoritative",
+      retrievalMode: mockEvidence ? "mock" : "live",
+      authorityLevel: mockEvidence ? "planning-only" : "authoritative",
+      degraded: mockEvidence,
+      degradationReason: mockEvidence ? "mock retrieval is non-authoritative" : null,
+      planningAllowed: true,
+      narrowingAllowed: true,
+      writeApprovalEligible: !mockEvidence,
+      applyEligible: !mockEvidence,
+      approvalEvidence: !mockEvidence,
       editAuthoritative: !mockEvidence,
     };
   }
@@ -2515,6 +2573,13 @@ function recordWardenDenialEvent(descriptor = {}, warden = {}) {
 }
 
 function recordRetrievalEvent(descriptorId, traceId, retrieval = {}) {
+  const evidenceContract = createMockEvidenceContract({
+    sourceSystem: retrieval.sourceSystem || "mock-retrieval",
+    evidenceId: retrieval.evidenceId || retrieval.id || descriptorId,
+    traceConfidence: retrieval.confidence || "low",
+    timestamp: new Date().toISOString(),
+    ...pickEvidenceContractFields(retrieval),
+  });
   return recordCystEvent({
     eventType: "retrieval_event",
     descriptorId,
@@ -2526,14 +2591,35 @@ function recordRetrievalEvent(descriptorId, traceId, retrieval = {}) {
     errorCode: retrieval.status === "fail" ? "MUNCH_MOCK_FAILED" : null,
     backend: retrieval.backend,
     confidence: retrieval.confidence,
-    evidenceAuthority: retrieval.evidenceAuthority || "mock",
-    editAuthoritative: retrieval.editAuthoritative === true,
+    ...evidenceContract,
     mode: retrieval.mode || "passive_assist",
+    decision: evidenceContract.writeApprovalEligible ? "allow_write_evidence" : "planning_only",
+    reason: evidenceContract.operatorWarning,
+    invoked: false,
     warnings: retrieval.warnings || [],
     lifecycleState: "evidence_ready",
     previousLifecycleState: "routed",
     timestamp: new Date().toISOString(),
   });
+}
+
+function pickEvidenceContractFields(source = {}) {
+  return Object.fromEntries(Object.entries({
+    sourceKind: source.sourceKind,
+    retrievalMode: source.retrievalMode,
+    authorityLevel: source.authorityLevel,
+    evidenceAuthority: source.evidenceAuthority,
+    degraded: source.degraded,
+    degradationReason: source.degradationReason,
+    planningAllowed: source.planningAllowed,
+    narrowingAllowed: source.narrowingAllowed,
+    writeApprovalEligible: source.writeApprovalEligible,
+    applyEligible: source.applyEligible,
+    approvalEvidence: source.approvalEvidence,
+    editAuthoritative: source.editAuthoritative,
+    provenanceSummary: source.provenanceSummary,
+    operatorWarning: source.operatorWarning,
+  }).filter(([, value]) => value !== undefined));
 }
 
 function recordTrialRunEvent(result = {}) {

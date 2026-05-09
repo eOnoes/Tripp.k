@@ -758,18 +758,20 @@
 
   function renderRetrieval(retrieval) {
     if (!retrieval) return "";
-    const authority = retrieval.evidenceAuthority || (retrieval.mock ? "mock" : "unknown");
-    const editAuthority = retrieval.editAuthoritative === true ? "edit-authoritative" : "planning-only";
+    const sourceKind = retrieval.sourceKind || retrieval.evidenceAuthority || (retrieval.mock ? "mock" : "unknown");
+    const authority = retrieval.authorityLevel || (retrieval.editAuthoritative === true ? "authoritative" : "planning-only");
+    const badge = sourceKind === "mock" ? "MOCK EVIDENCE" : sourceKind.toUpperCase();
+    const warning = retrieval.operatorWarning || "This evidence comes from mock retrieval and cannot authorize file changes.";
 
     return `
       <section class="retrieval-detail">
         <strong>${escapeHtml(retrieval.backend || "munch")} · ${escapeHtml(retrieval.confidence || "low")}</strong>
-        <div class="authority-strip ${escapeHtml(authority)}">
-          <span>${escapeHtml(authority.toUpperCase())}</span>
-          <b>${escapeHtml(editAuthority)}</b>
+        <div class="authority-strip ${escapeHtml(sourceKind)}">
+          <span>${escapeHtml(badge)}</span>
+          <b>${escapeHtml(authority)}</b>
         </div>
         <p>${escapeHtml((retrieval.summary || []).join(" "))}</p>
-        <p class="mock-note">${escapeHtml((retrieval.warnings || []).join(" "))}</p>
+        <p class="mock-note">${escapeHtml(`${warning} ${(retrieval.warnings || []).join(" ")}`)}</p>
         <small>${escapeHtml((retrieval.fallback_chain || []).join(" -> "))}</small>
       </section>
     `;
@@ -790,7 +792,7 @@
         <p>${escapeHtml(gate.summary || "")}</p>
         ${
           gate.evidenceAuthority
-            ? `<div class="authority-strip ${escapeHtml(gate.evidenceAuthority)}"><span>${escapeHtml(gate.evidenceAuthority.toUpperCase())}</span><b>${escapeHtml(gate.editAuthoritative ? "edit-authoritative" : "edit blocked")}</b></div>`
+            ? `<div class="authority-strip ${escapeHtml(gate.sourceKind || gate.evidenceAuthority)}"><span>${escapeHtml(gate.sourceKind === "mock" ? "MOCK EVIDENCE" : gate.evidenceAuthority.toUpperCase())}</span><b>${escapeHtml(gate.authorityLevel || (gate.editAuthoritative ? "authoritative" : "planning-only"))}</b></div>`
             : ""
         }
         <div class="gate-grid">
@@ -822,8 +824,9 @@
     const tests = traceMap.rollback_surface?.tests || traceMap.tests || [];
     const warnings = uniqueStrings([...(traceMap.warnings || []), ...(verification.warnings || [])]);
     const blockers = verification.blocking || [];
-    const authority = traceMap.evidenceAuthority || (traceMap.mock ? "mock" : "unknown");
-    const editAuthority = traceMap.editAuthoritative === true ? "edit-authoritative" : "planning-only";
+    const sourceKind = traceMap.sourceKind || traceMap.evidenceAuthority || (traceMap.mock ? "mock" : "unknown");
+    const authority = traceMap.authorityLevel || (traceMap.editAuthoritative === true ? "authoritative" : "planning-only");
+    const badge = sourceKind === "mock" ? "MOCK EVIDENCE" : sourceKind.toUpperCase();
     const auditorNote =
       checks.docsOnly && isTraceEditIntent(traceMap.task)
         ? "Docs-only owner surface blocks edit approval."
@@ -842,9 +845,9 @@
           <b>${escapeHtml(traceMap.rollback_surface?.scope || "unresolved")}</b>
           <b>${escapeHtml(traceMap.trace?.traceId || traceMap.traceId || "trace")}</b>
         </div>
-        <div class="authority-strip ${escapeHtml(authority)}">
-          <span>${escapeHtml(authority.toUpperCase())}</span>
-          <b>${escapeHtml(editAuthority)}</b>
+        <div class="authority-strip ${escapeHtml(sourceKind)}">
+          <span>${escapeHtml(badge)}</span>
+          <b>${escapeHtml(authority)}</b>
         </div>
         <dl>
           <div><dt>SRC</dt><dd>${escapeHtml(traceMap.trace?.source || "trace-drone")}</dd></div>

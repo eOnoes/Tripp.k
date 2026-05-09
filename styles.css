@@ -1209,10 +1209,16 @@ button {
   text-transform: uppercase;
 }
 
-.authority-strip.mock {
+.authority-strip.mock,
+.authority-strip.passive {
   border-color: #343400;
   background: #0b0b02;
   color: var(--lime);
+}
+
+.authority-strip.authoritative {
+  border-color: #1f5f1f;
+  background: #061006;
 }
 
 .authority-strip b {
