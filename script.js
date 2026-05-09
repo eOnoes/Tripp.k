@@ -483,7 +483,9 @@
   }
 
   function buildPlanningSummary() {
-    const recentTasks = state.tasks.filter((task) => task.status !== "pending" && task.status !== "patch_ready").slice(0, 6);
+    const completedTasks = state.tasks.filter((task) => task.status !== "pending" && task.status !== "patch_ready");
+    const recentTasks = completedTasks.slice(0, 6);
+    const olderRelevantTasks = completedTasks.slice(6, 12);
     const inspected = uniqueList(
       recentTasks
         .filter((task) => task.kind === "inspect" || task.tool === "filesystem_read")
@@ -491,6 +493,14 @@
         .filter(Boolean),
     );
     const blocked = recentTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
+    const olderBlocked = olderRelevantTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
+    const olderBranchContext = olderRelevantTasks.some(
+      (task) =>
+        isGateBranchRetrieval(task) ||
+        isCystRenderingBranchRetrieval(task) ||
+        isBlockedOutcomeRecoveryRetrieval(task) ||
+        isEnforcementBranchRetrieval(task),
+    );
     const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
     const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
     const hasBranchRetrieval = recentTasks.some((task) => isGateBranchRetrieval(task));
@@ -535,6 +545,7 @@
       hasBranchReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
       hasBranchReview ? "The current branch ranking reflects usefulness for review, not final certainty." : null,
       hasBranchReview ? "The UI branch improved presentation context, but additional review may still be needed to fully connect display behavior to gate results." : null,
+      olderBranchContext ? "Earlier branch context remains available but is outside the most recent task window." : null,
       planningOnly ? "Mock or planning-only evidence remains non-authoritative for file changes." : null,
       inspected.length ? null : "No files have been inspected in the recent read-only thread.",
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
@@ -543,6 +554,8 @@
       ? ["A write-like shell or escalation path was blocked to preserve read-only mode.", "No write-capable route was used."]
       : blocked
         ? `${blocked} read-only boundary preserved`
+        : olderBlocked
+          ? "Earlier blocked read-only outcome remains relevant."
         : "No blocked read-only tasks";
 
     return {

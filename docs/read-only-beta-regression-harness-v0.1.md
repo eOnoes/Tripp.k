@@ -52,6 +52,12 @@ This harness keeps the read-only beta claim tied to repeatable proof instead of 
    - Cover inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.
    - Confirm the session remains coherent beyond a short happy path.
 
+8. Branch Rolloff Session
+   - Start with branch context and a blocked read-only outcome.
+   - Add enough read-only tasks to push that context outside the immediate task window.
+   - Preserve older blocked outcomes and relevant branch context in compact Current Understanding copy.
+   - Keep Cyst as the full audit trail.
+
 ## Operator-Independence Questions
 
 An operator should be able to answer these from Tripp.g alone:
@@ -123,6 +129,7 @@ Block or pull back the beta claim if any of these occur:
 - `contradiction recovery read-only acceptance flow`
 - `Warden-vs-adapter ambiguity acceptance flow`
 - `longer read-only repeatability acceptance flow`
+- `branch rolloff read-only acceptance flow`
 - `operator independence artifact`
 - Cyst lifecycle and gate event checks
 - read-only wording guardrails

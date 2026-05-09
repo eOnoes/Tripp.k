@@ -182,6 +182,7 @@ try {
   const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
+  const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
   const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
   const conclusionForbiddenTerms = [
     "approved",
@@ -273,6 +274,9 @@ try {
     appScript.includes("What remains uncertain") &&
     appScript.includes("Blocked in read-only mode") &&
     appScript.includes("Next read-only direction") &&
+    appScript.includes("olderRelevantTasks") &&
+    appScript.includes("Earlier branch context remains available but is outside the most recent task window.") &&
+    appScript.includes("Earlier blocked read-only outcome remains relevant.") &&
     appScript.includes("Two plausible review paths emerged from planning-only retrieval.") &&
     appScript.includes("Inspection of server.mjs provided stronger direct context for the current gate question.") &&
     appScript.includes("Inspection of script.js added result-display context, but was less central to the current gate question.") &&
@@ -408,6 +412,8 @@ try {
     betaRegressionHarness.includes("contradiction recovery read-only acceptance flow") &&
     betaRegressionHarness.includes("Warden-vs-adapter ambiguity acceptance flow") &&
     betaRegressionHarness.includes("longer read-only repeatability acceptance flow") &&
+    betaRegressionHarness.includes("Branch Rolloff Session") &&
+    betaRegressionHarness.includes("branch rolloff read-only acceptance flow") &&
     betaRegressionHarness.includes("Operator-Independence Artifact") &&
     betaRegressionHarness.includes("artifactType: \"operator_independence_check\"") &&
     betaRegressionHarness.includes("checks.understandableWithoutSidecar") &&
@@ -461,6 +467,17 @@ try {
     readOnly80Gate.includes("Still Out Of Scope At 80%") &&
     readOnly80Gate.includes("edit/build replacement") &&
     readOnly80Gate.includes("live file mutation") &&
+    readOnly85Gate.includes("Read-Only 85 Percent Gate v0.1") &&
+    readOnly85Gate.includes("does not change the current 80% read-only Goose replacement estimate") &&
+    readOnly85Gate.includes("Required Proof Before 85%") &&
+    readOnly85Gate.includes("Broader read-only session variety") &&
+    readOnly85Gate.includes("Branch rolloff proof") &&
+    readOnly85Gate.includes("older blocked read-only outcomes remain visible longer than ordinary findings") &&
+    readOnly85Gate.includes("runtime acceptance lane passes") &&
+    readOnly85Gate.includes("Synthesis quality under partial evidence") &&
+    readOnly85Gate.includes("Beta release discipline") &&
+    readOnly85Gate.includes("Branch Rolloff Policy") &&
+    readOnly85Gate.includes("branch_rolloff_keeps_older_blocked_readonly_outcomes_visible") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
@@ -1488,6 +1505,84 @@ try {
   console.log(`${longSessionAcceptancePass ? "PASS" : "FAIL"} beta: longer read-only repeatability acceptance flow`);
   if (!longSessionAcceptancePass) {
     failures.push({ name: "longer read-only repeatability acceptance" });
+  }
+
+  const rolloffSessionId = "verify-readonly-branch-rolloff";
+  const rolloffRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files likely explain how blocked outcomes are surfaced to the operator: policy handling or UI rendering behavior?",
+    mode: "AUTO",
+    sessionId: rolloffSessionId,
+  });
+  const rolloffBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: rolloffSessionId,
+  });
+  const rolloffInspectReadme = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: rolloffSessionId,
+  });
+  const rolloffSafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: rolloffSessionId,
+  });
+  const rolloffInspectServer = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: rolloffSessionId,
+  });
+  const rolloffAnalysis = await postJson("/api/tripp/reply", {
+    prompt: "analyze server.mjs",
+    mode: "AUTO",
+    sessionId: rolloffSessionId,
+  });
+  const rolloffInspectScript = await postJson("/api/tripp/reply", {
+    prompt: "inspect script.js",
+    mode: "AUTO",
+    sessionId: rolloffSessionId,
+  });
+  const rolloffGitStatus = await postJson("/api/tripp/reply", {
+    prompt: "git status",
+    mode: "AUTO",
+    sessionId: rolloffSessionId,
+  });
+  const rolloffGate = await postJson("/api/tripp/trials/read-only", {});
+  const rolloffCyst = await getJson("/api/tripp/cyst/events");
+  const rolloffTaskIds = [
+    rolloffRetrieval.task?.id,
+    rolloffBlockedShell.task?.id,
+    rolloffInspectReadme.task?.id,
+    rolloffSafeShell.task?.id,
+    rolloffInspectServer.task?.id,
+    rolloffAnalysis.task?.id,
+    rolloffInspectScript.task?.id,
+    rolloffGitStatus.task?.id,
+    rolloffGate.task?.id,
+  ].filter(Boolean);
+  const rolloffCystEvents = rolloffCyst.events?.filter((event) => rolloffTaskIds.includes(event.descriptorId) || event.descriptorId === rolloffGate.id) || [];
+  const branchRolloffAcceptancePass =
+    rolloffRetrieval.task?.status === "retrieval_ready" &&
+    rolloffRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    rolloffBlockedShell.task?.status === "gated" &&
+    !rolloffBlockedShell.task?.adapter &&
+    rolloffInspectReadme.task?.status === "inspected" &&
+    rolloffSafeShell.task?.status === "completed" &&
+    rolloffInspectServer.task?.status === "inspected" &&
+    rolloffAnalysis.task?.status === "completed" &&
+    rolloffInspectScript.task?.status === "inspected" &&
+    rolloffGitStatus.task?.status === "completed" &&
+    rolloffGate.suiteStatus === "go" &&
+    rolloffGate.task?.goNoGo?.suiteStatus === "go" &&
+    rolloffCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === rolloffRetrieval.task?.id) &&
+    rolloffCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === rolloffBlockedShell.task?.id) &&
+    rolloffCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === rolloffGate.id && event.gateStage === "completed") &&
+    appScript.includes("Earlier blocked read-only outcome remains relevant.") &&
+    appScript.includes("Earlier branch context remains available but is outside the most recent task window.");
+  console.log(`${branchRolloffAcceptancePass ? "PASS" : "FAIL"} beta: branch rolloff read-only acceptance flow`);
+  if (!branchRolloffAcceptancePass) {
+    failures.push({ name: "branch rolloff read-only acceptance" });
   }
 
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({
