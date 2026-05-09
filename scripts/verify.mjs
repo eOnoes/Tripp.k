@@ -254,10 +254,12 @@ try {
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
     serverSource.includes("createReadOnlyGoNoGo") &&
+    serverSource.includes("createReadOnlySuiteSummary") &&
+    serverSource.includes("isCompleteReadOnlyScenario") &&
     serverSource.includes("expectedAdapterInvoked") &&
     serverSource.includes("normalizeReadOnlyScenarioResult") &&
     serverSource.includes("scenarioResults") &&
-    serverSource.includes("readonly-trial-matrix-v0.1");
+    serverSource.includes("missingScenarioIds");
   console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
   if (!workspacePass) {
     failures.push({ name: "workspace" });
@@ -695,13 +697,20 @@ try {
   const tasksAfterTrial = await getJson("/api/tripp/tasks");
   const trialPass =
     trialRun.status === "pass" &&
-    trialRun.matrixVersion === "readonly-trial-matrix-v0.1" &&
-    trialRun.goCriteriaVersion === "readonly-go-criteria-v0.1" &&
+    trialRun.matrixVersion === "0.1" &&
+    trialRun.goCriteriaVersion === "0.1" &&
     trialRun.suiteStatus === "go" &&
-    trialRun.goNoGo?.decision === "go" &&
-    trialRun.goNoGo?.goCriteriaVersion === "readonly-go-criteria-v0.1" &&
-    trialRun.goNoGo?.categories?.length === 5 &&
-    trialRun.goNoGo?.categories?.every((category) => category.pass === true) &&
+    trialRun.goNoGo === "go" &&
+    trialRun.suiteSummary?.suiteStatus === "go" &&
+    trialRun.suiteSummary?.goNoGo === "go" &&
+    trialRun.suiteSummary?.matrixVersion === "0.1" &&
+    trialRun.suiteSummary?.goCriteriaVersion === "0.1" &&
+    trialRun.suiteSummary?.categories?.length === 6 &&
+    trialRun.suiteSummary?.categories?.every((category) => category.pass === true) &&
+    trialRun.suiteSummary?.missingScenarioIds?.length === 0 &&
+    trialRun.suiteSummary?.incompleteScenarioIds?.length === 0 &&
+    trialRun.suiteSummary?.blockingReasons?.length === 0 &&
+    trialRun.suiteSummary?.requiredScenarioCount === 5 &&
     trialRun.trials?.length === 6 &&
     trialRun.trials?.every((trial) => trial.pass === true) &&
     trialRun.trials?.every((trial) => Array.isArray(trial.expectedCystEvents) && trial.expectedFinalState) &&
@@ -730,7 +739,7 @@ try {
         scenario.actual?.cystEventTypes?.includes("write_escalation_blocked"),
     ) &&
     tasksAfterTrial.tasks?.some(
-      (task) => task.id === trialRun.task?.id && task.status === "completed" && task.goNoGo?.decision === "go",
+      (task) => task.id === trialRun.task?.id && task.status === "completed" && task.goNoGo?.suiteStatus === "go",
     );
   console.log(`${trialPass ? "PASS" : "FAIL"} trials: read-only harness suite`);
   if (!trialPass) {

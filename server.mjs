@@ -827,18 +827,19 @@ function runReadOnlyHarnessTrials() {
     runMockRetrievalWriteEscalationTrial(),
   ];
   const scenarioResults = trials.map(normalizeReadOnlyScenarioResult);
-  const goNoGo = createReadOnlyGoNoGo(scenarioResults);
-  const task = createTrialTask(trials, goNoGo.decision === "go", startedAt, goNoGo);
+  const suiteSummary = createReadOnlySuiteSummary(scenarioResults);
+  const task = createTrialTask(trials, suiteSummary.suiteStatus === "go", startedAt, suiteSummary);
   const result = {
     id: `trial-run-${Date.now()}`,
-    matrixVersion: "readonly-trial-matrix-v0.1",
-    goCriteriaVersion: "readonly-go-criteria-v0.1",
-    status: goNoGo.decision === "go" ? "pass" : "fail",
-    suiteStatus: goNoGo.decision,
-    goNoGo,
+    matrixVersion: "0.1",
+    goCriteriaVersion: "0.1",
+    status: suiteSummary.suiteStatus === "go" ? "pass" : "fail",
+    suiteStatus: suiteSummary.suiteStatus,
+    goNoGo: suiteSummary.suiteStatus,
+    suiteSummary,
     startedAt,
     finishedAt: new Date().toISOString(),
-    summary: goNoGo.decision === "go"
+    summary: suiteSummary.suiteStatus === "go"
       ? "Read-only harness trials passed. Warden, Router, Adapter, Cyst, and UI task projection are wired for trial mode."
       : "Read-only harness trials found a blocking issue.",
     scenarioResults,
@@ -877,7 +878,20 @@ function normalizeReadOnlyScenarioResult(trial = {}) {
   };
 }
 
-function createReadOnlyGoNoGo(scenarios = []) {
+function createReadOnlySuiteSummary(scenarios = []) {
+  const requiredScenarioIds = [
+    "readonly_retrieval_allowed",
+    "readonly_inspect_allowed",
+    "readonly_safe_shell_allowed",
+    "readonly_unsafe_shell_blocked",
+    "mock_retrieval_write_escalation_blocked",
+  ];
+  const missingScenarioIds = requiredScenarioIds.filter(
+    (scenarioId) => !scenarios.some((scenario) => scenario.scenarioId === scenarioId),
+  );
+  const incompleteScenarioIds = scenarios
+    .filter((scenario) => !isCompleteReadOnlyScenario(scenario))
+    .map((scenario) => scenario.scenarioId || scenario.legacyTrialId || "unknown");
   const categories = [
     createTrialGate("warden", "Warden decisions are present before tool paths.", scenarios.every((scenario) => Boolean(scenario.actual.wardenResult))),
     createTrialGate(
@@ -902,21 +916,52 @@ function createReadOnlyGoNoGo(scenarios = []) {
       ),
     ),
     createTrialGate("ui_projection", "Each scenario has operator-facing evidence labels.", scenarios.every((scenario) => Boolean(scenario.uiEvidenceLabel))),
+    createTrialGate("required_scenarios", "All required read-only scenarios are present and complete.", !missingScenarioIds.length && !incompleteScenarioIds.length),
   ];
   const failed = categories.filter((category) => !category.pass);
+  const suiteStatus = failed.length || scenarios.some((scenario) => scenario.status !== "pass") ? "no_go" : "go";
   return {
-    decision: failed.length ? "no_go" : "go",
-    suiteStatus: failed.length ? "no_go" : "go",
-    goCriteriaVersion: "readonly-go-criteria-v0.1",
-    summary: failed.length ? "Read-only trial gate is blocked." : "Read-only trial gate is ready.",
+    matrixVersion: "0.1",
+    goCriteriaVersion: "0.1",
+    suiteStatus,
+    goNoGo: suiteStatus,
+    decision: suiteStatus,
+    summary: suiteStatus === "go" ? "Read-only trial gate is ready." : "Read-only trial gate is blocked.",
     categories,
     passed: categories.filter((category) => category.pass).length,
     total: categories.length,
     passedCount: scenarios.filter((scenario) => scenario.status === "pass").length,
     failedCount: scenarios.filter((scenario) => scenario.status !== "pass").length,
-    requiredScenarioCount: scenarios.length,
+    requiredScenarioCount: requiredScenarioIds.length,
+    missingScenarioIds,
+    incompleteScenarioIds,
+    blockingReasons: [
+      ...failed.map((category) => category.id),
+      ...missingScenarioIds.map((scenarioId) => `missing:${scenarioId}`),
+      ...incompleteScenarioIds.map((scenarioId) => `incomplete:${scenarioId}`),
+    ],
     blockers: failed.map((category) => category.id),
   };
+}
+
+const createReadOnlyGoNoGo = createReadOnlySuiteSummary;
+
+function isCompleteReadOnlyScenario(scenario = {}) {
+  return Boolean(
+    scenario.scenarioId &&
+      scenario.status &&
+      scenario.expected?.wardenResult &&
+      scenario.actual?.wardenResult &&
+      Object.hasOwn(scenario.expected || {}, "adapterRoute") &&
+      Object.hasOwn(scenario.actual || {}, "adapterRoute") &&
+      Object.hasOwn(scenario.expected || {}, "adapterInvoked") &&
+      Object.hasOwn(scenario.actual || {}, "adapterInvoked") &&
+      Array.isArray(scenario.expected?.cystEventTypes) &&
+      Array.isArray(scenario.actual?.cystEventTypes) &&
+      scenario.expected?.finalLifecycleState &&
+      scenario.actual?.finalLifecycleState &&
+      scenario.uiEvidenceLabel,
+  );
 }
 
 function createTrialGate(id, label, pass) {
