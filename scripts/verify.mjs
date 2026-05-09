@@ -428,22 +428,55 @@ try {
     betaRegressionHarness.includes("scoped beta release artifact checks") &&
     betaReleaseNotes.includes("Read-Only Beta Release Notes v0.1") &&
     betaReleaseNotes.includes("scoped beta release artifact") &&
+    betaReleaseNotes.includes("Tripp.g is currently a scoped read-only beta for structured and moderately ambiguous planning/review workflows.") &&
     betaReleaseNotes.includes("This beta covers structured and moderately ambiguous read-only planning/review workflows.") &&
+    betaReleaseNotes.includes("TASKS conclusions for completed read-only work") &&
+    betaReleaseNotes.includes("Current Understanding synthesis for recent read-only session context") &&
+    betaReleaseNotes.includes("Cyst audit timeline for activity truth") &&
+    betaReleaseNotes.includes("Formal Read-Only Gate review with GO / NO GO scoped to harness readiness") &&
     betaReleaseNotes.includes("Current behavior is read-only.") &&
+    betaReleaseNotes.includes("Current behavior is read-only. Tripp.g does not enable live writes, edit/build workflows, or approval/apply flows in this beta.") &&
     betaReleaseNotes.includes("No runtime mutation path is enabled.") &&
     betaReleaseNotes.includes("No approval/apply capability exists in this beta.") &&
     betaReleaseNotes.includes("Gate GO means read-only harness readiness only.") &&
     betaReleaseNotes.includes("Gate GO does not imply write readiness, edit readiness, approval readiness, or implementation readiness.") &&
+    betaReleaseNotes.includes("Read-Only Gate GO / NO GO reflects current read-only harness readiness only. It does not imply edit readiness, approval readiness, or write capability.") &&
     betaReleaseNotes.includes("Mock or planning-only evidence is non-authoritative and cannot authorize file changes.") &&
+    betaReleaseNotes.includes("Mock or planning-only retrieval is non-authoritative. It can support review and narrowing, but it cannot authorize file changes.") &&
+    betaReleaseNotes.includes("Current readiness applies only to structured/moderately ambiguous read-only planning/review. It does not claim broad Goose parity or implementation replacement.") &&
+    betaReleaseNotes.includes("TASKS provides per-task conclusions and outcome interpretation.") &&
+    betaReleaseNotes.includes("Current Understanding summarizes the recent read-only planning thread.") &&
+    betaReleaseNotes.includes("Cyst records audit/timeline truth and blocked/allowed event history.") &&
+    betaReleaseNotes.includes("Read-Only Gate reports formal read-only harness status.") &&
+    betaReleaseNotes.includes("Current Understanding: read what Tripp currently knows, what remains uncertain, what is blocked, and the next read-only direction.") &&
     betaReleaseNotes.includes("Cyst: review audit truth and event ordering only; Cyst is not the conclusion surface.") &&
     betaReleaseNotes.includes("operator-independence artifact is acceptance evidence") &&
     betaReleaseNotes.includes("This beta does not include live writes, edit/build replacement, approval/apply capability, or general reasoning parity with Goose.") &&
     betaReleaseNotes.includes("beta_release_notes_include_readonly_only_scope") &&
+    betaReleaseNotes.includes("beta_release_notes_include_scoped_readonly_beta_statement") &&
+    betaReleaseNotes.includes("beta_release_notes_list_included_readonly_surfaces_and_flows") &&
+    betaReleaseNotes.includes("beta_release_notes_exclude_edit_build_and_live_write_claims") &&
     betaReleaseNotes.includes("beta_known_limitations_include_no_live_writes_and_no_edit_build_replacement") &&
+    betaReleaseNotes.includes("known_limitations_include_readonly_only_scope") &&
+    betaReleaseNotes.includes("known_limitations_include_no_live_writes_and_no_approval_apply") &&
+    betaReleaseNotes.includes("known_limitations_include_mock_evidence_non_authoritative_disclaimer") &&
+    betaReleaseNotes.includes("known_limitations_include_no_edit_build_replacement_claim") &&
     betaReleaseNotes.includes("beta_docs_state_mock_evidence_is_non_authoritative") &&
     betaReleaseNotes.includes("beta_gate_go_does_not_imply_write_readiness") &&
     betaReleaseNotes.includes("beta_operator_usage_note_keeps_cyst_as_audit_truth") &&
+    betaReleaseNotes.includes("operator_usage_note_assigns_tasks_as_interpretation_surface") &&
+    betaReleaseNotes.includes("operator_usage_note_assigns_current_understanding_as_session_synthesis_surface") &&
+    betaReleaseNotes.includes("operator_usage_note_assigns_cyst_as_audit_timeline_only") &&
+    betaReleaseNotes.includes("operator_usage_note_assigns_gate_as_readonly_harness_check_only") &&
     betaReleaseNotes.includes("beta_wording_does_not_imply_general_goose_replacement") &&
+    betaReleaseNotes.includes("beta_docs_do_not_use_write_readiness_language") &&
+    betaReleaseNotes.includes("beta_docs_do_not_use_broad_goose_replacement_language") &&
+    betaReleaseNotes.includes("beta_docs_do_not_overstate_gate_go_scope") &&
+    betaReleaseNotes.includes("beta_docs_do_not_overstate_mock_or_planning_only_evidence") &&
+    betaReleaseNotes.includes("beta_artifacts_require_scoped_readonly_statement_before_beta_label") &&
+    betaReleaseNotes.includes("beta_artifacts_require_known_limitations_before_beta_label") &&
+    betaReleaseNotes.includes("beta_artifacts_require_gate_go_no_go_disclaimer_before_beta_label") &&
+    betaReleaseNotes.includes("beta_artifacts_require_mock_evidence_disclaimer_before_beta_label") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
