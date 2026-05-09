@@ -206,8 +206,14 @@ try {
     appScript.includes("renderGoNoGoSummary") &&
     appScript.includes("formatGateDiagnosticLine") &&
     appScript.includes("renderGateBlockingReasons") &&
-    appScript.includes("blocking reasons: none") &&
-    appScript.includes("required:${goNoGo.requiredScenarioCount") &&
+    appScript.includes("formatGateVerdict") &&
+    appScript.includes("formatGateSummary") &&
+    appScript.includes("formatGatePassCount") &&
+    appScript.includes("formatScenarioName") &&
+    appScript.includes("All required read-only scenarios passed") &&
+    appScript.includes("Read-only gate failed one or more required checks") &&
+    appScript.includes("Blocking Reasons") &&
+    appScript.includes("Malformed mixed:") &&
     appScript.includes("formatTrialExpected") &&
     appScript.includes("formatTrialRoute") &&
     appScript.includes("formatTrialCystTypes") &&

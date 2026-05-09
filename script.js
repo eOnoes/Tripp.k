@@ -890,7 +890,7 @@
       <section class="trial-detail">
         <header>
           <strong>Read-Only Gate</strong>
-          <span>${escapeHtml(goNoGo ? `${goNoGo.decision} ${goNoGo.passed}/${goNoGo.total}` : `${passCount}/${trials.length}`)}</span>
+          <span>${escapeHtml(goNoGo ? formatGateVerdict(goNoGo) : `${passCount}/${trials.length}`)}</span>
         </header>
         ${renderGoNoGoSummary(goNoGo)}
         <div class="trial-list">
@@ -898,7 +898,7 @@
             .map(
               (trial) => `
                 <article class="${(trial.status || (trial.pass ? "pass" : "fail")) === "pass" ? "pass" : "fail"}">
-                  <b>${escapeHtml(trial.title || trial.id)}</b>
+                  <b>${escapeHtml(formatScenarioName(trial))}</b>
                   <small>${escapeHtml(formatTrialExpected(trial))}</small>
                   <dl>
                     <div><dt>WARDEN</dt><dd>${escapeHtml(trial.actual?.wardenResult || trial.wardenState || "none")}</dd></div>
@@ -923,6 +923,19 @@
     return trial.expected || "";
   }
 
+  function formatScenarioName(trial) {
+    const scenarioId = trial.scenarioId || trial.legacyTrialId || trial.id || "";
+    const names = {
+      readonly_retrieval_allowed: "Read-only retrieval allowed",
+      readonly_inspect_allowed: "Read-only inspect allowed",
+      readonly_safe_shell_allowed: "Safe shell allowed",
+      readonly_unsafe_shell_blocked: "Unsafe shell blocked",
+      mock_retrieval_write_escalation_blocked: "Mock retrieval write escalation blocked",
+      prompt_block_denied: "Prompt block denied",
+    };
+    return names[scenarioId] || trial.title || trial.id || "Read-only scenario";
+  }
+
   function formatTrialRoute(value) {
     return Array.isArray(value) ? value.join(" / ") : value || "none";
   }
@@ -944,31 +957,51 @@
     if (!goNoGo) return "";
     return `
       <div class="go-no-go ${escapeHtml(goNoGo.decision || "no_go")}">
-        <b>${escapeHtml((goNoGo.decision || "no_go").toUpperCase())}</b>
-        <span>${escapeHtml(goNoGo.summary || "")}</span>
+        <b>${escapeHtml(formatGateVerdict(goNoGo))}</b>
+        <span>${escapeHtml(formatGateSummary(goNoGo))}</span>
+        <small>${escapeHtml(formatGatePassCount(goNoGo))}</small>
         <small>${escapeHtml(formatGateDiagnosticLine(goNoGo))}</small>
         ${renderGateBlockingReasons(goNoGo)}
       </div>
     `;
   }
 
+  function formatGateVerdict(goNoGo) {
+    return String(goNoGo?.decision || goNoGo?.suiteStatus || "no_go").replace(/_/g, " ").toUpperCase();
+  }
+
+  function formatGateSummary(goNoGo) {
+    return formatGateVerdict(goNoGo) === "GO"
+      ? "All required read-only scenarios passed"
+      : "Read-only gate failed one or more required checks";
+  }
+
+  function formatGatePassCount(goNoGo) {
+    const passed = goNoGo?.passed ?? goNoGo?.passedCount ?? 0;
+    const required = goNoGo?.requiredScenarioCount ?? goNoGo?.total ?? "?";
+    return `${passed}/${required} passed`;
+  }
+
   function formatGateDiagnosticLine(goNoGo) {
     const parts = [
-      `required:${goNoGo.requiredScenarioCount ?? "?"}`,
-      `present:${goNoGo.presentScenarioCount ?? "?"}`,
-      `missing:${goNoGo.missingScenarioIds?.length || 0}`,
-      `duplicate:${goNoGo.duplicateScenarioIds?.length || 0}`,
-      `incomplete:${goNoGo.incompleteScenarioIds?.length || 0}`,
-      `malformed:${goNoGo.malformedMixedScenarioIds?.length || 0}`,
-      `failed:${goNoGo.failedScenarioIds?.length || 0}`,
+      `Missing: ${goNoGo.missingScenarioIds?.length || 0}`,
+      `Duplicate: ${goNoGo.duplicateScenarioIds?.length || 0}`,
+      `Incomplete: ${goNoGo.incompleteScenarioIds?.length || 0}`,
+      `Malformed mixed: ${goNoGo.malformedMixedScenarioIds?.length || 0}`,
+      `Failed: ${goNoGo.failedScenarioIds?.length || 0}`,
     ];
     return parts.join(" / ");
   }
 
   function renderGateBlockingReasons(goNoGo) {
     const reasons = goNoGo.blockingReasons || [];
-    if (!reasons.length) return `<small>${escapeHtml("blocking reasons: none")}</small>`;
-    return `<small>${escapeHtml(`blocking reasons: ${reasons.join(" / ")}`)}</small>`;
+    if (!reasons.length) return "";
+    return `
+      <div class="gate-blockers">
+        <strong>Blocking Reasons</strong>
+        ${reasons.map((reason) => `<span>${escapeHtml(reason)}</span>`).join("")}
+      </div>
+    `;
   }
 
   function renderAdapterEvidence(adapter) {
