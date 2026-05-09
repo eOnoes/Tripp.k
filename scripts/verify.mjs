@@ -180,6 +180,7 @@ try {
   const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
   const readinessScoreboard = readFileSync(new URL("../docs/tripp-readiness-scoreboard-v0.1.md", import.meta.url), "utf8");
   const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
+  const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
   const conclusionForbiddenTerms = [
     "approved",
@@ -374,6 +375,15 @@ try {
     betaRegressionHarness.includes("primary read-only beta acceptance flow") &&
     betaRegressionHarness.includes("multi-branch read-only ambiguity acceptance flow") &&
     betaRegressionHarness.includes("longer read-only repeatability acceptance flow") &&
+    futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
+    futureWriteContract.includes("design-only contract") &&
+    futureWriteContract.includes("This document must not enable live mutation paths.") &&
+    futureWriteContract.includes("Warden remains default-deny for every mutation-capable path.") &&
+    futureWriteContract.includes("Mock or planning-only evidence can never authorize file changes.") &&
+    futureWriteContract.includes("approval is bound to a preview fingerprint") &&
+    futureWriteContract.includes("stale approval blocks apply") &&
+    futureWriteContract.includes("Explicitly Out Of Scope Now") &&
+    futureWriteContract.includes("live file mutation") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
