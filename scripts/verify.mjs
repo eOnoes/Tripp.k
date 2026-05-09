@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 const port = 4199;
 const baseUrl = `http://127.0.0.1:${port}`;
+const workspaceRoot = process.cwd();
 const runtimeDir = mkdtempSync(join(tmpdir(), "tripp-runtime-verify-"));
 const extraRuntimeDirs = [];
 const extraServers = [];
@@ -397,6 +398,36 @@ try {
       trace: { traceId: "verify-sandbox", source: "supervisor", ownerId: "tripp.supervisor" },
     },
   });
+  const argsPathEscapeDescriptor = await postJson("/api/tripp/warden/precheck", {
+    descriptor: {
+      id: "verify-args-path",
+      type: "task_descriptor",
+      intent: "inspect",
+      target: "tool",
+      targetTool: "Developer.read",
+      workspaceRoot,
+      constraints: { allowedPaths: ["docs/"] },
+      args: { tool: "read", path: "../outside.md" },
+      budget: { maxTokens: 500 },
+      allowedTools: ["Developer.read"],
+      trace: { traceId: "verify-args-path", source: "supervisor", ownerId: "tripp.supervisor" },
+    },
+  });
+  const shellPathEscapeDescriptor = await postJson("/api/tripp/warden/precheck", {
+    descriptor: {
+      id: "verify-shell-path",
+      type: "task_descriptor",
+      intent: "inspect",
+      target: "tool",
+      targetTool: "Developer.shell",
+      workspaceRoot,
+      constraints: { allowedPaths: ["docs/"] },
+      args: { tool: "shell", command: "dir .." },
+      budget: { maxTokens: 500 },
+      allowedTools: ["Developer.shell"],
+      trace: { traceId: "verify-shell-path", source: "supervisor", ownerId: "tripp.supervisor" },
+    },
+  });
   const wardenPass =
     deniedPromptBlock.decision === "deny" &&
     deniedPromptBlock.denialReasons?.includes("PROMPT_BLOCK_EXECUTION_DENIED") &&
@@ -406,7 +437,9 @@ try {
     masqueradeDescriptor.denialReasons?.includes("PROMPT_BLOCK_FIELDS_IN_TASK_DESCRIPTOR") &&
     masqueradeDescriptor.terminalState === "DENIED_BEFORE_MUNCH" &&
     auditExecutionDescriptor.denialReasons?.includes("AUDIT_MODE_TOOL_EXECUTION_BLOCKED") &&
-    sandboxEscapeDescriptor.denialReasons?.includes("PATH_SANDBOX_ESCAPE");
+    sandboxEscapeDescriptor.denialReasons?.includes("PATH_SANDBOX_ESCAPE") &&
+    argsPathEscapeDescriptor.denialReasons?.includes("PATH_SANDBOX_ESCAPE") &&
+    shellPathEscapeDescriptor.denialReasons?.includes("PATH_SANDBOX_ESCAPE");
   console.log(`${wardenPass ? "PASS" : "FAIL"} warden: descriptor precheck`);
   if (!wardenPass) {
     failures.push({ name: "warden precheck" });
@@ -459,6 +492,14 @@ try {
     route: { ...adapterRoute, tool: "Developer.shell" },
     descriptor: { ...adapterBaseDescriptor, targetTool: "Developer.shell", args: { tool: "shell", command: "git push origin main" } },
   });
+  const adapterShellEscape = await postJson("/api/tripp/executor/goose-adapter", {
+    route: { ...adapterRoute, tool: "Developer.shell" },
+    descriptor: { ...adapterBaseDescriptor, targetTool: "Developer.shell", args: { tool: "shell", command: "dir .." } },
+  });
+  const adapterShellChain = await postJson("/api/tripp/executor/goose-adapter", {
+    route: { ...adapterRoute, tool: "Developer.shell" },
+    descriptor: { ...adapterBaseDescriptor, targetTool: "Developer.shell", args: { tool: "shell", command: "echo hello & del README.md" } },
+  });
   const adapterPass =
     adapterRead.status === "ok" &&
     adapterRead.result?.shaped?.type === "file_content" &&
@@ -471,7 +512,11 @@ try {
     adapterMissingWarden.error?.code === "WARDEN_MISSING" &&
     adapterRouteMismatch.error?.code === "ROUTE_DESTINATION_MISMATCH" &&
     adapterBlockedEdit.error?.code === "GOOSE_WRITE_BLOCKED" &&
-    adapterBlockedShell.error?.code === "GIT_WRITE_BLOCKED";
+    adapterBlockedShell.error?.code === "GIT_WRITE_BLOCKED" &&
+    adapterShellEscape.error?.code === "PATH_SANDBOX_ESCAPE" &&
+    adapterShellEscape.invoked === false &&
+    adapterShellChain.error?.code === "SHELL_COMMAND_BLOCKED" &&
+    adapterShellChain.invoked === false;
   console.log(`${adapterPass ? "PASS" : "FAIL"} executor: goose adapter read-only gates`);
   if (!adapterPass) {
     failures.push({ name: "goose adapter" });
@@ -480,7 +525,10 @@ try {
   const cystSnapshot = await getJson("/api/tripp/cyst/events");
   const cystPass =
     cystSnapshot.events?.some((event) => event.descriptorId === "verify-adapter" && event.resultStatus === "ok") &&
-    cystSnapshot.events?.some((event) => event.descriptorId === "verify-adapter" && event.errorCode === "GIT_WRITE_BLOCKED");
+    cystSnapshot.events?.some((event) => event.descriptorId === "verify-adapter" && event.errorCode === "GIT_WRITE_BLOCKED") &&
+    cystSnapshot.events?.some(
+      (event) => event.eventType === "warden_denial" && event.denialReasons?.includes("PROMPT_BLOCK_EXECUTION_DENIED"),
+    );
   console.log(`${cystPass ? "PASS" : "FAIL"} cyst: adapter events persisted`);
   if (!cystPass) {
     failures.push({ name: "cyst events" });
@@ -497,6 +545,16 @@ try {
   console.log(`${trialPass ? "PASS" : "FAIL"} trials: read-only harness suite`);
   if (!trialPass) {
     failures.push({ name: "read-only trials" });
+  }
+
+  const cystAfterTrial = await getJson("/api/tripp/cyst/events");
+  const cystLifecyclePass =
+    cystAfterTrial.events?.some((event) => event.eventType === "trial_run" && event.descriptorId === trialRun.id) &&
+    cystAfterTrial.events?.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === trialRun.task?.id) &&
+    cystAfterTrial.events?.some((event) => event.eventType === "retrieval_event" && event.descriptorId === "trial-munch-retrieval");
+  console.log(`${cystLifecyclePass ? "PASS" : "FAIL"} cyst: denial, trial, retrieval, and lifecycle events persisted`);
+  if (!cystLifecyclePass) {
+    failures.push({ name: "cyst lifecycle events" });
   }
 
   if (failures.length) {

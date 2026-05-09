@@ -623,7 +623,7 @@
 
   function cystGlyph(event) {
     const tone = cystTone(event);
-    if (tone === "ok") return "✓";
+    if (tone === "ok") return "◆";
     if (tone === "blocked") return "!";
     if (tone === "denied" || tone === "error") return "x";
     return "?";

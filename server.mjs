@@ -72,7 +72,10 @@ async function handleTrippApi(request, response, url) {
 
   if (request.method === "POST" && url.pathname === "/api/tripp/warden/precheck") {
     const payload = await readJson(request);
-    sendJson(response, wardenPrecheck(payload?.descriptor || payload));
+    const descriptor = payload?.descriptor || payload;
+    const warden = wardenPrecheck(descriptor);
+    if (!warden.allowed) recordWardenDenialEvent(descriptor, warden);
+    sendJson(response, warden);
     return;
   }
 
@@ -687,9 +690,7 @@ function runReadOnlyHarnessTrials() {
   ];
   const passed = trials.every((trial) => trial.pass);
   const task = createTrialTask(trials, passed, startedAt);
-  taskQueue.unshift(task);
-  saveTaskQueue();
-  return {
+  const result = {
     id: `trial-run-${Date.now()}`,
     status: passed ? "pass" : "fail",
     startedAt,
@@ -700,6 +701,10 @@ function runReadOnlyHarnessTrials() {
     trials,
     task,
   };
+  recordTrialRunEvent(result);
+  taskQueue.unshift(task);
+  saveTaskQueue();
+  return result;
 }
 
 function runWardenPromptBlockTrial() {
@@ -717,6 +722,7 @@ function runWardenPromptBlockTrial() {
     contextSnapshotId: "trial-context",
   };
   const warden = wardenPrecheck(descriptor);
+  if (!warden.allowed) recordWardenDenialEvent(descriptor, warden);
   return {
     id: "trial-prompt-block-deny",
     title: "Prompt block denied before execution",
@@ -770,6 +776,7 @@ function runMunchRetrievalTrial() {
     policy: { retrieval_mode: "retrieval_first", max_results: 4, include_evidence: true },
   });
   const pass = route.agentId === "tripp.supervisor" && retrieval.status === "warn" && retrieval.results?.length > 0;
+  recordRetrievalEvent("trial-munch-retrieval", "trial-munch-retrieval", retrieval);
   return {
     id: "trial-munch-retrieval",
     title: "Munch mock retrieval lane resolves without adapter invocation",
@@ -792,6 +799,7 @@ function createTrialDescriptor(id, targetTool, args) {
     intent: "inspect",
     target: "tool",
     targetTool,
+    workspaceRoot: root,
     constraints: { allowedPaths: ["README.md", "server.mjs", "scripts"] },
     budget: { maxTokens: 500 },
     allowedTools: ["Developer.read", "Developer.tree", "Developer.shell"],
@@ -823,6 +831,7 @@ function createTrialTask(trials, passed, startedAt) {
     createdAt: startedAt,
   };
   task.lifecycle.events[0].taskId = task.id;
+  recordLifecycleEvent(task, task.lifecycle.events[0]);
   advanceTaskLifecycle(task, "routed", "tripp.supervisor", "trial routed to read-only harness lane");
   advanceTaskLifecycle(task, passed ? "completed" : "failed", "tripp.inspector", passed ? "trial evidence passed" : "trial evidence failed");
   return task;
@@ -881,19 +890,41 @@ function gooseAdapterCall(route = {}, descriptor = {}) {
     });
   }
 
-  const shellBlock = tool === "Developer.shell" ? validateReadonlyShell(descriptor.args?.command || "") : null;
-  if (shellBlock) {
+  const shellCheck = tool === "Developer.shell" ? parseReadonlyShell(descriptor.args?.command || "") : { ok: true };
+  if (!shellCheck.ok) {
     return createAdapterResult({
       status: "blocked",
       tool,
       invoked: false,
-      error: createAdapterError(shellBlock.code, shellBlock.message, descriptor),
+      error: createAdapterError(shellCheck.code, shellCheck.message, descriptor),
       traceId,
       argsRedacted: redaction.value,
       redactionLog: redaction.log,
-      cystEvent: { ...cystBase, resultStatus: "blocked", errorCode: shellBlock.code, elapsedMs: Date.now() - started, sandboxCheck: true },
+      cystEvent: { ...cystBase, resultStatus: "blocked", errorCode: shellCheck.code, elapsedMs: Date.now() - started, sandboxCheck: true },
       elapsedMs: Date.now() - started,
     });
+  }
+  if (shellCheck.path) {
+    const shellPathSandbox = validateAdapterSandbox({ path: shellCheck.path }, descriptor.constraints || {});
+    if (!shellPathSandbox.ok) {
+      return createAdapterResult({
+        status: "blocked",
+        tool,
+        invoked: false,
+        error: createAdapterError(shellPathSandbox.code, shellPathSandbox.message, descriptor),
+        traceId,
+        argsRedacted: redaction.value,
+        redactionLog: redaction.log,
+        cystEvent: {
+          ...cystBase,
+          resultStatus: "blocked",
+          errorCode: shellPathSandbox.code,
+          elapsedMs: Date.now() - started,
+          sandboxCheck: false,
+        },
+        elapsedMs: Date.now() - started,
+      });
+    }
   }
 
   try {
@@ -992,7 +1023,7 @@ function validateAdapterSandbox(args, constraints) {
   if (!resolved.ok) return { ok: false, code: "PATH_SANDBOX_ESCAPE", message: resolved.error };
 
   const allowedPaths = Array.isArray(constraints.allowedPaths) ? constraints.allowedPaths : [];
-  if (allowedPaths.length && !allowedPaths.some((prefix) => resolved.relative.startsWith(String(prefix).replaceAll("\\", "/")))) {
+  if (allowedPaths.length && !allowedPaths.some((prefix) => pathMatchesAllowedPrefix(resolved.relative, prefix))) {
     return { ok: false, code: "PATH_SANDBOX_ESCAPE", message: "Requested path is outside descriptor.allowedPaths." };
   }
 
@@ -1000,19 +1031,46 @@ function validateAdapterSandbox(args, constraints) {
 }
 
 function validateReadonlyShell(command) {
+  const parsed = parseReadonlyShell(command);
+  return parsed.ok ? null : { code: parsed.code, message: parsed.message };
+}
+
+function parseReadonlyShell(command) {
   const value = String(command || "").trim();
   const lower = value.toLowerCase();
-  if (!value) return { code: "SHELL_COMMAND_BLOCKED", message: "Shell command is missing." };
-  if (/[|<>]/.test(value)) return { code: "SHELL_COMMAND_BLOCKED", message: "Pipes and redirects are blocked in read-only shell." };
+  if (!value) return { ok: false, code: "SHELL_COMMAND_BLOCKED", message: "Shell command is missing." };
+  if (/[|<>;&`]/.test(value) || value.includes("$(")) {
+    return { ok: false, code: "SHELL_COMMAND_BLOCKED", message: "Command chaining, pipes, redirects, and substitutions are blocked." };
+  }
   const deniedTokens = [" del ", " rmdir", " rd ", " format", "mkfs", "git commit", "git push", "git merge", "git rebase", "npm install", "pip install", "set-executionpolicy", "invoke-expression", "curl ", "wget ", " rm ", " mv ", " cp "];
   if (deniedTokens.some((token) => ` ${lower} `.includes(token))) {
-    return { code: lower.includes("git ") ? "GIT_WRITE_BLOCKED" : "SHELL_COMMAND_BLOCKED", message: "Shell command is outside the read-only allowlist." };
+    return { ok: false, code: lower.includes("git ") ? "GIT_WRITE_BLOCKED" : "SHELL_COMMAND_BLOCKED", message: "Shell command is outside the read-only allowlist." };
   }
-  const allowedPrefixes = ["node --version", "npm --version", "git status", "dir", "echo ", "type "];
-  if (!allowedPrefixes.some((prefix) => lower.startsWith(prefix))) {
-    return { code: "SHELL_COMMAND_BLOCKED", message: "Shell command is not on the read-only allowlist." };
+  if (["node --version", "npm --version", "git status"].includes(lower)) return { ok: true, action: lower };
+  if (lower === "dir" || lower.startsWith("dir ")) {
+    return { ok: true, action: "dir", path: value.slice(3).trim() || "" };
   }
-  return null;
+  if (lower.startsWith("type ")) {
+    const pathValue = unquoteShellArg(value.slice(5).trim());
+    if (!pathValue) return { ok: false, code: "SHELL_COMMAND_BLOCKED", message: "type requires a repo-local file path." };
+    return { ok: true, action: "type", path: pathValue };
+  }
+  if (lower.startsWith("cd ")) {
+    const pathValue = unquoteShellArg(value.replace(/^cd\s+\/d\s+/i, "").replace(/^cd\s+/i, "").trim());
+    if (!pathValue) return { ok: false, code: "SHELL_COMMAND_BLOCKED", message: "cd requires a repo-local path." };
+    return { ok: true, action: "cd", path: pathValue };
+  }
+  if (lower.startsWith("echo ")) return { ok: true, action: "echo", literal: value.slice(5) };
+  if (lower.startsWith("findstr ")) {
+    const match = value.match(/^findstr\s+\/n\s+"\."\s+"([^"]+)"$/i);
+    if (!match) return { ok: false, code: "SHELL_COMMAND_BLOCKED", message: "findstr is limited to: findstr /n \".\" \"path\"." };
+    return { ok: true, action: "findstr", path: match[1] };
+  }
+  return { ok: false, code: "SHELL_COMMAND_BLOCKED", message: "Shell command is not on the read-only allowlist." };
+}
+
+function unquoteShellArg(value) {
+  return String(value || "").replace(/^["']|["']$/g, "");
 }
 
 function invokeReadonlyGooseTool(tool, args) {
@@ -1024,6 +1082,7 @@ function invokeReadonlyGooseTool(tool, args) {
 
 function invokeTreeTool(args) {
   const target = validateAdapterSandbox(args, {});
+  if (!target.ok) throw Object.assign(new Error(target.message), { code: target.code });
   const absolute = target.absolute || root;
   const entries = statSync(absolute).isDirectory() ? listWorkspaceChildren(absolute, target.relative || "", 0) : [];
   const paths = flattenWorkspaceTree(entries).slice(0, 120);
@@ -1064,23 +1123,42 @@ function invokeReadTool(args) {
 
 function invokeShellTool(args) {
   const command = String(args.command || "").trim();
-  const lower = command.toLowerCase();
-  if (lower.startsWith("dir")) {
-    const tree = invokeTreeTool({ path: command.split(/\s+/)[1] || "" });
+  const parsed = parseReadonlyShell(command);
+  if (!parsed.ok) throw Object.assign(new Error(parsed.message), { code: parsed.code });
+  if (parsed.action === "dir") {
+    const tree = invokeTreeTool({ path: parsed.path || "" });
     return {
       raw: { command },
       result: { ...tree.result, type: "shell_output", stdout: tree.result.paths.join("\n"), exitCode: 0 },
     };
   }
-  if (lower.startsWith("type ")) {
-    const read = invokeReadTool({ path: command.slice(5).trim() });
+  if (parsed.action === "type") {
+    const read = invokeReadTool({ path: parsed.path });
     return {
       raw: { command },
       result: { ...read.result, type: "shell_output", stdout: read.result.content, content: null, exitCode: 0 },
     };
   }
-  if (lower.startsWith("echo ")) {
-    const stdout = `${command.slice(5)}\n`;
+  if (parsed.action === "cd") {
+    const target = validateAdapterSandbox({ path: parsed.path }, {});
+    if (!target.ok) throw Object.assign(new Error(target.message), { code: target.code });
+    const stdout = `${target.relative || "."}\n`;
+    return {
+      raw: { command },
+      result: {
+        type: "shell_output",
+        summary: `Read-only shell path check completed: ${target.relative || "."}`,
+        lines: 1,
+        paths: [target.relative || "."],
+        content: null,
+        stdout,
+        stderr: "",
+        exitCode: 0,
+      },
+    };
+  }
+  if (parsed.action === "echo") {
+    const stdout = `${parsed.literal}\n`;
     return {
       raw: { command },
       result: {
@@ -1093,6 +1171,17 @@ function invokeShellTool(args) {
         stderr: "",
         exitCode: 0,
       },
+    };
+  }
+  if (parsed.action === "findstr") {
+    const read = invokeReadTool({ path: parsed.path });
+    const numbered = String(read.result.content || "")
+      .split(/\r?\n/)
+      .map((line, index) => `${index + 1}:${line}`)
+      .join("\n");
+    return {
+      raw: { command },
+      result: { ...read.result, type: "shell_output", stdout: numbered, content: null, exitCode: 0 },
     };
   }
   const parts = command.split(/\s+/);
@@ -1177,8 +1266,13 @@ function redactPathValue(key, value, log, path) {
 }
 
 function createAdapterResult({ status, tool, invoked, result = null, error = null, traceId, argsRedacted, redactionLog, cystEvent, elapsedMs }) {
-  const cysToken = cystEvent.descriptorId && cystEvent.traceId && cystEvent.ownerId ? `cyst_${cystEvent.traceId}` : null;
-  const persistedCystEvent = { ...cystEvent, cysToken };
+  const lifecycle = lifecycleForAdapterStatus(status, invoked);
+  const persistedCystEvent = {
+    ...cystEvent,
+    lifecycleState: cystEvent.lifecycleState || lifecycle.state,
+    previousLifecycleState: cystEvent.previousLifecycleState || lifecycle.previous,
+    cysToken: createCystToken(cystEvent),
+  };
   recordCystEvent(persistedCystEvent);
   return {
     status,
@@ -1194,11 +1288,19 @@ function createAdapterResult({ status, tool, invoked, result = null, error = nul
       resultStatus: status,
       elapsedMs,
       timestamp: persistedCystEvent.timestamp,
-      cysToken,
+      cysToken: persistedCystEvent.cysToken,
     },
     redactionLog,
     cystEvent: persistedCystEvent,
   };
+}
+
+function lifecycleForAdapterStatus(status, invoked) {
+  if (status === "ok") return { state: "executed", previous: "routed" };
+  if (status === "blocked") return { state: invoked ? "failed" : "blocked_before_execution", previous: "routed" };
+  if (status === "denied") return { state: "denied_before_execution", previous: "routed" };
+  if (status === "timeout" || status === "error") return { state: "failed", previous: invoked ? "running" : "routed" };
+  return { state: "routed", previous: "proposed" };
 }
 
 function createAdapterError(code, message, descriptor) {
@@ -1361,19 +1463,41 @@ function validatePathSandbox(descriptor, policy, denials) {
 
   const allowedPaths = Array.isArray(descriptor.constraints?.allowedPaths) ? descriptor.constraints.allowedPaths : [];
   paths.forEach((candidate) => {
-    const normalizedPath = normalize(String(candidate || "")).replaceAll("\\", "/");
-    if (!candidate || normalizedPath.includes("../") || normalizedPath.startsWith("..")) {
-      addDenial(denials, "PATH_SANDBOX_ESCAPE", `Path escapes workspace sandbox: ${candidate}`);
-      return;
-    }
-    if (policy.forbiddenPaths.some((prefix) => normalizedPath.startsWith(prefix))) {
-      addDenial(denials, "FORBIDDEN_PATH", `Path hits forbidden prefix: ${candidate}`);
-      return;
-    }
-    if (allowedPaths.length && !allowedPaths.some((prefix) => normalizedPath.startsWith(String(prefix).replaceAll("\\", "/")))) {
-      addDenial(denials, "PATH_NOT_IN_ALLOWED_PATHS", `Path is outside allowedPaths: ${candidate}`);
+    const checked = checkDescriptorPath(candidate, workspaceRoot, allowedPaths, policy);
+    if (!checked.ok) {
+      addDenial(denials, checked.code, checked.message);
     }
   });
+}
+
+function checkDescriptorPath(candidate, workspaceRoot, allowedPaths, policy) {
+  const raw = String(candidate || "").trim();
+  const normalizedPath = normalize(raw.replaceAll("\\", "/")).replaceAll("\\", "/");
+  if (!raw || normalizedPath.includes("../") || normalizedPath.startsWith("..")) {
+    return { ok: false, code: "PATH_SANDBOX_ESCAPE", message: `Path escapes workspace sandbox: ${candidate}` };
+  }
+
+  const workspaceAbsolute = resolve(workspaceRoot);
+  const absolute = /^[a-zA-Z]:[\\/]/.test(raw) ? resolve(raw) : resolve(workspaceAbsolute, normalizedPath);
+  if (absolute !== workspaceAbsolute && !absolute.startsWith(workspaceAbsolute + sep)) {
+    return { ok: false, code: "PATH_SANDBOX_ESCAPE", message: `Path escapes workspace sandbox: ${candidate}` };
+  }
+
+  const relative = absolute === workspaceAbsolute ? "" : normalize(absolute.slice(workspaceAbsolute.length + 1)).replaceAll("\\", "/");
+  const relativeOrRaw = relative || normalizedPath;
+  if (policy.forbiddenPaths.some((prefix) => relativeOrRaw.startsWith(prefix))) {
+    return { ok: false, code: "FORBIDDEN_PATH", message: `Path hits forbidden prefix: ${candidate}` };
+  }
+  if (allowedPaths.length && !allowedPaths.some((prefix) => pathMatchesAllowedPrefix(relativeOrRaw, prefix))) {
+    return { ok: false, code: "PATH_NOT_IN_ALLOWED_PATHS", message: `Path is outside allowedPaths: ${candidate}` };
+  }
+  return { ok: true, relative: relativeOrRaw, absolute };
+}
+
+function pathMatchesAllowedPrefix(pathValue, prefix) {
+  const normalizedPrefix = String(prefix || "").replaceAll("\\", "/").replace(/\/+$/g, "");
+  const normalizedPath = String(pathValue || "").replaceAll("\\", "/");
+  return normalizedPath === normalizedPrefix || normalizedPath.startsWith(`${normalizedPrefix}/`);
 }
 
 function collectDescriptorPaths(descriptor) {
@@ -1381,6 +1505,13 @@ function collectDescriptorPaths(descriptor) {
   if (Array.isArray(descriptor.files)) paths.push(...descriptor.files);
   if (Array.isArray(descriptor.constraints?.files)) paths.push(...descriptor.constraints.files);
   if (typeof descriptor.file === "string") paths.push(descriptor.file);
+  if (typeof descriptor.args?.path === "string") paths.push(descriptor.args.path);
+  if (typeof descriptor.args?.file === "string") paths.push(descriptor.args.file);
+  if (typeof descriptor.args?.cwd === "string") paths.push(descriptor.args.cwd);
+  const shellPath = descriptor.target === "tool" && normalizeGooseTool(descriptor.targetTool || descriptor.tool || descriptor.args?.tool) === "Developer.shell"
+    ? parseReadonlyShell(descriptor.args?.command || "").path
+    : null;
+  if (shellPath) paths.push(shellPath);
   return paths;
 }
 
@@ -1838,6 +1969,7 @@ function runTaskAdapterCall(task, targetTool, args) {
   const warden = wardenPrecheck(descriptor);
   descriptor.trace.wardenDecision = warden.terminalState;
   if (!warden.allowed) {
+    const cystEvent = recordWardenDenialEvent(descriptor, warden);
     return {
       status: "denied",
       tool: targetTool,
@@ -1847,7 +1979,8 @@ function runTaskAdapterCall(task, targetTool, args) {
         message: warden.blocking?.[0] || "Warden denied this descriptor.",
       },
       warden,
-      trace: { cysToken: null },
+      trace: { cysToken: cystEvent?.cysToken || null },
+      cystEvent,
     };
   }
 
@@ -1866,6 +1999,7 @@ function createTaskAdapterDescriptor(task, targetTool, args) {
     intent: "inspect",
     target: "tool",
     targetTool,
+    workspaceRoot: root,
     constraints: { allowedPaths: ["README.md", "server.mjs", "scripts", "docs", "contracts", "agents", "tripp-terminal-data.json"] },
     budget: { maxTokens: 1200 },
     allowedTools: ["Developer.read", "Developer.tree", "Developer.shell"],
@@ -2164,9 +2298,109 @@ function saveCystEventStore() {
 }
 
 function recordCystEvent(event) {
-  if (!event?.descriptorId || !event?.traceId || !event?.ownerId) return;
-  cystEventStore.events.unshift(event);
+  const normalized = normalizeCystEvent(event);
+  if (!normalized) return null;
+  cystEventStore.events.unshift(normalized);
   saveCystEventStore();
+  return normalized;
+}
+
+function normalizeCystEvent(event) {
+  if (!event?.descriptorId || !event?.traceId || !event?.ownerId) return null;
+  const normalized = {
+    ...event,
+    cysToken: event.cysToken || createCystToken(event),
+    timestamp: event.timestamp || new Date().toISOString(),
+  };
+  if (normalized.eventType === "lifecycle_transition" && !isValidLifecycleTransition(normalized)) return null;
+  return normalized;
+}
+
+function createCystToken(event) {
+  if (!event?.descriptorId || !event?.traceId || !event?.ownerId) return null;
+  const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  return `cyst_${event.traceId}_${suffix}`;
+}
+
+function isValidLifecycleTransition(event) {
+  const contract = readTaskLifecycleContract();
+  if (!event.lifecycleState) return false;
+  if (!event.previousLifecycleState) return event.lifecycleState === "proposed";
+  return Boolean(contract.transitions[event.previousLifecycleState]?.includes(event.lifecycleState));
+}
+
+function recordWardenDenialEvent(descriptor = {}, warden = {}) {
+  if (warden.allowed) return null;
+  return recordCystEvent({
+    eventType: "warden_denial",
+    descriptorId: descriptor.id || warden.traceId || `warden_${Date.now()}`,
+    traceId: descriptor.trace?.traceId || descriptor.id || `warden_${Date.now()}`,
+    ownerId: descriptor.trace?.ownerId || descriptor.trace?.owner || "tripp.warden",
+    adapter: null,
+    tool: descriptor.targetTool || descriptor.tool || descriptor.args?.tool || null,
+    resultStatus: "denied",
+    errorCode: warden.denialReasons?.[0] || "WARDEN_DENIED",
+    wardenDecision: warden.terminalState || "DENIED_BEFORE_MUNCH",
+    denialReasons: warden.denialReasons || [],
+    denialDetails: warden.denialDetails || [],
+    lifecycleState: "denied_before_munch",
+    previousLifecycleState: "proposed",
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function recordRetrievalEvent(descriptorId, traceId, retrieval = {}) {
+  return recordCystEvent({
+    eventType: "retrieval_event",
+    descriptorId,
+    traceId,
+    ownerId: "tripp.supervisor",
+    adapter: "munch.mock",
+    tool: retrieval.kind || "retrieval",
+    resultStatus: retrieval.status || "warn",
+    errorCode: retrieval.status === "fail" ? "MUNCH_MOCK_FAILED" : null,
+    backend: retrieval.backend,
+    confidence: retrieval.confidence,
+    warnings: retrieval.warnings || [],
+    lifecycleState: "evidence_ready",
+    previousLifecycleState: "routed",
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function recordTrialRunEvent(result = {}) {
+  return recordCystEvent({
+    eventType: "trial_run",
+    descriptorId: result.id,
+    traceId: result.id,
+    ownerId: "tripp.inspector",
+    adapter: null,
+    tool: "read_only_harness_trials",
+    resultStatus: result.status === "pass" ? "ok" : "error",
+    errorCode: result.status === "pass" ? null : "TRIAL_RUN_FAILED",
+    lifecycleState: result.status === "pass" ? "completed" : "failed",
+    previousLifecycleState: "running",
+    trialCount: result.trials?.length || 0,
+    summary: result.summary,
+    timestamp: result.finishedAt || new Date().toISOString(),
+  });
+}
+
+function recordLifecycleEvent(task = {}, event = {}) {
+  return recordCystEvent({
+    eventType: "lifecycle_transition",
+    descriptorId: task.id,
+    traceId: task.id,
+    ownerId: event.actor || "tripp.supervisor",
+    adapter: null,
+    tool: task.tool || task.kind || null,
+    resultStatus: event.state === "failed" ? "error" : "ok",
+    errorCode: event.state === "failed" ? "LIFECYCLE_FAILED" : null,
+    lifecycleState: event.state,
+    previousLifecycleState: event.previousState,
+    reason: event.reason,
+    timestamp: event.timestamp,
+  });
 }
 
 function ensureSessionStore(bootstrap) {
@@ -2464,6 +2698,7 @@ function advanceTaskLifecycle(task, nextState, actor, reason) {
   task.lifecycle.state = safeNextState;
   task.lifecycle.descriptorStatus = event.descriptorStatus;
   task.lifecycle.events.push(event);
+  recordLifecycleEvent(task, event);
 }
 
 function lifecycleStateFromTask(task) {
