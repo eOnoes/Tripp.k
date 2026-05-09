@@ -63,6 +63,13 @@ All of these must pass:
    - no write-capable implications in docs, UI, or artifacts
    - Cyst remains audit/timeline truth only
 
+6. Kimi red-team hardening
+   - evidence provenance tags exist and are used in verifier/synthesis discipline
+   - compact contract-to-runtime traceability matrix exists
+   - recommendation-laundering copy guardrails pass checks
+   - minimum adversarial pack passes
+   - readiness percentage language is internal, scoped, gate-based, non-external, and non-parity
+
 ## Blockers
 
 Do not move to 90% if:
@@ -76,6 +83,7 @@ Do not move to 90% if:
 - blocked outcomes disappear in longer sessions
 - operator-independence evidence fails on any required scenario family
 - release/copy discipline drifts into broader replacement claims
+- evidence provenance, contract traceability, recommendation-laundering guardrails, or adversarial pack coverage is missing
 - future write docs or UI language blur current read-only scope
 
 ## Invalidation Conditions
@@ -118,3 +126,8 @@ A 90% claim should be invalidated if:
 - `ninety_score_requires_operator_independence_across_all_required_ninety_pack_families`
 - `ninety_scoreboard_copy_remains_scoped_to_readonly_planning_review_only`
 - `ninety_scoreboard_copy_does_not_imply_broad_goose_parity_or_edit_build_readiness`
+- `ninety_percent_requires_evidence_provenance_tags`
+- `ninety_percent_requires_contract_runtime_trace_matrix`
+- `ninety_percent_requires_recommendation_laundering_guardrails`
+- `ninety_percent_requires_minimum_adversarial_pack`
+- `ninety_percent_readiness_language_is_internal_scoped_gate_based_and_non_external`

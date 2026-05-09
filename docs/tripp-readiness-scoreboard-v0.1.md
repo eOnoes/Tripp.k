@@ -40,9 +40,11 @@ Status: working beta scoreboard. This is not a live-write approval document.
 
 Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review: 85%.
 
+85% reflects internal, scoped readiness for read-only planning/review within Tripp.g's current acceptance gates. It is not external validation, not broad Goose parity, and not evidence of edit/build or write-capable readiness.
+
 Tripp.g currently supports broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes, with stable synthesis, ambiguity handling, branch rolloff, blocked-state continuity, operator-independence evidence, and scoped beta release discipline.
 
-90% remains a future gate. It requires a broadened scenario pack that includes an everyday mixed-session family, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, and continued release/copy discipline.
+90% remains a future gate. It requires a broadened scenario pack that includes an everyday mixed-session family, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, evidence provenance discipline, a compact contract-to-runtime trace matrix, anti-recommendation-laundering guardrails, a minimum adversarial pack, and continued release/copy discipline.
 
 This readiness estimate remains limited to read-only planning/review and does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity.
 

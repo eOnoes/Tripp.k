@@ -189,6 +189,7 @@ try {
   const longSessionStressDoc = readFileSync(new URL("../docs/read-only-long-session-stress-v0.1.md", import.meta.url), "utf8");
   const everydayMixedSessionDoc = readFileSync(new URL("../docs/read-only-everyday-mixed-session-v0.1.md", import.meta.url), "utf8");
   const evidenceProvenanceDoc = readFileSync(new URL("../docs/read-only-evidence-provenance-v0.1.md", import.meta.url), "utf8");
+  const contractRuntimeTraceDoc = readFileSync(new URL("../docs/read-only-contract-runtime-trace-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -420,9 +421,11 @@ try {
     readinessScoreboard.includes("85%") &&
     readinessScoreboard.includes("35-45%") &&
     readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review: 85%.") &&
+    readinessScoreboard.includes("85% reflects internal, scoped readiness for read-only planning/review within Tripp.g's current acceptance gates.") &&
+    readinessScoreboard.includes("It is not external validation, not broad Goose parity, and not evidence of edit/build or write-capable readiness.") &&
     readinessScoreboard.includes("broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes") &&
     readinessScoreboard.includes("90% remains a future gate.") &&
-    readinessScoreboard.includes("broadened scenario pack that includes an everyday mixed-session family, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, and continued release/copy discipline") &&
+    readinessScoreboard.includes("broadened scenario pack that includes an everyday mixed-session family, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, evidence provenance discipline, a compact contract-to-runtime trace matrix, anti-recommendation-laundering guardrails, a minimum adversarial pack, and continued release/copy discipline") &&
     readinessScoreboard.includes("Session variety pack harness passes.") &&
     readinessScoreboard.includes("Partial-evidence synthesis harness passes.") &&
     readinessScoreboard.includes("Operator-independence pack artifact passes.") &&
@@ -602,6 +605,11 @@ try {
     readOnly90Gate.includes("per-scenario summaries pass copy-safety checks") &&
     readOnly90Gate.includes("expected evidence classes are present for each required scenario") &&
     readOnly90Gate.includes("Cyst remains audit/timeline truth only") &&
+    readOnly90Gate.includes("evidence provenance tags exist and are used in verifier/synthesis discipline") &&
+    readOnly90Gate.includes("compact contract-to-runtime traceability matrix exists") &&
+    readOnly90Gate.includes("recommendation-laundering copy guardrails pass checks") &&
+    readOnly90Gate.includes("minimum adversarial pack passes") &&
+    readOnly90Gate.includes("readiness percentage language is internal, scoped, gate-based, non-external, and non-parity") &&
     readOnly90Gate.includes("ninety_percent_requires_minimum_four_distinct_readonly_scenario_families") &&
     readOnly90Gate.includes("ninety_percent_requires_ten_task_or_longer_stress_scenario") &&
     readOnly90Gate.includes("ninety_percent_requires_broadened_operator_independence_pack_artifact") &&
@@ -625,6 +633,11 @@ try {
     readOnly90Gate.includes("ninety_score_requires_operator_independence_across_all_required_ninety_pack_families") &&
     readOnly90Gate.includes("ninety_scoreboard_copy_remains_scoped_to_readonly_planning_review_only") &&
     readOnly90Gate.includes("ninety_scoreboard_copy_does_not_imply_broad_goose_parity_or_edit_build_readiness") &&
+    readOnly90Gate.includes("ninety_percent_requires_evidence_provenance_tags") &&
+    readOnly90Gate.includes("ninety_percent_requires_contract_runtime_trace_matrix") &&
+    readOnly90Gate.includes("ninety_percent_requires_recommendation_laundering_guardrails") &&
+    readOnly90Gate.includes("ninety_percent_requires_minimum_adversarial_pack") &&
+    readOnly90Gate.includes("ninety_percent_readiness_language_is_internal_scoped_gate_based_and_non_external") &&
     longSessionStressDoc.includes("Read-Only Long-Session Stress v0.1") &&
     longSessionStressDoc.includes("10-task read-only session") &&
     longSessionStressDoc.includes("Trigger blocked shell or escalation for the first blocked outcome.") &&
@@ -654,6 +667,18 @@ try {
     evidenceProvenanceDoc.includes("MOCK_RETRIEVAL must not be restated as direct inspection") &&
     evidenceProvenanceDoc.includes("SYNTHESIS must not endorse policy/config mutation or produce operational write instructions") &&
     evidenceProvenanceDoc.includes("current_understanding_displays_evidence_provenance_classes") &&
+    contractRuntimeTraceDoc.includes("Read-Only Contract Runtime Trace v0.1") &&
+    contractRuntimeTraceDoc.includes("Contract rule") &&
+    contractRuntimeTraceDoc.includes("Runtime path") &&
+    contractRuntimeTraceDoc.includes("Verifier lane") &&
+    contractRuntimeTraceDoc.includes("UI surface") &&
+    contractRuntimeTraceDoc.includes("permissionDecision") &&
+    contractRuntimeTraceDoc.includes("gooseAdapterCall") &&
+    contractRuntimeTraceDoc.includes("createMunchRetrieval") &&
+    contractRuntimeTraceDoc.includes("recordRetrievalEvent") &&
+    contractRuntimeTraceDoc.includes("buildPlanningSummary") &&
+    contractRuntimeTraceDoc.includes("buildPlanningProvenance") &&
+    contractRuntimeTraceDoc.includes("trace_matrix_maps_contract_rule_to_runtime_path_verifier_lane_and_ui_surface") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
