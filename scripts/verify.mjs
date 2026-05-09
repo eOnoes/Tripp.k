@@ -50,6 +50,16 @@ try {
     failures.push({ name: "sessions" });
   }
 
+  const health = await getJson("/api/tripp/health");
+  const healthPass =
+    health.ok === true &&
+    health.capabilities?.sessions === "persistent-local" &&
+    health.capabilities?.shell === "read-only-allowlist";
+  console.log(`${healthPass ? "PASS" : "FAIL"} health: adapter capabilities`);
+  if (!healthPass) {
+    failures.push({ name: "health" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }

@@ -289,6 +289,9 @@
     const rows = [
       ["CONNECTION", `<i></i>${escapeHtml(state.status.connection)}`],
       ["RUNTIME", escapeHtml(displayRuntime(state.status.model))],
+      ["SESSIONS", escapeHtml(displayCapability(state.runtime.capabilities?.sessions))],
+      ["SHELL", escapeHtml(displayCapability(state.runtime.capabilities?.shell))],
+      ["WRITE", escapeHtml(displayCapability(state.runtime.capabilities?.filesystemWrite))],
       ["TOKENS IN", escapeHtml(state.status.tokensIn)],
       ["TOKENS OUT", escapeHtml(state.status.tokensOut)],
       ["LATENCY", escapeHtml(state.status.latency)],
@@ -510,6 +513,19 @@
     if (value === "tripp-adapter/backend") return "Backend Bridge";
     if (value === "gpt-4") return "Seed Runtime";
     return value || "Unknown";
+  }
+
+  function displayCapability(value) {
+    const labels = {
+      "persistent-local": "Persistent Local",
+      "repo-local-readonly": "Repo Read-only",
+      "guarded-single-patch": "Guarded Patch",
+      "read-only-allowlist": "Read-only Allowlist",
+      "status-only": "Status Only",
+      disabled: "Disabled",
+      enabled: "Enabled",
+    };
+    return labels[value] || value || "Unknown";
   }
 
   function totalTokens() {

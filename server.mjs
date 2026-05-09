@@ -56,6 +56,11 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/health") {
+    sendJson(response, readHealth());
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/tripp/reply") {
     const payload = await readJson(request);
     sendJson(response, await createReply(payload));
@@ -93,6 +98,7 @@ async function handleTrippApi(request, response, url) {
 function readBootstrap() {
   const bootstrap = JSON.parse(readFileSync(bootstrapFile, "utf8"));
   const sessions = ensureSessionStore(bootstrap);
+  const health = readHealth();
 
   return {
     ...bootstrap,
@@ -107,8 +113,36 @@ function readBootstrap() {
       bridge: "tripp-adapter",
       backend: backendUrl,
       backendReplyEnabled,
+      capabilities: health.capabilities,
     },
     tasks: taskQueue,
+  };
+}
+
+function readHealth() {
+  return {
+    ok: true,
+    runtime: backendUrl ? "backend-ready" : process.env.TRIPP_RUNTIME || "mock",
+    bridge: "tripp-adapter",
+    backend: {
+      configured: Boolean(backendUrl),
+      replyEnabled: backendReplyEnabled,
+    },
+    stores: {
+      tasks: taskQueue.length,
+      sessions: sessionStore.sessions.length,
+      directory: ".tripp-runtime",
+    },
+    capabilities: {
+      chat: "mock-reply",
+      sessions: "persistent-local",
+      tasks: "persistent-local",
+      filesystemRead: "repo-local-readonly",
+      filesystemWrite: "guarded-single-patch",
+      shell: "read-only-allowlist",
+      git: "status-only",
+      backendReply: backendUrl && backendReplyEnabled ? "enabled" : "disabled",
+    },
   };
 }
 

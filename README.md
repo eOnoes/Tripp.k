@@ -39,6 +39,7 @@ node .\scripts\verify.mjs
 - Interactive chat/auto modes, session switching, new chat action, expandable tools, and collapsible ops panel.
 - Tripp adapter routes for bootstrap and prompt replies:
   - `GET /api/tripp/bootstrap`
+  - `GET /api/tripp/health`
   - `POST /api/tripp/reply`
   - `GET /api/tripp/tasks`
   - `POST /api/tripp/tasks/:taskId/approve`
