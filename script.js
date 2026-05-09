@@ -655,6 +655,10 @@
   }
 
   function cystCompact(event) {
+    if (event.eventType === "gate_run") {
+      return gateRunCompact(event);
+    }
+
     if (event.eventType === "write_escalation_blocked") {
       return [writeBlockLabel(event), writeBlockCause(event), formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
     }
@@ -673,6 +677,21 @@
     return [event.tool || event.adapter || event.descriptorId || "control-plane", event.resultStatus || event.errorCode || "recorded", formatCystTime(event.timestamp)]
       .filter(Boolean)
       .join(" - ");
+  }
+
+  function gateRunCompact(event) {
+    const stage = String(event.gateStage || "").toLowerCase();
+    if (stage === "started") {
+      return ["READ-ONLY GATE RUN", formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
+    }
+
+    const verdict = String(event.suiteStatus || event.goNoGo || "unknown").toUpperCase();
+    const count =
+      Number.isFinite(Number(event.passedCount)) && Number.isFinite(Number(event.requiredScenarioCount))
+        ? `${event.passedCount}/${event.requiredScenarioCount} required`
+        : "";
+    const blocking = Array.isArray(event.blockingReasons) && event.blockingReasons.length ? event.blockingReasons[0] : count;
+    return [`READ-ONLY GATE: ${verdict}`, blocking, formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
   }
 
   function renderCystEvidenceMeta(event) {
@@ -870,7 +889,7 @@
     return `
       <section class="trial-detail">
         <header>
-          <strong>Read-Only Trials</strong>
+          <strong>Read-Only Gate</strong>
           <span>${escapeHtml(goNoGo ? `${goNoGo.decision} ${goNoGo.passed}/${goNoGo.total}` : `${passCount}/${trials.length}`)}</span>
         </header>
         ${renderGoNoGoSummary(goNoGo)}
@@ -1253,7 +1272,7 @@
       state.messages.push({
         speaker: "trial>",
         time: now(),
-        body: `${result.status === "pass" ? "Read-only harness trials passed" : "Read-only harness trials failed"}: ${result.trials?.filter((trial) => trial.pass).length || 0}/${result.trials?.length || 0}`,
+        body: `${result.suiteStatus === "go" ? "Read-only gate GO" : "Read-only gate NO GO"}: ${result.suiteSummary?.passedCount ?? 0}/${result.suiteSummary?.requiredScenarioCount ?? result.scenarioResults?.length ?? 0}`,
         kind: "system",
       });
       focusPanel("tasks");
@@ -1266,7 +1285,7 @@
       state.messages.push({
         speaker: "trial>",
         time: now(),
-        body: "Read-only harness trial endpoint is unavailable.",
+        body: "Read-only gate endpoint is unavailable.",
         kind: "system",
       });
       renderMessages();

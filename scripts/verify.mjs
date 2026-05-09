@@ -777,7 +777,7 @@ try {
         scenario.actual?.finalLifecycleState === "read_only_maintained",
     ) &&
     tasksAfterTrial.tasks?.some(
-      (task) => task.id === trialRun.task?.id && task.status === "completed" && task.goNoGo?.suiteStatus === "go",
+      (task) => task.id === trialRun.task?.id && task.title === "Read-Only Gate" && task.status === "completed" && task.goNoGo?.suiteStatus === "go",
     );
   console.log(`${trialPass ? "PASS" : "FAIL"} trials: read-only harness suite`);
   if (!trialPass) {
@@ -795,6 +795,19 @@ try {
   );
   const cystLifecyclePass =
     cystAfterTrial.events?.every((event) => Number.isFinite(Number(event.cystSequence))) &&
+    cystAfterTrial.events?.some(
+      (event) => event.eventType === "gate_run" && event.descriptorId === trialRun.id && event.gateStage === "started",
+    ) &&
+    cystAfterTrial.events?.some(
+      (event) =>
+        event.eventType === "gate_run" &&
+        event.descriptorId === trialRun.id &&
+        event.gateStage === "completed" &&
+        event.suiteStatus === "go" &&
+        event.goNoGo === "go" &&
+        event.passedCount === 5 &&
+        event.requiredScenarioCount === 5,
+    ) &&
     cystAfterTrial.events?.some((event) => event.eventType === "trial_run" && event.descriptorId === trialRun.id) &&
     cystAfterTrial.events?.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === trialRun.task?.id) &&
     cystAfterTrial.events?.some(

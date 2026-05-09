@@ -818,6 +818,14 @@ function readTaskLifecycleContract() {
 
 function runReadOnlyHarnessTrials() {
   const startedAt = new Date().toISOString();
+  const runId = `trial-run-${Date.now()}`;
+  recordReadOnlyGateEvent({
+    id: runId,
+    gateStage: "started",
+    suiteStatus: "running",
+    goNoGo: "running",
+    startedAt,
+  });
   const trials = [
     runWardenPromptBlockTrial(),
     runAdapterReadTrial("trial-readme-read", "Developer.read", { tool: "read", path: "README.md" }),
@@ -830,7 +838,7 @@ function runReadOnlyHarnessTrials() {
   const suiteSummary = createReadOnlySuiteSummary(scenarioResults);
   const task = createTrialTask(scenarioResults, suiteSummary.suiteStatus === "go", startedAt, suiteSummary);
   const result = {
-    id: `trial-run-${Date.now()}`,
+    id: runId,
     matrixVersion: "0.1",
     goCriteriaVersion: "0.1",
     status: suiteSummary.suiteStatus === "go" ? "pass" : "fail",
@@ -840,13 +848,14 @@ function runReadOnlyHarnessTrials() {
     startedAt,
     finishedAt: new Date().toISOString(),
     summary: suiteSummary.suiteStatus === "go"
-      ? "Read-only harness trials passed. Warden, Router, Adapter, Cyst, and UI task projection are wired for trial mode."
-      : "Read-only harness trials found a blocking issue.",
+      ? "Read-only gate passed. Warden, Router, Adapter, Cyst, and UI task projection are wired for trial mode."
+      : "Read-only gate found a blocking issue.",
     scenarioResults,
     trials: scenarioResults,
     task,
   };
   recordTrialRunEvent(result);
+  recordReadOnlyGateEvent({ ...result, gateStage: "completed" });
   taskQueue.unshift(task);
   saveTaskQueue();
   return result;
@@ -1273,25 +1282,25 @@ function createTrialDescriptor(id, targetTool, args) {
 function createTrialTask(trials, passed, startedAt, goNoGo = null) {
   const task = {
     id: `task-trials-${Date.now()}`,
-    title: "Read-only harness trials",
-    prompt: "Run read-only harness trial plan v0.1",
+    title: "Read-Only Gate",
+    prompt: "Run formal read-only gate v0.1",
     kind: "trial",
     tool: "harness_trial",
     target: null,
     sessionId: null,
     status: passed ? "completed" : "failed",
     agentId: "tripp.inspector",
-    result: passed ? "All read-only harness trials passed." : "One or more read-only harness trials failed.",
+    result: passed ? "Read-only gate passed." : "Read-only gate failed.",
     trials,
     goNoGo,
-    permission: permissionDecision("harness_trial", "allow", "read-only trial runner; no mutation tools enabled"),
-    lifecycle: createTaskLifecycle("proposed", "tripp.supervisor", "read-only trial task created", null),
+    permission: permissionDecision("harness_trial", "allow", "read-only gate runner; no mutation tools enabled"),
+    lifecycle: createTaskLifecycle("proposed", "tripp.supervisor", "read-only gate task created", null),
     createdAt: startedAt,
   };
   task.lifecycle.events[0].taskId = task.id;
   recordLifecycleEvent(task, task.lifecycle.events[0]);
-  advanceTaskLifecycle(task, "routed", "tripp.supervisor", "trial routed to read-only harness lane");
-  advanceTaskLifecycle(task, passed ? "completed" : "failed", "tripp.inspector", passed ? "trial evidence passed" : "trial evidence failed");
+  advanceTaskLifecycle(task, "routed", "tripp.supervisor", "gate routed to read-only harness lane");
+  advanceTaskLifecycle(task, passed ? "completed" : "failed", "tripp.inspector", passed ? "gate evidence passed" : "gate evidence failed");
   return task;
 }
 
@@ -3025,6 +3034,39 @@ function recordTrialRunEvent(result = {}) {
     trialCount: result.trials?.length || 0,
     summary: result.summary,
     timestamp: result.finishedAt || new Date().toISOString(),
+  });
+}
+
+function recordReadOnlyGateEvent(result = {}) {
+  const stage = result.gateStage || "completed";
+  const complete = stage === "completed";
+  const go = result.suiteStatus === "go";
+  const requiredScenarioIds = result.suiteSummary?.requiredScenarioIds || [];
+  const requiredPassedCount = Array.isArray(result.scenarioResults)
+    ? result.scenarioResults.filter(
+        (scenario) => requiredScenarioIds.includes(scenario.scenarioId) && scenario.status === "pass",
+      ).length
+    : result.suiteSummary?.passedCount ?? null;
+  return recordCystEvent({
+    eventType: "gate_run",
+    descriptorId: result.id,
+    traceId: result.id,
+    ownerId: "tripp.inspector",
+    adapter: null,
+    tool: "read_only_gate",
+    resultStatus: complete ? (go ? "ok" : "blocked") : "active",
+    errorCode: complete && !go ? "READ_ONLY_GATE_NO_GO" : null,
+    gateStage: stage,
+    suiteStatus: result.suiteStatus || "running",
+    goNoGo: result.goNoGo || result.suiteStatus || "running",
+    requiredScenarioCount: result.suiteSummary?.requiredScenarioCount ?? null,
+    passedCount: requiredPassedCount,
+    failedCount: result.suiteSummary?.failedCount ?? null,
+    blockingReasons: result.suiteSummary?.blockingReasons || [],
+    lifecycleState: complete ? (go ? "completed" : "gated") : "running",
+    previousLifecycleState: complete ? "running" : null,
+    summary: result.summary || "Read-only gate started.",
+    timestamp: complete ? result.finishedAt || new Date().toISOString() : result.startedAt || new Date().toISOString(),
   });
 }
 
