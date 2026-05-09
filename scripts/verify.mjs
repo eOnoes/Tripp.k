@@ -212,6 +212,19 @@ try {
     continuitySource.includes("Next read-only direction") &&
     conclusionForbiddenTerms.every((term) => !continuitySource.toLowerCase().includes(term)) &&
     !/next:\s*[^,]+(?:edit|apply|write|patch|approve|commit)/i.test(continuitySource);
+  const gateTaskSource = extractFunctionRange(appScript, "formatGateVerdict", "renderAdapterEvidence");
+  const gateCystSource = extractFunctionRange(appScript, "gateRunCompact", "renderCystEvidenceMeta");
+  const crossSurfaceReadOnlyCoherencePass =
+    gateTaskSource.includes("All required read-only scenarios passed") &&
+    gateTaskSource.includes("Read-only gate failed one or more required checks") &&
+    gateCystSource.includes("READ-ONLY GATE") &&
+    continuitySource.includes("Blocked in read-only mode") &&
+    conclusionSource.includes("non-authoritative for file changes") &&
+    [conclusionSource, continuitySource, gateTaskSource, gateCystSource].every((source) =>
+      conclusionForbiddenTerms.every((term) => !source.toLowerCase().includes(term)),
+    ) &&
+    !/GO[^"'`]*\b(?:edit|apply|write|build|patch|approve|commit)\b/i.test(gateTaskSource + gateCystSource) &&
+    !/\b(?:verified|confirmed|validated|implementation-ready|build-ready)\b/i.test(conclusionSource + continuitySource + gateTaskSource);
   const workspacePass =
     workspaceTree.files?.some((entry) => entry.name === "README.md") &&
     workspaceFile.language === "markdown" &&
@@ -250,6 +263,7 @@ try {
     appScript.includes("Blocked in read-only mode") &&
     appScript.includes("Next read-only direction") &&
     continuityCopyGuardPass &&
+    crossSurfaceReadOnlyCoherencePass &&
     appScript.includes("Continue read-only planning and review.") &&
     appScript.includes("What We Learned") &&
     appScript.includes("Next safe step") &&
