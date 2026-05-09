@@ -173,6 +173,13 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.result = "Mutating git actions are gated until the command approval bridge is implemented.";
   }
 
+  if (kind === "shell") {
+    const shell = createShellSnapshot(prompt);
+    task.status = shell.ok ? "completed" : "gated";
+    task.excerpt = shell.output;
+    task.result = shell.message;
+  }
+
   taskQueue.unshift(task);
   return task;
 }
@@ -192,6 +199,12 @@ function supervisorMessage(task) {
     return task.tool === "git_status"
       ? "I checked git status and put the read-only snapshot in TASKS."
       : "That git action is gated for now. I recorded it in TASKS without asking you to click through a disabled flow.";
+  }
+
+  if (task.kind === "shell") {
+    return task.status === "completed"
+      ? "I ran the safe read-only shell check and put the output in TASKS."
+      : "That shell request is outside the safe read-only allowlist, so I gated it without a click-through.";
   }
 
   return "I staged that analysis task for review in TASKS.";
@@ -242,6 +255,7 @@ function initialTaskStatus(kind, tool) {
   if (kind === "inspect") return "inspected";
   if (kind === "git" && tool === "git_status") return "completed";
   if (kind === "git") return "gated";
+  if (kind === "shell") return "gated";
   return "pending";
 }
 
@@ -277,6 +291,37 @@ function createGitStatusExcerpt() {
     return output || "## main\nworking tree clean";
   } catch (error) {
     return `git status unavailable: ${error.message}`;
+  }
+}
+
+function createShellSnapshot(prompt) {
+  const command = detectSafeShellCommand(prompt);
+  if (!command) {
+    return {
+      ok: false,
+      output: "",
+      message: "Shell request gated. Only read-only allowlisted commands can auto-run.",
+    };
+  }
+
+  try {
+    const output = execFileSync(command.file, command.args, {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim();
+
+    return {
+      ok: true,
+      output: output || "(no output)",
+      message: `Safe shell command completed: ${command.label}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      output: error.stdout || error.stderr || error.message,
+      message: `Safe shell command failed: ${command.label}`,
+    };
   }
 }
 
@@ -397,6 +442,8 @@ function chooseTool(prompt) {
   const lower = prompt.toLowerCase();
   if (lower.includes("git") && lower.includes("commit")) return "git_commit";
   if (lower.includes("git")) return "git_status";
+  if (lower.includes("shell") || lower.includes("terminal") || lower.includes("command")) return "shell_execute";
+  if (lower.includes("node --version") || lower.includes("npm --version")) return "shell_execute";
   if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
   if (lower.includes("file") || lower.includes("read") || lower.includes("inspect") || lower.includes("show")) {
     return "filesystem_read";
@@ -410,7 +457,25 @@ function chooseTaskKind(prompt, tool) {
   if (tool === "filesystem_read" || lower.includes("inspect") || lower.includes("show")) return "inspect";
   if (tool === "filesystem_write") return "edit";
   if (tool.startsWith("git_")) return "git";
+  if (tool === "shell_execute") return "shell";
   return "analysis";
+}
+
+function detectSafeShellCommand(prompt) {
+  const lower = prompt.toLowerCase();
+  if (lower.includes("node --version") || lower.includes("node version")) {
+    return { file: "node", args: ["--version"], label: "node --version" };
+  }
+
+  if (lower.includes("npm --version") || lower.includes("npm version")) {
+    return { file: "npm", args: ["--version"], label: "npm --version" };
+  }
+
+  if (lower.includes("list files") || lower.includes("dir") || lower.includes("ls")) {
+    return { file: "git", args: ["ls-files"], label: "git ls-files" };
+  }
+
+  return null;
 }
 
 function detectTargetFile(prompt) {
