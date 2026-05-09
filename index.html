@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tripp Terminal Shell</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="terminal-app">
+      <header class="topbar">
+        <div class="brand">Tripp.</div>
+        <div class="mode-switch" aria-label="Terminal mode">
+          <span class="status-light"></span>
+          <button class="mode active" type="button" data-mode="CHAT">CHAT</button>
+          <button class="mode" type="button" data-mode="AUTO">AUTO</button>
+        </div>
+      </header>
+
+      <div class="shell">
+        <nav class="command-rail" aria-label="Command rail">
+          <button class="active" type="button" data-rail="terminal" title="Terminal">0</button>
+          <button type="button" data-rail="tools" title="Tool registry">&lt;&gt;</button>
+          <button type="button" data-rail="send" title="Send focus">→</button>
+          <button type="button" data-rail="sessions" title="Sessions">−</button>
+          <button type="button" data-rail="swarm" title="Agent swarm">*</button>
+          <button type="button" data-rail="tripp" title="Tripp core">T.</button>
+          <button type="button" data-rail="settings" title="Settings">*</button>
+        </nav>
+
+        <main class="terminal-main">
+          <section class="terminal-feed" aria-label="Conversation">
+            <div id="messageRoot"></div>
+          </section>
+
+          <form class="terminal-input" id="terminalForm">
+            <label for="command" id="inputPrompt">chat&gt;</label>
+            <input id="command" type="text" placeholder="Enter command..." />
+            <button type="submit" title="Send command">→</button>
+          </form>
+        </main>
+
+        <aside class="ops-panel">
+          <button class="collapse" type="button">«</button>
+
+          <section class="panel-section tools">
+            <h2>TOOL REGISTRY <span id="toolCount">(0)</span></h2>
+            <ul id="toolRoot"></ul>
+          </section>
+
+          <section class="panel-section sessions">
+            <h2>
+              <span>SESSIONS</span>
+              <button class="new-session-icon" type="button" title="New chat" aria-label="New chat">+</button>
+            </h2>
+            <div id="sessionRoot"></div>
+            <button class="new-session" type="button">+ NEW SESSION</button>
+          </section>
+
+          <section class="panel-section system">
+            <h2>SYSTEM STATUS</h2>
+            <dl id="statusRoot"></dl>
+          </section>
+        </aside>
+      </div>
+
+      <footer class="statusbar">
+        <span><i></i> <span id="footerConnection">CONNECTED</span></span>
+        <strong id="footerMode">TRIPPMODE::CHAT</strong>
+        <span id="footerMetrics">TOKENS: 5,131&nbsp;&nbsp; 679ms&nbsp;&nbsp; v1.0.0</span>
+      </footer>
+    </div>
+    <script src="./script.js"></script>
+  </body>
+</html>

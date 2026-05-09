@@ -1,0 +1,40 @@
+{
+  "messages": [
+    {
+      "speaker": "tripp>",
+      "time": "10:59",
+      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."
+    }
+  ],
+  "tools": [
+    { "name": "filesystem_read", "enabled": true, "description": "Read files from the active workspace." },
+    { "name": "filesystem_write", "enabled": true, "description": "Write scoped changes into approved workspace paths." },
+    { "name": "filesystem_list", "enabled": true, "description": "List directories and inspect project structure." },
+    { "name": "shell_execute", "enabled": true, "description": "Run bounded shell commands with permission awareness." },
+    { "name": "web_search", "enabled": true, "description": "Search current web sources when freshness matters." },
+    { "name": "web_fetch", "enabled": true, "description": "Open and read specific URLs." },
+    { "name": "code_analyze", "enabled": true, "description": "Inspect code paths and summarize architecture." },
+    { "name": "code_format", "enabled": true, "description": "Apply formatting to supported source files." },
+    { "name": "git_status", "enabled": true, "description": "Review repository state before edits." },
+    { "name": "git_commit", "enabled": true, "description": "Create scoped commits when explicitly approved." },
+    { "name": "memory_store", "enabled": true, "description": "Persist selected project context." },
+    { "name": "memory_retrieve", "enabled": true, "description": "Retrieve stored context for continuity." }
+  ],
+  "sessions": [
+    { "title": "Implement auth middleware", "age": "2h ago", "messages": 24, "active": true },
+    { "title": "Database schema review", "age": "5h ago", "messages": 18 },
+    { "title": "API endpoint design", "age": "Yesterday", "messages": 31 },
+    { "title": "React component refactor", "age": "Yesterday", "messages": 15 },
+    { "title": "Docker container setup", "age": "2 days ago", "messages": 12 },
+    { "title": "CI/CD pipeline config", "age": "3 days ago", "messages": 27 }
+  ],
+  "status": {
+    "connection": "CONNECTED",
+    "model": "gpt-4",
+    "tokensIn": "1,240",
+    "tokensOut": "3,891",
+    "latency": "679ms",
+    "mode": "CHAT",
+    "version": "v1.0.0"
+  }
+}

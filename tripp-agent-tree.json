@@ -1,0 +1,49 @@
+{
+  "name": "Tripp",
+  "id": "tripp",
+  "role": "Face of the swarm",
+  "purpose": "Owns the user relationship, speaks with one voice, and presents the final answer.",
+  "children": [
+    {
+      "name": "Tripp.supervisor",
+      "id": "tripp.supervisor",
+      "role": "Swarm coordinator",
+      "purpose": "Breaks user intent into scoped work, assigns agents, watches progress, and synthesizes results for Tripp.",
+      "children": [
+        {
+          "name": "Tripp.drone.one",
+          "id": "tripp.drone.one",
+          "role": "Tool worker set 1-3",
+          "purpose": "Handles the first tool cluster: lightweight file/context gathering, simple reads, and quick status checks.",
+          "toolSet": ["context_read", "file_list", "status_probe"]
+        },
+        {
+          "name": "Tripp.drone.two",
+          "id": "tripp.drone.two",
+          "role": "Tool worker set 4-6",
+          "purpose": "Handles the second tool cluster: code inspection, targeted search, and structured summaries.",
+          "toolSet": ["code_search", "code_analyze", "summary_report"]
+        },
+        {
+          "name": "Tripp.drone.three",
+          "id": "tripp.drone.three",
+          "role": "Tool worker set 7-10",
+          "purpose": "Handles the third tool cluster: execution, validation, diff review, and implementation support.",
+          "toolSet": ["command_run", "test_verify", "diff_review", "patch_support"]
+        },
+        {
+          "name": "Tripp.inspector",
+          "id": "tripp.inspector",
+          "role": "Quality gate",
+          "purpose": "Checks that work stayed on task, followed constraints, avoided unnecessary churn, and produced a clean handoff."
+        },
+        {
+          "name": "Tripp.auditor",
+          "id": "tripp.auditor",
+          "role": "Risk and traceability",
+          "purpose": "Reviews permissions, tool use, state changes, assumptions, and evidence before final delivery."
+        }
+      ]
+    }
+  ]
+}
