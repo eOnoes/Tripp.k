@@ -280,7 +280,7 @@
   function renderStatus() {
     const rows = [
       ["CONNECTION", `<i></i>${escapeHtml(state.status.connection)}`],
-      ["MODEL", escapeHtml(state.status.model)],
+      ["RUNTIME", escapeHtml(displayRuntime(state.status.model))],
       ["TOKENS IN", escapeHtml(state.status.tokensIn)],
       ["TOKENS OUT", escapeHtml(state.status.tokensOut)],
       ["LATENCY", escapeHtml(state.status.latency)],
@@ -471,6 +471,15 @@
     state.status.tokensOut = outTokens.toLocaleString("en-US");
     state.status.latency = replyStatus?.latency || `${420 + Math.floor(Math.random() * 180)}ms`;
     state.status.model = replyStatus?.model || state.status.model;
+  }
+
+  function displayRuntime(model) {
+    const value = String(model || "");
+    if (value === "tripp-adapter/mock") return "Mock Runtime";
+    if (value === "tripp-adapter/local") return "Local Fallback";
+    if (value === "tripp-adapter/backend") return "Backend Bridge";
+    if (value === "gpt-4") return "Seed Runtime";
+    return value || "Unknown";
   }
 
   function totalTokens() {

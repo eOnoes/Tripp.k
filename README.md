@@ -49,3 +49,4 @@ Inspect tasks are read-only, auto-complete without acknowledgement, and can show
 Shell tasks auto-run only a small read-only allowlist such as `node --version`, `npm --version`, and repo file listing; other shell requests are recorded as gated.
 Analysis tasks are read-only, auto-complete for approved repo-local files, and show a short excerpt plus lightweight findings in the task detail.
 Task history is persisted locally under `.tripp-runtime/`, which is ignored by Git.
+The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.
