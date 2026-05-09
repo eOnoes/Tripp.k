@@ -178,6 +178,32 @@ try {
   const appScript = await getText("/script.js");
   const appCss = await getText("/styles.css");
   const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
+  const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
+  const conclusionForbiddenTerms = [
+    "approved",
+    "approval-ready",
+    "ready to edit",
+    "ready to apply",
+    "safe to modify",
+    "verified target",
+    "confirmed target",
+    "execution-ready",
+    "mutation-ready",
+    "patch-ready",
+    "apply-ready",
+    "authorized change",
+    "can now edit",
+    "can proceed to write",
+    "trusted for writes",
+    "edit-capable",
+    "apply-capable",
+    "validated for changes",
+  ];
+  const conclusionCopyGuardPass =
+    conclusionSource.includes("renderTaskConclusion") &&
+    conclusionSource.includes("buildTaskConclusion") &&
+    conclusionForbiddenTerms.every((term) => !conclusionSource.toLowerCase().includes(term)) &&
+    !/nextStep:\s*["'`][^"'`]*(?:edit|apply|write|patch|approve|commit)/i.test(conclusionSource);
   const workspacePass =
     workspaceTree.files?.some((entry) => entry.name === "README.md") &&
     workspaceFile.language === "markdown" &&
@@ -207,6 +233,7 @@ try {
     appScript.includes("buildTaskConclusion") &&
     appScript.includes("What We Learned") &&
     appScript.includes("Next safe step") &&
+    conclusionCopyGuardPass &&
     appScript.includes("Read-only inspection") &&
     appScript.includes("Mock evidence - planning only") &&
     appScript.includes("non-authoritative for file changes") &&
@@ -1066,6 +1093,13 @@ function readRequestJson(request) {
       }
     });
   });
+}
+
+function extractFunctionRange(source, startName, endName) {
+  const start = source.indexOf(`function ${startName}`);
+  const end = source.indexOf(`function ${endName}`, start + 1);
+  if (start < 0) return "";
+  return end > start ? source.slice(start, end) : source.slice(start);
 }
 
 function sleep(ms) {
