@@ -147,6 +147,33 @@ try {
     failures.push({ name: "munch" });
   }
 
+  const discoveryReply = await postJson("/api/tripp/reply", {
+    prompt: "where is Munch health exposed",
+    mode: "AUTO",
+    sessionId: "verify-routing-discovery",
+  });
+  const editReply = await postJson("/api/tripp/reply", {
+    prompt: "edit the welcome message",
+    mode: "AUTO",
+    sessionId: "verify-routing-edit",
+  });
+  const runtimeReply = await postJson("/api/tripp/reply", {
+    prompt: "lock the goosed runtime contract",
+    mode: "AUTO",
+    sessionId: "verify-routing-runtime",
+  });
+  const routingPass =
+    discoveryReply.task?.routingDecision?.lane === "munch" &&
+    discoveryReply.task?.retrieval?.backend === "tripp-munch-mock" &&
+    editReply.task?.routingDecision?.lane === "native" &&
+    editReply.task?.permission?.decision === "gated" &&
+    runtimeReply.task?.routingDecision?.lane === "hybrid" &&
+    runtimeReply.task?.routingDecision?.retrievalKind === "context_map";
+  console.log(`${routingPass ? "PASS" : "FAIL"} supervisor: native, munch, and hybrid routing decisions`);
+  if (!routingPass) {
+    failures.push({ name: "supervisor routing" });
+  }
+
   const swarm = await getJson("/api/tripp/swarm");
   const swarmPass =
     swarm.face === "tripp" &&

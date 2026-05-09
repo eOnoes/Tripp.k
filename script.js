@@ -251,6 +251,10 @@
                       <div><dt>KIND</dt><dd>${escapeHtml(task.kind || "task")}</dd></div>
                       <div><dt>SOURCE</dt><dd>${escapeHtml(task.origin || "local")}</dd></div>
                       <div><dt>AGENT</dt><dd>${escapeHtml(task.agentId || "tripp.supervisor")}</dd></div>
+                      <div><dt>LANE</dt><dd>${escapeHtml(task.routingDecision?.lane || "native")}</dd></div>
+                      <div><dt>ROUTE</dt><dd>${escapeHtml(task.routingDecision?.reason || "native task flow")}</dd></div>
+                      <div><dt>RETRIEVE</dt><dd>${escapeHtml(task.routingDecision?.retrievalKind || "none")}</dd></div>
+                      <div><dt>CONF</dt><dd>${escapeHtml(task.routingDecision?.confidenceRequired || "medium")}</dd></div>
                       <div><dt>PERMIT</dt><dd>${escapeHtml(task.permission?.decision || "unknown")}</dd></div>
                       <div><dt>STYLE</dt><dd>${escapeHtml(task.codingMode || "goose")}</dd></div>
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
@@ -260,6 +264,7 @@
                     </dl>
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
+                    ${renderRetrieval(task.retrieval)}
                     ${renderTrace(task.trace)}
                     ${task.permission?.reason ? `<pre>${escapeHtml(task.permission.reason)}</pre>` : ""}
                     ${task.patch ? `<pre>${escapeHtml(task.patch)}</pre>` : ""}
@@ -456,6 +461,18 @@
           )
           .join("")}
       </ol>
+    `;
+  }
+
+  function renderRetrieval(retrieval) {
+    if (!retrieval) return "";
+
+    return `
+      <section class="retrieval-detail">
+        <strong>${escapeHtml(retrieval.backend || "munch")} · ${escapeHtml(retrieval.confidence || "low")}</strong>
+        <p>${escapeHtml((retrieval.summary || []).join(" "))}</p>
+        <small>${escapeHtml((retrieval.fallback_chain || []).join(" -> "))}</small>
+      </section>
     `;
   }
 

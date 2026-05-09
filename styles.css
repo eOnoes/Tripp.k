@@ -745,6 +745,11 @@ button {
   border-left: 2px solid var(--green);
 }
 
+.task.retrieval_ready {
+  border-left: 2px solid var(--lime);
+  background: #080c00;
+}
+
 .task.gated {
   border-left: 2px solid #888888;
   opacity: 0.84;
@@ -855,6 +860,25 @@ button {
   padding: 0;
   list-style: none;
   border: 1px solid var(--line-soft);
+}
+
+.retrieval-detail {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #263400;
+  background: #070a00;
+}
+
+.retrieval-detail strong {
+  display: block;
+  color: var(--lime);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.retrieval-detail p,
+.retrieval-detail small {
+  margin: 5px 0 0;
 }
 
 .task-trace li {

@@ -638,6 +638,7 @@ async function createReply(payload) {
 function createTask({ prompt, tool, kind, sessionId }) {
   const target = detectTargetFile(prompt) || detectKnownEditTarget(prompt, kind);
   const routeInfo = routePrompt(prompt, tool, kind);
+  const routingDecision = createSupervisorRoutingDecision(prompt, tool, kind, target);
   const task = {
     id: `task-${Date.now()}`,
     title: summarizeTask(prompt),
@@ -648,6 +649,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
     sessionId: sessionId || null,
     status: initialTaskStatus(kind, tool),
     agentId: routeInfo.agentId,
+    routingDecision,
     trace: createSwarmTrace(routeInfo, tool),
     createdAt: new Date().toISOString(),
   };
@@ -688,6 +690,35 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.permission = permissionDecision(tool, analysis.ok ? "allow" : "gated", analysis.reason);
   }
 
+  if (routingDecision.lane === "munch") {
+    task.status = "retrieval_ready";
+    task.permission = permissionDecision(tool, "allow", "retrieval-only Munch lane; no execution or mutation");
+    task.retrieval = createMunchRetrieval({
+      id: `rr_${task.id}`,
+      kind: routingDecision.retrievalKind,
+      workspace: root,
+      paths: target?.relative ? [target.relative] : [],
+      query: prompt,
+      intent: {
+        task_type: routingDecision.taskType,
+        reason: routingDecision.reason,
+      },
+      policy: {
+        retrieval_mode: routingDecision.retrievalMode,
+        max_results: 8,
+        allow_full_read: false,
+        compress_output: true,
+        include_evidence: true,
+        dedupe_key: routingDecision.dedupeKey,
+      },
+    });
+    task.result = "Supervisor routed this through the Munch retrieval lane before native reads or edits.";
+  }
+
+  if (routingDecision.lane === "hybrid") {
+    task.result = `${task.result || "Task staged."} Hybrid lane selected: collect native runtime evidence, then use Munch for supporting docs/config retrieval.`;
+  }
+
   if (kind === "edit") {
     task.permission = permissionDecision(tool, "gated", "filesystem writes require patch preview and guarded apply");
     task.patchPlan = createPatchPlan(task);
@@ -701,6 +732,14 @@ function createTask({ prompt, tool, kind, sessionId }) {
 }
 
 function supervisorMessage(task) {
+  if (task.routingDecision?.lane === "munch") {
+    return "I routed that through the Munch retrieval lane. Native reads/edits wait until retrieval evidence narrows the target.";
+  }
+
+  if (task.routingDecision?.lane === "hybrid") {
+    return "I marked that as a hybrid investigation: native runtime evidence first, then Munch-backed policy/context support.";
+  }
+
   if (task.kind === "inspect") {
     return task.target
       ? `I inspected ${task.target} and prepared a read-only excerpt in TASKS. No file mutation was performed.`
@@ -730,6 +769,107 @@ function supervisorMessage(task) {
   }
 
   return "I recorded that task in TASKS.";
+}
+
+function createSupervisorRoutingDecision(prompt, tool, kind, target) {
+  const lower = `${prompt} ${tool} ${kind}`.toLowerCase();
+  const isRuntime =
+    lower.includes("runtime") ||
+    lower.includes("contract") ||
+    lower.includes("process") ||
+    lower.includes("endpoint health") ||
+    lower.includes("live health") ||
+    lower.includes("goosed");
+  const isMutation =
+    kind === "edit" ||
+    tool === "filesystem_write" ||
+    tool === "shell_execute" ||
+    tool?.startsWith("git_") ||
+    lower.includes("apply") ||
+    lower.includes("run ");
+  const isRetrieval =
+    lower.includes("where") ||
+    lower.includes("find") ||
+    lower.includes("trace") ||
+    lower.includes("search") ||
+    lower.includes("map") ||
+    lower.includes("docs") ||
+    lower.includes("policy") ||
+    lower.includes("config") ||
+    lower.includes("source of truth") ||
+    lower.includes("owner") ||
+    lower.includes("which file");
+
+  if (isRuntime && !isMutation) {
+    return routingDecision("hybrid", "runtime evidence must be observed natively, then supported with Munch retrieval", {
+      retrievalKind: "context_map",
+      retrievalMode: "deep_analysis",
+      taskType: "mixed",
+      requiresExactRead: true,
+      confidenceRequired: "medium",
+      dedupeKey: slugForDedupe(prompt, "runtime-contract"),
+    });
+  }
+
+  if (isRetrieval && !isMutation && !target) {
+    const retrievalKind = lower.includes("doc") || lower.includes("policy") || lower.includes("rule")
+      ? "doc_search"
+      : lower.includes("config") || lower.includes("data") || lower.includes("json") || lower.includes("yaml")
+        ? "data_search"
+        : lower.includes("map") || lower.includes("trace") || lower.includes("source of truth")
+          ? "context_map"
+          : "code_search";
+
+    return routingDecision("munch", "discovery/narrowing request should use retrieval before native reads", {
+      retrievalKind,
+      retrievalMode: retrievalKind === "context_map" ? "deep_analysis" : "retrieval_first",
+      taskType: retrievalKind === "doc_search" ? "doc" : retrievalKind === "data_search" ? "data" : "code",
+      requiresExactRead: true,
+      confidenceRequired: "medium",
+      dedupeKey: slugForDedupe(prompt, retrievalKind),
+    });
+  }
+
+  return routingDecision("native", "exact execution or target is already known; native Tripp.g lane is appropriate", {
+    retrievalKind: null,
+    retrievalMode: "fast_exec",
+    taskType: kind || "mixed",
+    requiresExactRead: false,
+    confidenceRequired: "medium",
+    dedupeKey: null,
+  });
+}
+
+function routingDecision(lane, reason, options) {
+  return {
+    lane,
+    reason,
+    retrievalKind: options.retrievalKind,
+    retrievalMode: options.retrievalMode,
+    taskType: options.taskType,
+    confidenceRequired: options.confidenceRequired,
+    requiresExactRead: options.requiresExactRead,
+    evidenceRequired:
+      lane === "native"
+        ? ["target file or command known", "permission decision"]
+        : [
+            "backend",
+            "fallback_chain",
+            "confidence >= medium before edit",
+            "result path/symbol/section reason",
+            "evidence provenance",
+          ],
+    dedupeKey: options.dedupeKey,
+  };
+}
+
+function slugForDedupe(prompt, fallback) {
+  const slug = String(prompt || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slug || fallback;
 }
 
 function updateTask(taskId, action) {
