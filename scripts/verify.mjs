@@ -237,12 +237,31 @@ try {
     promptBlockReply.messages?.some(
       (message) =>
         message.speaker === "tripp.prompt>" &&
+        message.promptBlock?.type === "prompt_block" &&
+        message.promptBlock?.header === "---pb:v1---" &&
+        message.promptBlock?.executionAllowed === false &&
+        message.promptBlock?.contextOnly === true &&
         message.promptBlock?.label === "Goose.Prompt" &&
-        message.promptBlock?.body?.startsWith("Goose.Prompt"),
+        message.promptBlock?.body?.startsWith("---pb:v1---"),
     ) && !promptBlockReply.task;
   console.log(`${promptBlockPass ? "PASS" : "FAIL"} prompts: copy-ready block without task`);
   if (!promptBlockPass) {
     failures.push({ name: "prompt block" });
+  }
+
+  const promptBlock = promptBlockReply.messages?.find((message) => message.promptBlock)?.promptBlock;
+  const promptValidation = await postJson("/api/tripp/prompt-block/validate", { promptBlock });
+  const staleRootValidation = await postJson("/api/tripp/prompt-block/validate", {
+    promptBlock: {
+      ...promptBlock,
+      pinnedWorkspaceRoot: "C:\\Different\\Workspace",
+      body: promptBlock.body.replace(/^pinnedWorkspaceRoot: .+$/m, "pinnedWorkspaceRoot: C:\\Different\\Workspace"),
+    },
+  });
+  const validationPass = promptValidation.status === "valid" && staleRootValidation.status === "stale_root";
+  console.log(`${validationPass ? "PASS" : "FAIL"} prompts: validator contract`);
+  if (!validationPass) {
+    failures.push({ name: "prompt block validation" });
   }
 
   if (failures.length) {

@@ -72,8 +72,12 @@ try {
       promptBlockReply.messages?.some(
         (message) =>
           message.speaker === "tripp.prompt>" &&
+          message.promptBlock?.type === "prompt_block" &&
+          message.promptBlock?.header === "---pb:v1---" &&
+          message.promptBlock?.executionAllowed === false &&
+          message.promptBlock?.contextOnly === true &&
           message.promptBlock?.label === "Goose.Prompt" &&
-          message.promptBlock?.body?.startsWith("Goose.Prompt"),
+          message.promptBlock?.body?.startsWith("---pb:v1---"),
       ) && !promptBlockReply.tasks?.length,
     ],
   ];

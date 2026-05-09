@@ -188,25 +188,55 @@ function createPromptBlock(prompt) {
 
   if (!wantsPrompt) return null;
 
+  const contextSnapshotId = `ctx_${Date.now()}`;
+  const body = [
+    "---pb:v1---",
+    "Goose.Prompt",
+    "",
+    `pinnedWorkspaceRoot: ${root}`,
+    `contextSnapshotId: ${contextSnapshotId}`,
+    "executionAllowed: false",
+    "contextOnly: true",
+    "descriptorStatus: proposed",
+    "",
+    "Context:",
+    "- Tripp.g is the user-facing harness shell.",
+    "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
+    "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
+    "",
+    "Task:",
+    "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
+    "- Focus on schema, routing, runtime contract, or workspace UI only if it helps the next build chunk.",
+    "",
+    "Output:",
+    "- Lead with the recommendation.",
+    "- Include any risks or missing evidence.",
+    "- End with a small next-step checklist.",
+  ].join("\n");
+
   return {
+    type: "prompt_block",
     label: "Goose.Prompt",
-    body: [
-      "Goose.Prompt",
-      "",
-      "Context:",
-      "- Tripp.g is the user-facing harness shell.",
-      "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
-      "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
-      "",
-      "Task:",
-      "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
-      "- Focus on schema, routing, runtime contract, or workspace UI only if it helps the next build chunk.",
-      "",
-      "Output:",
-      "- Lead with the recommendation.",
-      "- Include any risks or missing evidence.",
-      "- End with a small next-step checklist.",
-    ].join("\n"),
+    header: "---pb:v1---",
+    body,
+    executionAllowed: false,
+    contextOnly: true,
+    descriptorStatus: "proposed",
+    requiresReview: true,
+    pinnedWorkspaceRoot: root,
+    contextSnapshotId,
+    validation: {
+      type: "prompt_block_validation",
+      valid: true,
+      status: "valid",
+      executionAllowed: false,
+      contextOnly: true,
+      descriptorStatus: "proposed",
+      pinnedWorkspaceRoot: root,
+      currentWorkspaceRoot: root,
+      contextSnapshotId,
+      warnings: [],
+    },
   };
 }
 

@@ -107,6 +107,12 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/tripp/prompt-block/validate") {
+    const payload = await readJson(request);
+    sendJson(response, validatePromptBlock(payload?.promptBlock || payload));
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/swarm") {
     sendJson(response, readSwarmManifest());
     return;
@@ -1629,26 +1635,102 @@ function createPromptBlock(prompt) {
 
   if (!wantsPrompt) return null;
 
-  return {
+  const contextSnapshotId = `ctx_${Date.now()}`;
+  const body = [
+    "---pb:v1---",
+    "Goose.Prompt",
+    "",
+    `pinnedWorkspaceRoot: ${root}`,
+    `contextSnapshotId: ${contextSnapshotId}`,
+    "executionAllowed: false",
+    "contextOnly: true",
+    "descriptorStatus: proposed",
+    "",
+    "Context:",
+    "- Tripp.g is the user-facing harness shell.",
+    "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
+    "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
+    "",
+    "Task:",
+    "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
+    "- Focus on schema, routing, runtime contract, or workspace UI only if it helps the next build chunk.",
+    "",
+    "Output:",
+    "- Lead with the recommendation.",
+    "- Include any risks or missing evidence.",
+    "- End with a small next-step checklist.",
+  ].join("\n");
+
+  return normalizePromptBlock({
+    type: "prompt_block",
     label: "Goose.Prompt",
-    body: [
-      "Goose.Prompt",
-      "",
-      "Context:",
-      "- Tripp.g is the user-facing harness shell.",
-      "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
-      "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
-      "",
-      "Task:",
-      "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
-      "- Focus on schema, routing, runtime contract, or workspace UI only if it helps the next build chunk.",
-      "",
-      "Output:",
-      "- Lead with the recommendation.",
-      "- Include any risks or missing evidence.",
-      "- End with a small next-step checklist.",
-    ].join("\n"),
+    body,
+    header: "---pb:v1---",
+    executionAllowed: false,
+    contextOnly: true,
+    descriptorStatus: "proposed",
+    requiresReview: true,
+    pinnedWorkspaceRoot: root,
+    contextSnapshotId,
+    validation: validatePromptBlock({ body, pinnedWorkspaceRoot: root, contextSnapshotId }),
+  });
+}
+
+function normalizePromptBlock(block) {
+  return {
+    type: "prompt_block",
+    label: block.label || "PromptBlock",
+    header: block.header || "---pb:v1---",
+    body: String(block.body || ""),
+    executionAllowed: false,
+    contextOnly: true,
+    descriptorStatus: "proposed",
+    requiresReview: true,
+    pinnedWorkspaceRoot: block.pinnedWorkspaceRoot || root,
+    contextSnapshotId: block.contextSnapshotId || null,
+    validation: block.validation || validatePromptBlock(block),
   };
+}
+
+function validatePromptBlock(block = {}) {
+  const body = String(block.body || block.text || "");
+  const pinnedWorkspaceRoot = String(block.pinnedWorkspaceRoot || extractPromptBlockField(body, "pinnedWorkspaceRoot") || "");
+  const contextSnapshotId = block.contextSnapshotId || extractPromptBlockField(body, "contextSnapshotId") || null;
+  const hasHeader = body.trimStart().startsWith("---pb:v1---") || block.header === "---pb:v1---";
+  const rootMatches = pinnedWorkspaceRoot === root;
+  const hasExecutableIntent = /\bexecutionAllowed:\s*true\b|\btool:\s*(shell_execute|filesystem_write|git_commit)\b/i.test(body);
+  const warnings = [];
+
+  if (!hasHeader) warnings.push("missing ---pb:v1--- header");
+  if (!pinnedWorkspaceRoot) warnings.push("missing pinnedWorkspaceRoot");
+  else if (!rootMatches) warnings.push("pinnedWorkspaceRoot does not match current workspace");
+  if (!contextSnapshotId) warnings.push("missing contextSnapshotId");
+  if (hasExecutableIntent) warnings.push("prompt block contains executable intent fields");
+
+  const status = !hasHeader || hasExecutableIntent
+    ? "malformed"
+    : pinnedWorkspaceRoot && !rootMatches
+      ? "stale_root"
+      : !contextSnapshotId
+        ? "stale_context"
+        : "valid";
+
+  return {
+    type: "prompt_block_validation",
+    valid: status === "valid",
+    status,
+    executionAllowed: false,
+    contextOnly: true,
+    descriptorStatus: "proposed",
+    pinnedWorkspaceRoot,
+    currentWorkspaceRoot: root,
+    contextSnapshotId,
+    warnings,
+  };
+}
+
+function extractPromptBlockField(body, key) {
+  return String(body || "").match(new RegExp(`^${key}:\\s*(.+)$`, "im"))?.[1]?.trim() || "";
 }
 
 function mapBackendTasks(value, sessionId, prompt) {

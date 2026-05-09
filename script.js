@@ -229,12 +229,25 @@
   function renderPromptBlock(block) {
     const label = typeof block === "string" ? "Prompt" : block.label || block.title || "Prompt";
     const body = typeof block === "string" ? block : block.body || block.text || "";
+    const validation = block.validation || {};
     return `
       <div class="prompt-block">
         <header>
-          <strong>${escapeHtml(label)}</strong>
+          <strong><span>PB</span>${escapeHtml(label)}</strong>
+          <small>${escapeHtml(block.descriptorStatus || "proposed")} · ${escapeHtml(validation.status || "unvalidated")}</small>
           <button type="button" data-copy-block title="Copy prompt block">COPY</button>
         </header>
+        <dl>
+          <div><dt>TYPE</dt><dd>${escapeHtml(block.type || "prompt_block")}</dd></div>
+          <div><dt>EXEC</dt><dd>${escapeHtml(block.executionAllowed === true ? "true" : "false")}</dd></div>
+          <div><dt>ROOT</dt><dd>${escapeHtml(block.pinnedWorkspaceRoot || "unknown")}</dd></div>
+          <div><dt>CTX</dt><dd>${escapeHtml(block.contextSnapshotId || "none")}</dd></div>
+        </dl>
+        ${
+          validation.warnings?.length
+            ? `<p class="prompt-block-warning">${escapeHtml(validation.warnings.join(" / "))}</p>`
+            : ""
+        }
         <pre>${escapeHtml(body)}</pre>
       </div>
     `;
@@ -1219,10 +1232,21 @@ function createLocalPromptBlock(prompt) {
 
   if (!wantsPrompt) return null;
 
+  const contextSnapshotId = `ctx_${Date.now()}`;
+
   return {
+    type: "prompt_block",
     label: "Goose.Prompt",
+    header: "---pb:v1---",
     body: [
+      "---pb:v1---",
       "Goose.Prompt",
+      "",
+      "pinnedWorkspaceRoot: static-fallback",
+      `contextSnapshotId: ${contextSnapshotId}`,
+      "executionAllowed: false",
+      "contextOnly: true",
+      "descriptorStatus: proposed",
       "",
       "Context:",
       "- Tripp.g is the user-facing harness shell.",
@@ -1238,6 +1262,24 @@ function createLocalPromptBlock(prompt) {
       "- Include any risks or missing evidence.",
       "- End with a small next-step checklist.",
     ].join("\n"),
+    executionAllowed: false,
+    contextOnly: true,
+    descriptorStatus: "proposed",
+    requiresReview: true,
+    pinnedWorkspaceRoot: "static-fallback",
+    contextSnapshotId,
+    validation: {
+      type: "prompt_block_validation",
+      valid: true,
+      status: "valid",
+      executionAllowed: false,
+      contextOnly: true,
+      descriptorStatus: "proposed",
+      pinnedWorkspaceRoot: "static-fallback",
+      currentWorkspaceRoot: "static-fallback",
+      contextSnapshotId,
+      warnings: [],
+    },
   };
 }
 
