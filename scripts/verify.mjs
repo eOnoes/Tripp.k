@@ -207,6 +207,15 @@ try {
     appScript.includes("Target is not apply-ready") &&
     appScript.includes("Write progression blocked") &&
     appScript.includes("Apply progression blocked") &&
+    appScript.includes("target:${event.escalationTarget}") &&
+    appScript.includes("source:${event.sourceKind}") &&
+    appScript.includes("mode:${event.retrievalMode}") &&
+    appScript.includes("authority:${event.authorityLevel}") &&
+    appScript.includes("degraded:true") &&
+    appScript.includes("writeApprovalEligible:false") &&
+    appScript.includes("applyEligible:false") &&
+    appScript.includes("approvalEvidence:false") &&
+    appScript.includes("invoked:false") &&
     appScript.includes("reasonCode") &&
     appScript.includes("BLOCK") &&
     appScript.includes("APPLY BLOCKED") &&
