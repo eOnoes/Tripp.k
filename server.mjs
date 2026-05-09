@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
@@ -2288,20 +2289,25 @@ function updateTask(taskId, action) {
     }
 
     task.status = "patch_ready";
-    task.patchPlan ||= createPatchPlan(task);
+    task.patchPlan = materializePatchPlan(task, task.patchPlan || createPatchPlan(task));
     task.patch = createPatchPreview(task);
+    if (task.patchPlan) approvePatchPlan(task);
     task.result = task.patchPlan
-      ? "Patch preview prepared. Apply will run the guarded scoped patch."
+      ? "Patch reviewed and approved for this exact preview. Apply still requires a separate action."
       : "No guarded patch is available for this task yet.";
+    recordPatchEvent(task, "patch_preview", task.patchPlan ? "ok" : "blocked", task.patchPlan ? null : "PATCH_PLAN_MISSING");
+    if (task.patchPlan) recordPatchEvent(task, "patch_approval", "ok", null);
     advanceTaskLifecycle(task, "approved", "operator", "operator approved guarded patch preview");
     saveTaskQueue();
     return { task };
   }
 
   if (action === "apply") {
+    recordPatchEvent(task, "apply_requested", "active", null);
     const applied = applyTaskPatch(task);
     task.status = applied.ok ? "applied" : "apply_blocked";
     task.result = applied.message;
+    recordPatchEvent(task, "apply_result", applied.ok ? "ok" : "blocked", applied.ok ? null : applied.code || "APPLY_BLOCKED");
     advanceTaskLifecycle(task, applied.ok ? "completed" : "failed", "tripp.executor", applied.message);
     saveTaskQueue();
     return { task };
@@ -2528,6 +2534,26 @@ function recordLifecycleEvent(task = {}, event = {}) {
   });
 }
 
+function recordPatchEvent(task = {}, stage, status, errorCode) {
+  return recordCystEvent({
+    eventType: "patch_event",
+    descriptorId: task.id,
+    traceId: task.id,
+    ownerId: "tripp.executor",
+    adapter: null,
+    tool: task.tool || "filesystem_write",
+    resultStatus: status,
+    errorCode,
+    stage,
+    targetFile: task.patchPlan?.targetFile || task.patchPlan?.file || null,
+    previewFingerprint: task.patchPlan?.previewFingerprint || null,
+    lifecycleState: stage === "apply_result" && status === "ok" ? "completed" : stage === "apply_result" ? "failed" : "evidence_ready",
+    previousLifecycleState: stage === "patch_preview" ? "routed" : "evidence_ready",
+    invoked: stage === "apply_result" && status === "ok",
+    timestamp: new Date().toISOString(),
+  });
+}
+
 function ensureSessionStore(bootstrap) {
   if (sessionStore.sessions.length) {
     if (!sessionStore.sessions.some((session) => session.active)) {
@@ -2657,7 +2683,10 @@ function createPatchPreview(task) {
   }
 
   const plan = task.patchPlan;
-  return [`--- a/${plan.file}`, `+++ b/${plan.file}`, "@@", `-${plan.expected}`, `+${plan.replacement}`].join("\n");
+  const file = plan.targetFile || plan.file;
+  const expected = plan.expectedText || plan.expected;
+  const replacement = plan.replacementText || plan.replacement;
+  return [`--- a/${file}`, `+++ b/${file}`, "@@", `-${expected}`, `+${replacement}`].join("\n");
 }
 
 function createPatchPlan(task) {
@@ -2667,10 +2696,15 @@ function createPatchPlan(task) {
   if (lower.includes("welcome message")) {
     return {
       file: "tripp-terminal-data.json",
+      targetFile: "tripp-terminal-data.json",
       operation: "replace",
       expected:
         '      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
+      expectedText:
+        '      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
       replacement:
+        '      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
+      replacementText:
         '      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
     };
   }
@@ -2678,14 +2712,63 @@ function createPatchPlan(task) {
   if (lower.includes("readme") && lower.includes("runtime")) {
     return {
       file: "README.md",
+      targetFile: "README.md",
       operation: "append-once",
       expected: "The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.",
+      expectedText: "The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.",
       replacement:
+        "The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.\nScoped patch tasks use preview-first plans with exact file guards.",
+      replacementText:
         "The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.\nScoped patch tasks use preview-first plans with exact file guards.",
     };
   }
 
   return null;
+}
+
+function materializePatchPlan(task, plan) {
+  if (!plan) return null;
+  const file = plan.targetFile || plan.file;
+  const expectedText = plan.expectedText || plan.expected;
+  const replacementText = plan.replacementText || plan.replacement;
+  const target = resolvePatchTarget(file);
+  if (!target.ok) return null;
+  const current = readFileSync(target.absolute, "utf8");
+  const next = {
+    ...plan,
+    taskId: task.id,
+    operation: plan.operation || "replace",
+    file,
+    targetFile: file,
+    absolutePathForValidation: target.absolute,
+    intentSummary: task.prompt || task.title || "supervised patch",
+    expected: expectedText,
+    expectedText,
+    replacement: replacementText,
+    replacementText,
+    fileFingerprint: contentHash(current),
+    createdAt: new Date().toISOString(),
+    approvalStatus: "reviewed",
+    approval: null,
+    stale: false,
+    policy: {
+      wardenDecision: "preview_only",
+      toolInvocationPermitted: false,
+      reason: "Apply requires separate operator action and freshness checks.",
+    },
+  };
+  next.previewFingerprint = contentHash(createPatchPreview({ ...task, patchPlan: next }));
+  return next;
+}
+
+function approvePatchPlan(task) {
+  if (!task.patchPlan) return;
+  task.patchPlan.approvalStatus = "approved_not_applied";
+  task.patchPlan.approval = {
+    actor: "operator",
+    approvedAt: new Date().toISOString(),
+    previewFingerprint: task.patchPlan.previewFingerprint,
+  };
 }
 
 function createFileExcerpt(target) {
@@ -2887,39 +2970,77 @@ function describeFileRisk(file) {
 
 function applyTaskPatch(task) {
   if (task.status !== "patch_ready") {
-    return { ok: false, message: "Apply blocked. Task must be patch_ready first." };
+    return { ok: false, code: "TASK_NOT_APPROVED", message: "Apply blocked. Task must be approved, not applied." };
   }
 
   if (task.tool !== "filesystem_write") {
-    return { ok: false, message: "Apply blocked. Only filesystem_write tasks can mutate files." };
+    return { ok: false, code: "TOOL_NOT_WRITE_CAPABLE", message: "Apply blocked. Only filesystem_write tasks can mutate files." };
   }
 
   if (task.patch !== createPatchPreview(task)) {
-    return { ok: false, message: "Apply blocked. Patch preview does not match the approved guarded patch." };
+    return { ok: false, code: "PATCH_PREVIEW_MISMATCH", message: "Apply blocked. Patch preview does not match the approved guarded patch." };
   }
 
   const plan = task.patchPlan || createPatchPlan(task);
   if (!plan) {
-    return { ok: false, message: "Apply blocked. No guarded patch plan is available for this task." };
+    return { ok: false, code: "PATCH_PLAN_MISSING", message: "Apply blocked. No guarded patch plan is available for this task." };
   }
 
-  const target = resolve(root, plan.file);
-  if (!target.startsWith(root + sep) || !["tripp-terminal-data.json", "README.md"].includes(plan.file)) {
-    return { ok: false, message: "Apply blocked. Target file is outside the approved workspace guard." };
+  if (plan.approvalStatus !== "approved_not_applied" || plan.approval?.previewFingerprint !== plan.previewFingerprint) {
+    return { ok: false, code: "PATCH_NOT_APPROVED", message: "Apply blocked. This exact preview has not been approved." };
   }
 
-  const current = readFileSync(target, "utf8");
-  if (current.includes(plan.replacement)) {
-    return { ok: true, message: `Patch already applied to ${plan.file}.` };
+  const target = resolvePatchTarget(plan.targetFile || plan.file);
+  if (!target.ok) {
+    return { ok: false, code: target.code, message: target.message };
   }
 
-  if (!current.includes(plan.expected)) {
-    return { ok: false, message: "Apply blocked. File content changed since patch preview was prepared." };
+  const current = readFileSync(target.absolute, "utf8");
+  const expectedText = plan.expectedText || plan.expected;
+  const replacementText = plan.replacementText || plan.replacement;
+  if (current.includes(replacementText)) {
+    return { ok: true, message: `Applied patch already present in ${target.relative}.` };
   }
 
-  const updated = current.replace(plan.expected, plan.replacement);
-  writeFileSync(target, updated, "utf8");
-  return { ok: true, message: `Applied guarded patch to ${plan.file}.` };
+  if (contentHash(current) !== plan.fileFingerprint) {
+    plan.stale = true;
+    return { ok: false, code: "PATCH_APPROVAL_STALE", message: "Apply blocked. Approval stale - file changed since review." };
+  }
+
+  const matches = countOccurrences(current, expectedText);
+  if (matches !== 1) {
+    return { ok: false, code: matches ? "PATCH_AMBIGUOUS_MATCH" : "PATCH_EXPECTED_TEXT_MISSING", message: "Apply blocked. Expected text is missing or ambiguous." };
+  }
+
+  const updated = current.replace(expectedText, replacementText);
+  writeFileSync(target.absolute, updated, "utf8");
+  plan.approvalStatus = "applied";
+  return { ok: true, message: `Applied approved patch to ${target.relative}.` };
+}
+
+function resolvePatchTarget(file) {
+  const relative = String(file || "").replaceAll("\\", "/");
+  const resolved = resolveWorkspacePath(relative);
+  if (!resolved.ok) return { ok: false, code: "PATCH_PATH_BLOCKED", message: `Apply blocked. ${resolved.error}` };
+  if (!["tripp-terminal-data.json", "README.md"].includes(resolved.relative)) {
+    return { ok: false, code: "PATCH_TARGET_NOT_ALLOWED", message: "Apply blocked. Target file is outside the approved workspace guard." };
+  }
+  return resolved;
+}
+
+function contentHash(value) {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+function countOccurrences(text, needle) {
+  if (!needle) return 0;
+  let count = 0;
+  let index = 0;
+  while ((index = text.indexOf(needle, index)) !== -1) {
+    count += 1;
+    index += needle.length;
+  }
+  return count;
 }
 
 async function tryCreateBackendReply(payload) {

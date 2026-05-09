@@ -387,6 +387,7 @@
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
                       <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>
                       <div><dt>PATCH</dt><dd>${escapeHtml(task.patchPlan?.file || "none")}</dd></div>
+                      <div><dt>PATCH STATE</dt><dd>${escapeHtml(task.patchPlan?.approvalStatus || "not reviewed")}</dd></div>
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
                     </dl>
                     ${renderEvidenceGate(task.evidenceGate)}
@@ -405,12 +406,12 @@
             ${
               task.status === "pending" && task.origin !== "backend"
                 ? `<div>
-                    <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Approve</button>
+                    <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Review patch</button>
                     <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
                   </div>`
                 : task.status === "patch_ready" && task.origin !== "backend"
                   ? `<div>
-                      <button type="button" data-task-action="apply" data-task="${escapeHtml(task.id)}">Apply</button>
+                      <button type="button" data-task-action="apply" data-task="${escapeHtml(task.id)}">Apply approved patch</button>
                       <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
                     </div>
                     <small>${escapeHtml(task.result || "Patch preview ready.")}</small>`
@@ -1078,7 +1079,7 @@
 
   function taskMessage(task) {
     if (task.status === "patch_ready") {
-      return `${task.id} patch preview ready. Review the task card before applying.`;
+      return `${task.id} patch reviewed and approved. Apply still requires a separate action.`;
     }
 
     if (task.status === "apply_blocked") {

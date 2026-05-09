@@ -62,6 +62,32 @@ try {
     failures.push({ name: "adapter-backed tasks" });
   }
 
+  const patchReply = await postJson("/api/tripp/reply", {
+    prompt: "edit the welcome message",
+    mode: "AUTO",
+    sessionId: "verify-patch-session",
+  });
+  const patchReview = await postJson(`/api/tripp/tasks/${encodeURIComponent(patchReply.task?.id || "")}/approve`, {});
+  const blockedPatchReply = await postJson("/api/tripp/reply", {
+    prompt: "edit unknown widget text",
+    mode: "AUTO",
+    sessionId: "verify-patch-session",
+  });
+  const blockedPatchReview = await postJson(`/api/tripp/tasks/${encodeURIComponent(blockedPatchReply.task?.id || "")}/approve`, {});
+  const blockedPatchApply = await postJson(`/api/tripp/tasks/${encodeURIComponent(blockedPatchReply.task?.id || "")}/apply`, {});
+  const patchGatePass =
+    patchReview.task?.patchPlan?.taskId === patchReply.task?.id &&
+    patchReview.task?.patchPlan?.approvalStatus === "approved_not_applied" &&
+    patchReview.task?.patchPlan?.approval?.previewFingerprint === patchReview.task?.patchPlan?.previewFingerprint &&
+    patchReview.task?.patch?.includes("--- a/tripp-terminal-data.json") &&
+    blockedPatchReview.task?.patchPlan === null &&
+    blockedPatchApply.task?.status === "apply_blocked" &&
+    blockedPatchApply.task?.result?.includes("No guarded patch plan");
+  console.log(`${patchGatePass ? "PASS" : "FAIL"} patch gate: preview approval is bound and blocked applies stay inert`);
+  if (!patchGatePass) {
+    failures.push({ name: "patch gate" });
+  }
+
   const created = await postJson("/api/tripp/sessions", {});
   const sessionId = created.session?.id;
   const sessionReply = await postJson("/api/tripp/reply", {
