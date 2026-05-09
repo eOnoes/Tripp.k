@@ -44,10 +44,14 @@ All of these must pass:
 
 4. Operator-independence breadth
    - pack-level artifact includes the long-session stress flow
+   - required scenario IDs include docs/config vs runtime, Warden vs adapter/tool-route, longer-session branch rolloff, contradiction recovery, and long-session stress
    - long-session stress is a required scenario in the broadened pack
+   - every required scenario ID appears exactly once
+   - duplicate required scenario IDs are rejected
    - long-session scenario includes continuity reconstruction and branch-shift checks
    - no required scenario family is omitted
    - no pack pass when any scenario or required check fails
+   - pack summary uses understandability wording, not certification or replacement language
 
 5. Release and copy discipline
    - scoped read-only beta language remains stable
@@ -90,6 +94,19 @@ A 90% claim should be invalidated if:
 - `ninety_percent_requires_broadened_operator_independence_pack_artifact`
 - `ninety_percent_gate_requires_deeper_partial_evidence_synthesis_quality`
 - `long_session_stress_is_included_in_required_pack_scenarios_for_ninety_percent`
+- `ninety_pack_artifact_requires_all_required_scenario_ids_exactly_once`
+- `ninety_pack_artifact_rejects_duplicate_required_scenario_ids`
+- `ninety_pack_artifact_requires_long_session_stress_as_required_scenario`
+- `long_session_stress_requires_continuity_reconstructed_and_branch_shift_understood_checks`
+- `ninety_pack_artifact_fails_if_any_required_scenario_or_check_fails`
+- `ninety_pack_artifact_pack_summary_uses_understandability_not_certification_language`
+- `ninety_pack_artifact_is_beta_harness_output_only`
 - `ninety_percent_gate_requires_pack_level_operator_independence_across_all_required_scenarios`
 - `ninety_percent_gate_requires_release_and_copy_scope_discipline`
 - `ninety_percent_claim_is_invalidated_by_scope_or_cross_surface_regression`
+- `ninety_score_is_blocked_until_broadened_pack_exceeds_eighty_five_scope`
+- `ninety_score_requires_long_session_stress_in_required_pack`
+- `ninety_score_requires_partial_evidence_quality_across_broadened_pack`
+- `ninety_score_requires_operator_independence_across_all_required_ninety_pack_families`
+- `ninety_scoreboard_copy_remains_scoped_to_readonly_planning_review_only`
+- `ninety_scoreboard_copy_does_not_imply_broad_goose_parity_or_edit_build_readiness`

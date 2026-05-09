@@ -403,14 +403,15 @@ try {
     appCss.includes(".go-no-go.no_go") &&
     appCss.includes(".go-no-go small + small") &&
     readinessScoreboard.includes("Primary read-only console beta") &&
-    readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous read-only planning/review") &&
+    readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
     readinessScoreboard.includes("90-93%") &&
     readinessScoreboard.includes("85%") &&
     readinessScoreboard.includes("35-45%") &&
-    readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous read-only planning/review: 85%.") &&
-    readinessScoreboard.includes("broader structured and moderately ambiguous read-only planning/review workflows across multiple session shapes") &&
-    readinessScoreboard.includes("pack-level operator-independence evidence within the current beta harness scope") &&
+    readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review: 85%.") &&
+    readinessScoreboard.includes("broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes") &&
+    readinessScoreboard.includes("90% remains a future gate.") &&
+    readinessScoreboard.includes("broadened scenario pack, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, and continued release/copy discipline") &&
     readinessScoreboard.includes("Session variety pack harness passes.") &&
     readinessScoreboard.includes("Partial-evidence synthesis harness passes.") &&
     readinessScoreboard.includes("Operator-independence pack artifact passes.") &&
@@ -580,15 +581,32 @@ try {
     readOnly90Gate.includes("at least one 8 to 12+ task read-only session") &&
     readOnly90Gate.includes("multiple blocked outcomes") &&
     readOnly90Gate.includes("pack-level artifact includes the long-session stress flow") &&
+    readOnly90Gate.includes("required scenario IDs include docs/config vs runtime, Warden vs adapter/tool-route, longer-session branch rolloff, contradiction recovery, and long-session stress") &&
     readOnly90Gate.includes("long-session stress is a required scenario in the broadened pack") &&
+    readOnly90Gate.includes("every required scenario ID appears exactly once") &&
+    readOnly90Gate.includes("duplicate required scenario IDs are rejected") &&
     readOnly90Gate.includes("long-session scenario includes continuity reconstruction and branch-shift checks") &&
+    readOnly90Gate.includes("pack summary uses understandability wording, not certification or replacement language") &&
     readOnly90Gate.includes("Cyst remains audit/timeline truth only") &&
     readOnly90Gate.includes("ninety_percent_requires_minimum_four_distinct_readonly_scenario_families") &&
     readOnly90Gate.includes("ninety_percent_requires_ten_task_or_longer_stress_scenario") &&
     readOnly90Gate.includes("ninety_percent_requires_broadened_operator_independence_pack_artifact") &&
     readOnly90Gate.includes("long_session_stress_is_included_in_required_pack_scenarios_for_ninety_percent") &&
+    readOnly90Gate.includes("ninety_pack_artifact_requires_all_required_scenario_ids_exactly_once") &&
+    readOnly90Gate.includes("ninety_pack_artifact_rejects_duplicate_required_scenario_ids") &&
+    readOnly90Gate.includes("ninety_pack_artifact_requires_long_session_stress_as_required_scenario") &&
+    readOnly90Gate.includes("long_session_stress_requires_continuity_reconstructed_and_branch_shift_understood_checks") &&
+    readOnly90Gate.includes("ninety_pack_artifact_fails_if_any_required_scenario_or_check_fails") &&
+    readOnly90Gate.includes("ninety_pack_artifact_pack_summary_uses_understandability_not_certification_language") &&
+    readOnly90Gate.includes("ninety_pack_artifact_is_beta_harness_output_only") &&
     readOnly90Gate.includes("ninety_percent_gate_requires_long_session_stress_pass") &&
     readOnly90Gate.includes("ninety_percent_claim_is_invalidated_by_scope_or_cross_surface_regression") &&
+    readOnly90Gate.includes("ninety_score_is_blocked_until_broadened_pack_exceeds_eighty_five_scope") &&
+    readOnly90Gate.includes("ninety_score_requires_long_session_stress_in_required_pack") &&
+    readOnly90Gate.includes("ninety_score_requires_partial_evidence_quality_across_broadened_pack") &&
+    readOnly90Gate.includes("ninety_score_requires_operator_independence_across_all_required_ninety_pack_families") &&
+    readOnly90Gate.includes("ninety_scoreboard_copy_remains_scoped_to_readonly_planning_review_only") &&
+    readOnly90Gate.includes("ninety_scoreboard_copy_does_not_imply_broad_goose_parity_or_edit_build_readiness") &&
     longSessionStressDoc.includes("Read-Only Long-Session Stress v0.1") &&
     longSessionStressDoc.includes("10-task read-only session") &&
     longSessionStressDoc.includes("Trigger blocked shell or escalation for the first blocked outcome.") &&
@@ -2016,7 +2034,7 @@ try {
   }
 
   const operatorPackArtifact = createOperatorIndependencePackArtifact({
-    packId: "readonly_85_variety_pack",
+    packId: "readonly_90_broadened_pack",
     scenarios: [
       {
         scenarioId: "docs_config_vs_runtime",
@@ -2055,6 +2073,18 @@ try {
         summary: "Longer branch-rolloff session preserved useful context and blocked read-only limits.",
       },
       {
+        scenarioId: "contradiction_recovery",
+        acceptancePassed: contradictionRecoveryAcceptancePass,
+        tasks: {
+          inspected: [recoveryUiInspect.task, recoveryRuntimeInspect.task],
+          learned: [recoveryUiInspect.task, recoveryRuntimeInspect.task, recoverySafeShell.task],
+          uncertain: [recoveryRetrieval.task],
+          blocked: [recoveryBlockedShell.task],
+          nextDirection: [recoveryGate.task],
+        },
+        summary: "Contradiction-recovery session remained understandable as changed read-only emphasis.",
+      },
+      {
         scenarioId: "long_session_stress",
         acceptancePassed: longSessionStressPass,
         extraChecks: {
@@ -2072,16 +2102,18 @@ try {
       },
     ],
   });
-  const requiredOperatorPackScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "long_session_stress"];
+  const requiredOperatorPackScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "contradiction_recovery", "long_session_stress"];
   const operatorPackScenarioIds = operatorPackArtifact.scenarioResults.map((scenario) => scenario.scenarioId);
   const operatorPackPass =
     operatorPackArtifact.artifactType === "operator_independence_pack_check" &&
     operatorPackArtifact.mode === "read_only_beta_harness" &&
-    operatorPackArtifact.packId === "readonly_85_variety_pack" &&
+    operatorPackArtifact.packId === "readonly_90_broadened_pack" &&
     operatorPackArtifact.overallStatus === "pass" &&
     JSON.stringify(operatorPackArtifact.requiredScenarioIds) === JSON.stringify(requiredOperatorPackScenarioIds) &&
     JSON.stringify(operatorPackArtifact.presentScenarioIds) === JSON.stringify(requiredOperatorPackScenarioIds) &&
-    operatorPackArtifact.scenarioResults.length === 4 &&
+    Array.isArray(operatorPackArtifact.duplicateScenarioIds) &&
+    operatorPackArtifact.duplicateScenarioIds.length === 0 &&
+    operatorPackArtifact.scenarioResults.length === 5 &&
     requiredOperatorPackScenarioIds.every((scenarioId) => operatorPackScenarioIds.includes(scenarioId)) &&
     new Set(operatorPackScenarioIds).size === operatorPackScenarioIds.length &&
     operatorPackArtifact.scenarioResults.every((scenario) => operatorPackArtifact.requiredScenarioIds.includes(scenario.scenarioId)) &&
@@ -2091,7 +2123,7 @@ try {
     operatorPackArtifact.scenarioResults.find((scenario) => scenario.scenarioId === "long_session_stress")?.checks?.branchShiftUnderstood === "pass" &&
     operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === (Object.values(scenario.checks).every((status) => status === "pass") ? "pass" : "fail")) &&
     operatorPackArtifact.overallStatus === (operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === "pass") ? "pass" : "fail") &&
-    operatorPackArtifact.packSummary === "Required read-only scenario families remained understandable without sidecar interpretation." &&
+    operatorPackArtifact.packSummary === "Required read-only scenario families remained understandable across the broadened beta harness pack." &&
     !/certified|validated replacement|goose no longer needed|independent reasoning confirmed|replacement certified/i.test(operatorPackArtifact.packSummary) &&
     !appScript.includes("operator_independence_pack_check") &&
     !appHtml.includes("operator_independence_pack_check");
@@ -2187,7 +2219,7 @@ function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acce
 }
 
 function createOperatorIndependencePackArtifact({ packId, scenarios }) {
-  const requiredScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "long_session_stress"];
+  const requiredScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "contradiction_recovery", "long_session_stress"];
   const scenarioResults = scenarios.map((scenario) => {
     const hasInspected = scenario.tasks.inspected?.every((task) => task?.status === "inspected");
     const hasLearned = scenario.tasks.learned?.every((task) => ["completed", "inspected"].includes(task?.status));
@@ -2213,6 +2245,8 @@ function createOperatorIndependencePackArtifact({ packId, scenarios }) {
       summary: scenario.summary,
     };
   });
+  const presentScenarioIds = scenarioResults.map((scenario) => scenario.scenarioId);
+  const duplicateScenarioIds = presentScenarioIds.filter((scenarioId, index) => presentScenarioIds.indexOf(scenarioId) !== index);
   const overallStatus = scenarioResults.every((scenario) => scenario.status === "pass") ? "pass" : "fail";
   return {
     artifactType: "operator_independence_pack_check",
@@ -2220,9 +2254,10 @@ function createOperatorIndependencePackArtifact({ packId, scenarios }) {
     packId,
     overallStatus,
     requiredScenarioIds,
-    presentScenarioIds: scenarioResults.map((scenario) => scenario.scenarioId),
+    presentScenarioIds,
+    duplicateScenarioIds: [...new Set(duplicateScenarioIds)],
     scenarioResults,
-    packSummary: "Required read-only scenario families remained understandable without sidecar interpretation.",
+    packSummary: "Required read-only scenario families remained understandable across the broadened beta harness pack.",
   };
 }
 

@@ -7,7 +7,7 @@ Status: working beta scoreboard. This is not a live-write approval document.
 | Milestone | Current estimate | Current state | Main blocker | Next proof | Owner |
 |---|---:|---|---|---|---|
 | Primary read-only console beta | 90-93% | Formal gate, task conclusions, Current Understanding, Cyst audit, mixed-session beta acceptance, and longer-session repeatability are in place. | Operator QA across repeated real sessions. | Repeat the longer read-only session shape and confirm no cross-surface contradiction. | Codex + Goose |
-| Replace Goose for structured/moderately ambiguous read-only planning/review | 85% | Tripp now supports broader structured and moderately ambiguous read-only planning/review workflows across multiple session shapes, including ambiguity handling, contradiction recovery, branch rolloff, partial-evidence synthesis, blocked-state continuity, and pack-level operator-independence evidence within the current beta harness scope. | Breadth remains scoped; sprawling open-ended synthesis and implementation reasoning are still Goose-led. | Prove longer and messier read-only sessions stay coherent without broad Goose parity or edit/build claims. | Goose review + Codex |
+| Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review | 85% | Tripp currently supports broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes, with stable synthesis, ambiguity handling, branch rolloff, blocked-state continuity, operator-independence evidence, and scoped beta release discipline. | 90% remains a future gate; breadth, long-session stress, partial-evidence quality, and operator-independence coverage must expand before any further score change. | Prove the broadened scenario pack, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, and continued release/copy discipline. | Goose review + Codex |
 | Replace Goose for edit/build work | 35-45% | Edit/build replacement remains a separate milestone. Current write lifecycle work is design-only, with no runtime mutation path, no approval/apply runtime behavior, and no live write capability enabled. | General patchPlan, approval/apply lifecycle, stale checks, sandboxed apply, and authoritative write evidence. | Build and pass a separate live-edit gate only after read-only beta is stable. | Future Tripp + Codex |
 
 ## Fastest Path to Add 10 Points
@@ -38,9 +38,11 @@ Status: working beta scoreboard. This is not a live-write approval document.
 
 ## Read-Only Goose Replacement Statement
 
-Replace Goose for structured/moderately ambiguous read-only planning/review: 85%.
+Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review: 85%.
 
-Tripp.g now supports broader structured and moderately ambiguous read-only planning/review workflows across multiple session shapes, including ambiguity handling, contradiction recovery, branch rolloff, partial-evidence synthesis, blocked-state continuity, and pack-level operator-independence evidence within the current beta harness scope.
+Tripp.g currently supports broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes, with stable synthesis, ambiguity handling, branch rolloff, blocked-state continuity, operator-independence evidence, and scoped beta release discipline.
+
+90% remains a future gate. It requires a broadened scenario pack, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, and continued release/copy discipline.
 
 This readiness estimate remains limited to read-only planning/review and does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity.
 
