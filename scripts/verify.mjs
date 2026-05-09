@@ -203,6 +203,8 @@ try {
     appScript.includes("group-end") &&
     appScript.includes("group-single") &&
     appScript.includes("event.taskId || event.traceId || event.descriptorId") &&
+    appScript.includes("renderGoNoGoSummary") &&
+    appScript.includes("goNoGo.decision") &&
     appScript.includes("write_escalation_blocked") &&
     appScript.includes("WRITE BLOCKED") &&
     appScript.includes("Mock evidence cannot authorize edits") &&
@@ -245,9 +247,13 @@ try {
     appCss.includes(".cyst-activity li.group-middle") &&
     appCss.includes(".cyst-activity li.group-end") &&
     appCss.includes(".cyst-activity li.group-single") &&
+    appCss.includes(".go-no-go") &&
+    appCss.includes(".go-no-go.no_go") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
-    serverSource.includes("recordRetrievalEvent(task.id");
+    serverSource.includes("recordRetrievalEvent(task.id") &&
+    serverSource.includes("createReadOnlyGoNoGo") &&
+    serverSource.includes("expectedAdapterInvoked");
   console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
   if (!workspacePass) {
     failures.push({ name: "workspace" });
@@ -685,10 +691,23 @@ try {
   const tasksAfterTrial = await getJson("/api/tripp/tasks");
   const trialPass =
     trialRun.status === "pass" &&
+    trialRun.goNoGo?.decision === "go" &&
+    trialRun.goNoGo?.categories?.length === 5 &&
+    trialRun.goNoGo?.categories?.every((category) => category.pass === true) &&
     trialRun.trials?.length === 5 &&
     trialRun.trials?.every((trial) => trial.pass === true) &&
+    trialRun.trials?.every((trial) => Array.isArray(trial.expectedCystEvents) && trial.expectedFinalState) &&
     trialRun.trials?.some((trial) => trial.id === "trial-blocked-shell" && trial.evidence?.includes("GIT_WRITE_BLOCKED")) &&
-    tasksAfterTrial.tasks?.some((task) => task.id === trialRun.task?.id && task.status === "completed");
+    trialRun.trials?.some(
+      (trial) =>
+        trial.id === "trial-munch-retrieval" &&
+        trial.mockAuthority === "planning-only" &&
+        trial.writeApprovalEligible === false &&
+        trial.applyEligible === false,
+    ) &&
+    tasksAfterTrial.tasks?.some(
+      (task) => task.id === trialRun.task?.id && task.status === "completed" && task.goNoGo?.decision === "go",
+    );
   console.log(`${trialPass ? "PASS" : "FAIL"} trials: read-only harness suite`);
   if (!trialPass) {
     failures.push({ name: "read-only trials" });

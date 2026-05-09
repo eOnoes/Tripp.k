@@ -392,7 +392,7 @@
                     </dl>
                     ${renderEvidenceGate(task.evidenceGate)}
                     ${renderTraceMap(task.traceMap)}
-                    ${renderTrialEvidence(task.trials)}
+                    ${renderTrialEvidence(task.trials, task.goNoGo)}
                     ${renderAdapterEvidence(task.adapter)}
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
@@ -863,7 +863,7 @@
     `;
   }
 
-  function renderTrialEvidence(trials) {
+  function renderTrialEvidence(trials, goNoGo) {
     if (!Array.isArray(trials) || !trials.length) return "";
 
     const passCount = trials.filter((trial) => trial.pass).length;
@@ -871,8 +871,9 @@
       <section class="trial-detail">
         <header>
           <strong>Read-Only Trials</strong>
-          <span>${escapeHtml(`${passCount}/${trials.length}`)}</span>
+          <span>${escapeHtml(goNoGo ? `${goNoGo.decision} ${goNoGo.passed}/${goNoGo.total}` : `${passCount}/${trials.length}`)}</span>
         </header>
+        ${renderGoNoGoSummary(goNoGo)}
         <div class="trial-list">
           ${trials
             .map(
@@ -893,6 +894,17 @@
             .join("")}
         </div>
       </section>
+    `;
+  }
+
+  function renderGoNoGoSummary(goNoGo) {
+    if (!goNoGo) return "";
+    return `
+      <div class="go-no-go ${escapeHtml(goNoGo.decision || "no_go")}">
+        <b>${escapeHtml((goNoGo.decision || "no_go").toUpperCase())}</b>
+        <span>${escapeHtml(goNoGo.summary || "")}</span>
+        <small>${escapeHtml((goNoGo.blockers || []).length ? `blockers: ${goNoGo.blockers.join(", ")}` : "all read-only gates passed")}</small>
+      </div>
     `;
   }
 

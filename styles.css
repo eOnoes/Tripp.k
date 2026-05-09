@@ -1375,6 +1375,38 @@ button {
   margin: 0 !important;
 }
 
+.go-no-go {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 7px;
+  padding: 7px;
+  background: #050805;
+  border: 1px solid #1f5f1f;
+  border-left: 2px solid var(--lime);
+}
+
+.go-no-go.no_go {
+  background: #0a0505;
+  border-color: #5f1f1f;
+  border-left-color: #ff3333;
+}
+
+.go-no-go b {
+  color: var(--lime);
+  font-size: 10px;
+}
+
+.go-no-go.no_go b {
+  color: #ff7777;
+}
+
+.go-no-go span,
+.go-no-go small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
 .trial-list article {
   padding: 7px;
   background: #080808;

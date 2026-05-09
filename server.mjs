@@ -826,13 +826,15 @@ function runReadOnlyHarnessTrials() {
     runMunchRetrievalTrial(),
   ];
   const passed = trials.every((trial) => trial.pass);
-  const task = createTrialTask(trials, passed, startedAt);
+  const goNoGo = createReadOnlyGoNoGo(trials);
+  const task = createTrialTask(trials, goNoGo.decision === "go", startedAt, goNoGo);
   const result = {
     id: `trial-run-${Date.now()}`,
-    status: passed ? "pass" : "fail",
+    status: goNoGo.decision === "go" ? "pass" : "fail",
+    goNoGo,
     startedAt,
     finishedAt: new Date().toISOString(),
-    summary: passed
+    summary: goNoGo.decision === "go"
       ? "Read-only harness trials passed. Warden, Router, Adapter, Cyst, and UI task projection are wired for trial mode."
       : "Read-only harness trials found a blocking issue.",
     trials,
@@ -842,6 +844,42 @@ function runReadOnlyHarnessTrials() {
   taskQueue.unshift(task);
   saveTaskQueue();
   return result;
+}
+
+function createReadOnlyGoNoGo(trials = []) {
+  const categories = [
+    createTrialGate("warden", "Warden decisions are present before tool paths.", trials.every((trial) => Boolean(trial.wardenState))),
+    createTrialGate(
+      "adapter_boundary",
+      "Allowed read-only paths invoke the adapter, blocked paths do not.",
+      trials.some((trial) => trial.adapterInvoked === true && trial.adapterStatus === "ok") &&
+        trials.some((trial) => trial.adapterInvoked === false && ["blocked", "not_invoked"].includes(trial.adapterStatus)),
+    ),
+    createTrialGate("cyst", "Allowed and blocked outcomes provide Cyst evidence.", trials.every((trial) => trial.cystExpectationMet !== false)),
+    createTrialGate(
+      "mock_retrieval",
+      "Mock retrieval remains planning-only and non-authoritative.",
+      trials.some((trial) => trial.id === "trial-munch-retrieval" && trial.mockAuthority === "planning-only" && trial.writeApprovalEligible === false),
+    ),
+    createTrialGate("ui_projection", "Each scenario has operator-facing evidence labels.", trials.every((trial) => Boolean(trial.uiProjection))),
+  ];
+  const failed = categories.filter((category) => !category.pass);
+  return {
+    decision: failed.length ? "no_go" : "go",
+    summary: failed.length ? "Read-only trial gate is blocked." : "Read-only trial gate is ready.",
+    categories,
+    passed: categories.filter((category) => category.pass).length,
+    total: categories.length,
+    blockers: failed.map((category) => category.id),
+  };
+}
+
+function createTrialGate(id, label, pass) {
+  return {
+    id,
+    label,
+    pass: Boolean(pass),
+  };
 }
 
 function runWardenPromptBlockTrial() {
@@ -865,10 +903,17 @@ function runWardenPromptBlockTrial() {
     title: "Prompt block denied before execution",
     pass: warden.decision === "deny" && warden.terminalState === "DENIED_BEFORE_MUNCH",
     expected: "WARDEN_DENIED and no adapter invocation",
+    expectedWarden: "DENIED_BEFORE_MUNCH",
+    expectedRoute: null,
+    expectedAdapterInvoked: false,
+    expectedCystEvents: ["warden_denial"],
+    expectedFinalState: "denied_before_munch",
     wardenState: warden.terminalState,
     route: null,
     adapterStatus: "not_invoked",
     cystEvent: null,
+    cystExpectationMet: !warden.allowed,
+    finalState: "denied_before_munch",
     uiProjection: "TASKS card shows denied prompt-block leakage as non-executable context.",
     evidence: warden.denialReasons,
   };
@@ -891,11 +936,18 @@ function runAdapterReadTrial(id, tool, args) {
     title: expectBlocked ? "Destructive shell blocked by adapter" : `${tool} read-only adapter call`,
     pass,
     expected: expectBlocked ? "WARDEN_PASS then adapter block without invocation" : "WARDEN_PASS then adapter ok with Cyst event",
+    expectedWarden: "WARDEN_PASS",
+    expectedRoute: "goose.adapter",
+    expectedAdapterInvoked: !expectBlocked,
+    expectedCystEvents: ["adapter_invocation"],
+    expectedFinalState: expectBlocked ? "blocked_before_execution" : "executed",
     wardenState: warden.terminalState,
     route: route.destination,
     adapterStatus: adapter?.status || "not_invoked",
     adapterInvoked: adapter?.invoked || false,
     cystEvent: adapter?.cystEvent?.cysToken || adapter?.trace?.cysToken || null,
+    cystExpectationMet: Boolean(adapter?.cystEvent?.eventType),
+    finalState: adapter?.cystEvent?.lifecycleState || (expectBlocked ? "blocked_before_execution" : "executed"),
     uiProjection: "TASKS card can show adapter status, route, tool, and Cyst token.",
     evidence: adapter?.error?.code ? [adapter.error.code] : [adapter?.result?.shaped?.summary].filter(Boolean),
   };
@@ -919,11 +971,21 @@ function runMunchRetrievalTrial() {
     title: "Munch mock retrieval lane resolves without adapter invocation",
     pass,
     expected: "Router selects retrieval support and Munch mock returns evidence",
+    expectedWarden: "not_required_retrieval_only",
+    expectedRoute: "munch.mock",
+    expectedAdapterInvoked: false,
+    expectedCystEvents: ["retrieval_event"],
+    expectedFinalState: "evidence_ready",
     wardenState: "not_required_retrieval_only",
     route: "munch.mock",
     adapterStatus: "not_invoked",
     adapterInvoked: false,
     cystEvent: null,
+    cystExpectationMet: true,
+    finalState: "evidence_ready",
+    mockAuthority: retrieval.authorityLevel || "planning-only",
+    writeApprovalEligible: retrieval.writeApprovalEligible,
+    applyEligible: retrieval.applyEligible,
     uiProjection: "Workspace can show backend, fallback chain, confidence, warnings, and narrowed files.",
     evidence: [retrieval.backend, retrieval.confidence, ...(retrieval.warnings || [])],
   };
@@ -950,7 +1012,7 @@ function createTrialDescriptor(id, targetTool, args) {
   };
 }
 
-function createTrialTask(trials, passed, startedAt) {
+function createTrialTask(trials, passed, startedAt, goNoGo = null) {
   const task = {
     id: `task-trials-${Date.now()}`,
     title: "Read-only harness trials",
@@ -963,6 +1025,7 @@ function createTrialTask(trials, passed, startedAt) {
     agentId: "tripp.inspector",
     result: passed ? "All read-only harness trials passed." : "One or more read-only harness trials failed.",
     trials,
+    goNoGo,
     permission: permissionDecision("harness_trial", "allow", "read-only trial runner; no mutation tools enabled"),
     lifecycle: createTaskLifecycle("proposed", "tripp.supervisor", "read-only trial task created", null),
     createdAt: startedAt,
