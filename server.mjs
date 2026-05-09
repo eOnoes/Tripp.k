@@ -821,6 +821,7 @@ function runReadOnlyHarnessTrials() {
   const runId = `trial-run-${Date.now()}`;
   recordReadOnlyGateEvent({
     id: runId,
+    gateStage: "started",
     status: "started",
     suiteStatus: "running",
     goNoGo: "running",
@@ -855,7 +856,7 @@ function runReadOnlyHarnessTrials() {
     task,
   };
   recordTrialRunEvent(result);
-  recordReadOnlyGateEvent({ ...result, status: "completed" });
+  recordReadOnlyGateEvent({ ...result, gateStage: "completed", status: "completed" });
   taskQueue.unshift(task);
   saveTaskQueue();
   return result;
@@ -3048,7 +3049,7 @@ function recordReadOnlyGateEvent(result = {}) {
       ).length
     : result.suiteSummary?.passedCount ?? null;
   return recordCystEvent({
-    eventType: complete ? "gate_run_completed" : "gate_run_started",
+    eventType: "gate_run",
     descriptorId: result.id,
     traceId: result.id,
     ownerId: "tripp.inspector",
@@ -3057,6 +3058,7 @@ function recordReadOnlyGateEvent(result = {}) {
     resultStatus: complete ? (go ? "ok" : "blocked") : "active",
     errorCode: complete && !go ? "READ_ONLY_GATE_NO_GO" : null,
     gateKind: "read_only",
+    gateStage: complete ? "completed" : "started",
     status,
     suiteStatus: result.suiteStatus || "running",
     goNoGo: result.goNoGo || result.suiteStatus || "running",

@@ -655,7 +655,7 @@
   }
 
   function cystCompact(event) {
-    if (event.eventType === "gate_run" || event.eventType === "gate_run_started" || event.eventType === "gate_run_completed") {
+    if (event.eventType === "gate_run") {
       return gateRunCompact(event);
     }
 
@@ -680,12 +680,12 @@
   }
 
   function gateRunCompact(event) {
-    const started = event.eventType === "gate_run_started" || String(event.status || event.gateStage || "").toLowerCase() === "started";
+    const started = String(event.gateStage || event.status || "").toLowerCase() === "started";
     if (started) {
       return ["READ-ONLY GATE RUN", "Started formal read-only gate", formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
     }
 
-    const verdict = String(event.suiteStatus || event.goNoGo || "unknown").toUpperCase();
+    const verdict = String(event.suiteStatus || event.goNoGo || "unknown").replace(/_/g, " ").toUpperCase();
     const count =
       Number.isFinite(Number(event.passedCount)) && Number.isFinite(Number(event.requiredScenarioCount))
         ? `${event.passedCount}/${event.requiredScenarioCount} required`
