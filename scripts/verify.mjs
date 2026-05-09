@@ -178,6 +178,7 @@ try {
   const appScript = await getText("/script.js");
   const appCss = await getText("/styles.css");
   const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
+  const readinessScoreboard = readFileSync(new URL("../docs/tripp-readiness-scoreboard-v0.1.md", import.meta.url), "utf8");
   const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
   const conclusionForbiddenTerms = [
     "approved",
@@ -336,6 +337,13 @@ try {
     appCss.includes(".go-no-go") &&
     appCss.includes(".go-no-go.no_go") &&
     appCss.includes(".go-no-go small + small") &&
+    readinessScoreboard.includes("Primary read-only console beta") &&
+    readinessScoreboard.includes("Replace Goose for read-only planning/review") &&
+    readinessScoreboard.includes("Replace Goose for edit/build work") &&
+    readinessScoreboard.includes("85-90%") &&
+    readinessScoreboard.includes("65-75%") &&
+    readinessScoreboard.includes("35-45%") &&
+    readinessScoreboard.includes("Gate GO means read-only harness readiness only") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
