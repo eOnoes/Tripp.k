@@ -34,7 +34,7 @@
   const state = {
     mode: data.status.mode || "CHAT",
     activeRail: "terminal",
-    collapsed: false,
+    opsExpanded: false,
     panelFocus: "tasks",
     tools: data.tools.map((tool, index) => ({ ...tool, id: `tool-${index}`, expanded: false })),
     toolGroups: { online: false, offline: false },
@@ -82,7 +82,7 @@
     elements.newSessionIcon.addEventListener("click", createSession);
 
     elements.collapse.addEventListener("click", () => {
-      state.collapsed = !state.collapsed;
+      state.opsExpanded = !state.opsExpanded;
       renderShell();
     });
   }
@@ -99,10 +99,10 @@
   }
 
   function renderShell() {
-    elements.app.classList.toggle("ops-collapsed", state.collapsed);
+    elements.app.classList.toggle("ops-expanded", state.opsExpanded);
     elements.app.dataset.panelFocus = state.panelFocus;
-    elements.collapse.textContent = state.collapsed ? "»" : "«";
-    elements.collapse.title = state.collapsed ? "Show ops panel" : "Hide ops panel";
+    elements.collapse.textContent = state.opsExpanded ? "»" : "«";
+    elements.collapse.title = state.opsExpanded ? "Shrink workspace panel" : "Expand workspace panel";
   }
 
   function renderModes() {

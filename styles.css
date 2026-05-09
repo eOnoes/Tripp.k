@@ -126,8 +126,8 @@ button {
   border-bottom: 1px solid var(--black);
 }
 
-.terminal-app.ops-collapsed .shell {
-  grid-template-columns: 36px minmax(0, 1fr) 28px;
+.terminal-app.ops-expanded .shell {
+  grid-template-columns: 36px minmax(320px, 40vw) minmax(560px, 60vw);
 }
 
 .command-rail {
@@ -366,14 +366,6 @@ button {
 
 .terminal-app[data-panel-focus="tasks"] .ops-panel {
   grid-template-rows: 24px 112px minmax(260px, 1fr) 230px 190px;
-}
-
-.terminal-app.ops-collapsed .ops-panel {
-  grid-template-rows: 24px 1fr;
-}
-
-.terminal-app.ops-collapsed .panel-section {
-  display: none;
 }
 
 .collapse {
