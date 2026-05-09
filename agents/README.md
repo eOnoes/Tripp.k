@@ -10,6 +10,12 @@ Each agent has three docs:
 
 Keep these short. The strongest doctrine should be easy for an agent to remember under pressure.
 
+Runtime-contract doctrine lives in `docs/`:
+
+- `docs/runtime-contract-template.md`
+- `docs/forward-mode-gate.md`
+- `docs/goosed-agent-contract-report.md`
+
 ## Reporting Chain
 
 ```text

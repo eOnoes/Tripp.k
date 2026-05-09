@@ -75,6 +75,7 @@ Start the app linked to the local Tripp bridge:
   - `GOOSE_AGENT_URL` for forwarding bridge replies to a live Goose agent endpoint
 - Agent role/soul/operator doctrine lives under `agents/`.
 - The machine-readable swarm manifest lives at `agents/tripp-swarm-manifest.json`.
+- Runtime-contract doctrine and reports live under `docs/`.
 
 Task approval is guarded. Approving a write task prepares a patch preview; applying currently supports only the approved welcome-message patch in `tripp-terminal-data.json`.
 Patch tasks now carry a scoped `patchPlan` with exact target file, expected text, and replacement text. Apply remains guarded to approved repo-local files and refuses stale previews.
