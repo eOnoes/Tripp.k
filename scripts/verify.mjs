@@ -1,10 +1,14 @@
 import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const port = 4199;
 const baseUrl = `http://127.0.0.1:${port}`;
+const runtimeDir = mkdtempSync(join(tmpdir(), "tripp-runtime-verify-"));
 const server = spawn(process.execPath, ["server.mjs"], {
   cwd: new URL("..", import.meta.url),
-  env: { ...process.env, PORT: String(port) },
+  env: { ...process.env, PORT: String(port), TRIPP_RUNTIME_DIR: runtimeDir },
   stdio: ["ignore", "pipe", "pipe"],
 });
 
@@ -65,6 +69,7 @@ try {
   }
 } finally {
   server.kill();
+  rmSync(runtimeDir, { recursive: true, force: true });
 }
 
 async function waitForServer() {

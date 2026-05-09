@@ -24,6 +24,8 @@ Run the core AUTO-lane verifier:
 node .\scripts\verify.mjs
 ```
 
+The verifier uses an isolated temporary runtime directory so test tasks and sessions do not appear in the local app.
+
 ## Design Direction
 
 - Match the Tripp terminal shell first: lime header, glyph rail, terminal surface, right ops panel, and bottom command/status bars.
@@ -50,6 +52,7 @@ node .\scripts\verify.mjs
   - `TRIPP_BACKEND_URL`
   - `TRIPP_BACKEND_SECRET` or `GOOSE_SERVER__SECRET_KEY`
   - `TRIPP_ENABLE_BACKEND_REPLY=true`
+  - `TRIPP_RUNTIME_DIR` for overriding the local task/session store directory
 - Agent role/soul/operator doctrine lives under `agents/`.
 
 Task approval is guarded. Approving a write task prepares a patch preview; applying currently supports only the approved welcome-message patch in `tripp-terminal-data.json`.

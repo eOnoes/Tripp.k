@@ -8,7 +8,7 @@ const port = Number(process.env.PORT || 4177);
 const host = process.env.HOST || "127.0.0.1";
 
 const bootstrapFile = join(root, "tripp-terminal-data.json");
-const runtimeDir = join(root, ".tripp-runtime");
+const runtimeDir = resolve(process.env.TRIPP_RUNTIME_DIR || join(root, ".tripp-runtime"));
 const taskStoreFile = join(runtimeDir, "tasks.json");
 const sessionStoreFile = join(runtimeDir, "sessions.json");
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
