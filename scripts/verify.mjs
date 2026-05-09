@@ -191,6 +191,7 @@ try {
     appHtml.includes("settingsForm") &&
     appScript.includes("renderCystActivity") &&
     appScript.includes("renderCystEvidenceMeta") &&
+    appScript.includes("write_escalation_blocked") &&
     appScript.includes("WRITE BLOCKED") &&
     appScript.includes("APPLY BLOCKED") &&
     appScript.includes("renderReviewChanges") &&
@@ -292,6 +293,11 @@ try {
     mode: "AUTO",
     sessionId: "verify-routing-discovery",
   });
+  const mockWriteReply = await postJson("/api/tripp/reply", {
+    prompt: "where should I change Munch health routing",
+    mode: "AUTO",
+    sessionId: "verify-routing-mock-write",
+  });
   const editReply = await postJson("/api/tripp/reply", {
     prompt: "edit the welcome message",
     mode: "AUTO",
@@ -321,6 +327,8 @@ try {
     discoveryReply.task?.evidenceGate?.missing?.includes("live edit-authoritative evidence") &&
     discoveryReply.task?.evidenceGate?.missing?.includes("write approval eligible evidence") &&
     discoveryReply.task?.evidenceGate?.missing?.includes("confidence >= medium") &&
+    mockWriteReply.task?.routingDecision?.lane === "munch" &&
+    mockWriteReply.task?.evidenceGate?.status === "blocked" &&
     editReply.task?.routingDecision?.lane === "native" &&
     editReply.task?.lifecycle?.state === "routed" &&
     editReply.task?.evidenceGate?.status === "ready" &&
@@ -653,6 +661,15 @@ try {
         event.editAuthoritative === false &&
         event.invoked === false &&
         event.decision === "planning_only",
+    ) &&
+    cystAfterTrial.events?.some(
+      (event) =>
+        event.eventType === "write_escalation_blocked" &&
+        event.descriptorId === mockWriteReply.task?.id &&
+        event.errorCode === "MOCK_EVIDENCE_NON_AUTHORITATIVE" &&
+        event.invoked === false &&
+        event.writeApprovalEligible === false &&
+        event.applyEligible === false,
     );
   console.log(`${cystLifecyclePass ? "PASS" : "FAIL"} cyst: denial, trial, retrieval, and lifecycle events persisted`);
   if (!cystLifecyclePass) {

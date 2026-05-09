@@ -654,6 +654,17 @@
   }
 
   function cystCompact(event) {
+    if (event.eventType === "write_escalation_blocked") {
+      return [
+        "write escalation",
+        event.errorCode || event.reason || "blocked",
+        event.sourceKind || event.evidenceAuthority || "evidence",
+        formatCystTime(event.timestamp),
+      ]
+        .filter(Boolean)
+        .join(" - ");
+    }
+
     if (event.eventType === "retrieval_event") {
       return [
         event.sourceKind || event.evidenceAuthority || "evidence",
@@ -671,7 +682,7 @@
   }
 
   function renderCystEvidenceMeta(event) {
-    if (event.eventType !== "retrieval_event") return "";
+    if (!["retrieval_event", "write_escalation_blocked"].includes(event.eventType)) return "";
     const flags = [
       event.degraded ? "DEGRADED" : null,
       event.writeApprovalEligible === false ? "WRITE BLOCKED" : "WRITE ELIGIBLE",

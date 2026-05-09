@@ -2050,6 +2050,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
 
   task.codingMode = chooseCodingMode(prompt, kind, tool);
   task.evidenceGate = createEvidenceGate(task);
+  recordWriteEscalationBlockedIfNeeded(task);
   advanceTaskLifecycle(task, "routed", "tripp.supervisor", "task routed through supervisor lane selection");
   const initialLifecycleState = lifecycleStateFromTask(task);
   if (initialLifecycleState !== "routed") {
@@ -2262,6 +2263,17 @@ function createEvidenceGate(task) {
     missing,
     next: ["collect native runtime/process evidence", "run Munch context-map for supporting docs/config"],
   };
+}
+
+function recordWriteEscalationBlockedIfNeeded(task = {}) {
+  if (task.routingDecision?.lane !== "munch") return null;
+  if (!isTraceEditIntent(task.prompt || task.title || "")) return null;
+  if (task.evidenceGate?.writeApprovalEligible !== false && task.evidenceGate?.applyEligible !== false) return null;
+
+  return recordWriteEscalationBlockedEvent(task, {
+    reasonCode: "MOCK_EVIDENCE_NON_AUTHORITATIVE",
+    reason: "Mock evidence is planning-only and cannot authorize write approval or apply readiness.",
+  });
 }
 
 function createSupervisorRoutingDecision(prompt, tool, kind, target) {
@@ -2599,6 +2611,41 @@ function recordRetrievalEvent(descriptorId, traceId, retrieval = {}) {
     warnings: retrieval.warnings || [],
     lifecycleState: "evidence_ready",
     previousLifecycleState: "routed",
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function recordWriteEscalationBlockedEvent(task = {}, details = {}) {
+  const traceId = task.traceMap?.trace?.traceId || task.traceMap?.traceId || `trace_${task.id || Date.now()}`;
+  const evidenceContract = createMockEvidenceContract({
+    sourceSystem: task.retrieval?.sourceSystem || task.traceMap?.sourceSystem || "mock-retrieval",
+    evidenceId: task.retrieval?.evidenceId || task.traceMap?.evidenceId || task.id,
+    traceConfidence: task.traceMap?.traceConfidence || task.retrieval?.confidence || "low",
+    timestamp: new Date().toISOString(),
+    ...pickEvidenceContractFields(task.retrieval || task.traceMap || {}),
+  });
+
+  return recordCystEvent({
+    eventType: "write_escalation_blocked",
+    descriptorId: task.id || `write_block_${Date.now()}`,
+    taskId: task.id || null,
+    sessionId: task.sessionId || null,
+    traceId,
+    ownerId: "tripp.supervisor",
+    agentId: task.agentId || null,
+    adapter: null,
+    tool: task.tool || "write_escalation",
+    resultStatus: "blocked",
+    errorCode: details.reasonCode || "MOCK_EVIDENCE_NON_AUTHORITATIVE",
+    status: "blocked",
+    decision: "write_escalation_blocked",
+    reason: details.reason || evidenceContract.operatorWarning,
+    invoked: false,
+    backend: task.retrieval?.backend || "tripp-munch-mock",
+    confidence: task.retrieval?.confidence || task.traceMap?.confidenceLabel || "low",
+    ...evidenceContract,
+    lifecycleState: "gated",
+    previousLifecycleState: "evidence_ready",
     timestamp: new Date().toISOString(),
   });
 }
@@ -3411,6 +3458,7 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
   };
   task.lifecycle.events[0].taskId = task.id;
   task.evidenceGate = createEvidenceGate(task);
+  recordWriteEscalationBlockedIfNeeded(task);
   advanceTaskLifecycle(task, "routed", "tripp.supervisor", "backend task routed through supervisor lane selection");
   const backendLifecycleState = lifecycleStateFromTask(task);
   if (backendLifecycleState !== "routed") {
