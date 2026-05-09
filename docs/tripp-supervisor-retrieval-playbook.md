@@ -4,6 +4,8 @@
 
 This playbook defines how `tripp.supervisor` chooses between TripCore.Munch.g retrieval and native Tripp.g / Goose execution tools.
 
+See also: `docs/agent-retrieval-responsibilities-matrix.md`.
+
 The doctrine is simple:
 
 - TripCore.Munch.g is the retrieval, narrowing, mapping, compression, provenance, and fallback lane.
