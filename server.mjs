@@ -1349,6 +1349,30 @@ function mapBackendTasks(value, sessionId, prompt) {
 function normalizeBackendTask(value, index, sessionId, prompt) {
   const tool = value.tool || value.name || "backend_event";
   const routeInfo = routePrompt(prompt, tool, value.kind || "backend");
+  const routingDecision = createSupervisorRoutingDecision(prompt, tool, value.kind || "backend", null);
+  const retrieval =
+    routingDecision.lane === "munch"
+      ? createMunchRetrieval({
+          id: `rr_${value.id || `backend-task-${Date.now()}-${index}`}`,
+          kind: routingDecision.retrievalKind,
+          workspace: root,
+          paths: [],
+          query: prompt,
+          intent: {
+            task_type: routingDecision.taskType,
+            reason: routingDecision.reason,
+          },
+          policy: {
+            retrieval_mode: routingDecision.retrievalMode,
+            max_results: 8,
+            allow_full_read: false,
+            compress_output: true,
+            include_evidence: true,
+            dedupe_key: routingDecision.dedupeKey,
+          },
+        })
+      : null;
+
   return {
     id: value.id || `backend-task-${Date.now()}-${index}`,
     title: value.title || value.summary || tool || summarizeTask(prompt),
@@ -1362,6 +1386,8 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
     excerpt: value.excerpt || value.output || null,
     origin: "backend",
     agentId: routeInfo.agentId,
+    routingDecision,
+    retrieval,
     trace: createSwarmTrace(routeInfo, tool),
     codingMode: chooseCodingMode(prompt, value.kind || "backend", tool),
     createdAt: new Date().toISOString(),

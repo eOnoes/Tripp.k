@@ -39,12 +39,26 @@ try {
     mode: "AUTO",
     sessionId: session.session.id,
   });
+  const routingReply = await postJson(`${appUrl}/api/tripp/reply`, {
+    prompt: "where is Munch health exposed",
+    mode: "AUTO",
+    sessionId: session.session.id,
+  });
 
   const checks = [
     ["bridge health", bridgeHealth.ok === true && bridgeHealth.goose?.configured === true],
     ["app backend ready", appHealth.backend?.configured === true],
     ["backend reply", reply.status?.model === "tripp-adapter/backend"],
     ["bridge task", reply.tasks?.some((task) => task.origin === "backend")],
+    [
+      "backend routing",
+      routingReply.tasks?.some(
+        (task) =>
+          task.origin === "backend" &&
+          task.routingDecision?.lane === "munch" &&
+          task.retrieval?.backend === "tripp-munch-mock",
+      ),
+    ],
     ["session persisted", reply.session?.transcript?.some((message) => message.speaker === "tripp.bridge>")],
   ];
 
