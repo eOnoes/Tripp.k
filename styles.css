@@ -498,6 +498,14 @@ button {
   border-left: 2px solid var(--lime);
 }
 
+.task.inspection_ready {
+  border-left: 2px solid #9bd300;
+}
+
+.task.inspected {
+  border-left: 2px solid var(--green);
+}
+
 .task.patch_ready {
   border-left: 2px solid var(--green);
 }

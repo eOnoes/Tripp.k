@@ -202,9 +202,12 @@
                 ? `<section class="task-detail">
                     <dl>
                       <div><dt>ID</dt><dd>${escapeHtml(task.id)}</dd></div>
+                      <div><dt>KIND</dt><dd>${escapeHtml(task.kind || "task")}</dd></div>
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
+                      <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
                     </dl>
+                    ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.patch ? `<pre>${escapeHtml(task.patch)}</pre>` : ""}
                   </section>`
                 : ""
@@ -215,6 +218,12 @@
                     <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Approve</button>
                     <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
                   </div>`
+                : task.status === "inspection_ready"
+                  ? `<div>
+                      <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Acknowledge</button>
+                      <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
+                    </div>
+                    <small>${escapeHtml(task.result || "Inspection ready.")}</small>`
                 : task.status === "patch_ready"
                   ? `<div>
                       <button type="button" data-task-action="apply" data-task="${escapeHtml(task.id)}">Apply</button>
@@ -385,6 +394,14 @@
 
     if (task.status === "applied") {
       return `${task.id} applied. ${task.result || ""}`.trim();
+    }
+
+    if (task.status === "inspection_ready") {
+      return `${task.id} inspection ready. Expand the task card to review the excerpt.`;
+    }
+
+    if (task.status === "inspected") {
+      return `${task.id} inspection acknowledged.`;
     }
 
     return `${task.id} ${task.status}. ${task.result || ""}`.trim();

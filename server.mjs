@@ -102,7 +102,8 @@ async function createReply(payload) {
   const prompt = String(payload?.prompt || "").trim();
   const mode = String(payload?.mode || "CHAT").toUpperCase();
   const tool = chooseTool(prompt);
-  const task = mode === "AUTO" ? createTask({ prompt, tool, sessionId: payload?.sessionId }) : null;
+  const kind = chooseTaskKind(prompt, tool);
+  const task = mode === "AUTO" ? createTask({ prompt, tool, kind, sessionId: payload?.sessionId }) : null;
 
   return {
     id: `reply-${Date.now()}`,
@@ -122,7 +123,7 @@ async function createReply(payload) {
               kind: "tool",
               speaker: "tripp.auto>",
               tool,
-              result: `task ${task.id} pending approval`,
+              result: `task ${task.id} ${task.status}`,
             },
             {
               kind: "agent",
@@ -142,16 +143,26 @@ async function createReply(payload) {
   };
 }
 
-function createTask({ prompt, tool, sessionId }) {
+function createTask({ prompt, tool, kind, sessionId }) {
+  const target = detectTargetFile(prompt) || detectKnownEditTarget(prompt, kind);
   const task = {
     id: `task-${Date.now()}`,
     title: summarizeTask(prompt),
     prompt,
+    kind,
     tool,
+    target: target?.relative || null,
     sessionId: sessionId || null,
-    status: "pending",
+    status: kind === "inspect" ? "inspection_ready" : "pending",
     createdAt: new Date().toISOString(),
   };
+
+  if (kind === "inspect") {
+    task.excerpt = createFileExcerpt(target);
+    task.result = target
+      ? `Read-only excerpt prepared from ${target.relative}.`
+      : "Inspection blocked. No approved repo-local target file was detected.";
+  }
 
   taskQueue.unshift(task);
   return task;
@@ -164,6 +175,12 @@ function updateTask(taskId, action) {
   }
 
   if (action === "approve") {
+    if (task.kind === "inspect") {
+      task.status = "inspected";
+      task.result = "Inspection acknowledged. No file mutation was performed.";
+      return { task };
+    }
+
     task.status = "patch_ready";
     task.patch = createPatchPreview(task);
     task.result = "Patch preview prepared. Real execution remains disabled until the filesystem bridge is implemented.";
@@ -204,6 +221,13 @@ function createPatchPreview(task) {
     '-      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
     '+      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
   ].join("\n");
+}
+
+function createFileExcerpt(target) {
+  if (!target) return "";
+
+  const text = readFileSync(target.absolute, "utf8");
+  return text.split(/\r?\n/).slice(0, 28).join("\n");
 }
 
 function applyTaskPatch(task) {
@@ -323,9 +347,52 @@ function chooseTool(prompt) {
   const lower = prompt.toLowerCase();
   if (lower.includes("git")) return "git_status";
   if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
-  if (lower.includes("file") || lower.includes("read")) return "filesystem_read";
+  if (lower.includes("file") || lower.includes("read") || lower.includes("inspect") || lower.includes("show")) {
+    return "filesystem_read";
+  }
   if (lower.includes("web") || lower.includes("search")) return "web_search";
   return "code_analyze";
+}
+
+function chooseTaskKind(prompt, tool) {
+  const lower = prompt.toLowerCase();
+  if (tool === "filesystem_read" || lower.includes("inspect") || lower.includes("show")) return "inspect";
+  if (tool === "filesystem_write") return "edit";
+  if (tool.startsWith("git_")) return "git";
+  return "analysis";
+}
+
+function detectTargetFile(prompt) {
+  const allowed = [
+    "tripp-terminal-data.json",
+    "README.md",
+    "index.html",
+    "script.js",
+    "styles.css",
+    "server.mjs",
+    "TRIPP_AGENT_TREE.md",
+    "TRIPP_GOOSE_FRONTEND_AUDIT.md",
+  ];
+  const lower = prompt.toLowerCase();
+  const match = allowed.find((file) => lower.includes(file.toLowerCase()));
+  if (!match) return null;
+
+  const absolute = resolve(root, match);
+  if (!absolute.startsWith(root + sep) || !existsSync(absolute) || !statSync(absolute).isFile()) {
+    return null;
+  }
+
+  return { relative: match, absolute };
+}
+
+function detectKnownEditTarget(prompt, kind) {
+  if (kind !== "edit") return null;
+
+  if (prompt.toLowerCase().includes("welcome message")) {
+    return { relative: "tripp-terminal-data.json", absolute: bootstrapFile };
+  }
+
+  return null;
 }
 
 function sendJson(response, value, status = 200) {
