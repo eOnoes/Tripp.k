@@ -215,6 +215,7 @@ try {
     continuitySource.includes("Next read-only direction") &&
     continuitySource.includes("non-authoritative for file changes") &&
     conclusionForbiddenTerms.every((term) => !continuitySource.toLowerCase().includes(term)) &&
+    !/\b(?:correct path|verified ownership|exclusive control|confirmed answer|invalid branch)\b/i.test(continuitySource) &&
     !/next:\s*[^,]+(?:edit|apply|write|patch|approve|commit)/i.test(continuitySource);
   const gateTaskSource = extractFunctionRange(appScript, "formatGateVerdict", "renderAdapterEvidence");
   const gateCystSource = extractFunctionRange(appScript, "gateRunCompact", "renderCystEvidenceMeta");
@@ -269,14 +270,15 @@ try {
     appScript.includes("Blocked in read-only mode") &&
     appScript.includes("Next read-only direction") &&
     appScript.includes("Two plausible review paths emerged from planning-only retrieval.") &&
-    appScript.includes("server.mjs inspection provided stronger direct context for read-only gate behavior.") &&
-    appScript.includes("script.js inspection clarified result presentation but was less central to core gate behavior.") &&
-    appScript.includes("Initial branching came from planning-only retrieval and remains non-authoritative.") &&
-    appScript.includes("script.js remains relevant for presentation review, but is less useful for the current gate question.") &&
-    appScript.includes("Continue from the stronger backend branch and inspect the next related source if more gate detail is needed.") &&
-    appScript.includes("Planning-only retrieval suggested backend/gate and UI/result presentation review paths.") &&
-    appScript.includes("This branch provides stronger direct context for read-only gate behavior.") &&
-    appScript.includes("This branch clarifies result presentation but is less central to core gate behavior.") &&
+    appScript.includes("Inspection of server.mjs provided stronger direct context for the current gate question.") &&
+    appScript.includes("Inspection of script.js added result-display context, but was less central to the current gate question.") &&
+    appScript.includes("The initial branch suggestions came from planning-only retrieval and remain non-authoritative.") &&
+    appScript.includes("The current branch ranking reflects usefulness for review, not final certainty.") &&
+    appScript.includes("The UI branch improved presentation context, but additional review may still be needed to fully connect display behavior to gate results.") &&
+    appScript.includes("Continue from the backend branch and inspect the next related source if more gate detail is needed.") &&
+    appScript.includes("Planning-only retrieval suggested backend/gate and UI/result-display review paths.") &&
+    appScript.includes("This branch provides stronger direct context for the current gate question.") &&
+    appScript.includes("This branch adds result-display context, but is less central to the current gate question.") &&
     continuityCopyGuardPass &&
     crossSurfaceReadOnlyCoherencePass &&
     appScript.includes("Continue read-only planning and review.") &&
