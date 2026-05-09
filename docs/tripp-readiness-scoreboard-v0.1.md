@@ -8,7 +8,7 @@ Status: working beta scoreboard. This is not a live-write approval document.
 |---|---:|---|---|---|---|
 | Primary read-only console beta | 90-93% | Formal gate, task conclusions, Current Understanding, Cyst audit, mixed-session beta acceptance, and longer-session repeatability are in place. | Operator QA across repeated real sessions. | Repeat the longer read-only session shape and confirm no cross-surface contradiction. | Codex + Goose |
 | Replace Goose for structured/moderately ambiguous read-only planning/review | 85% | Tripp now supports broader structured and moderately ambiguous read-only planning/review workflows across multiple session shapes, including ambiguity handling, contradiction recovery, branch rolloff, partial-evidence synthesis, blocked-state continuity, and pack-level operator-independence evidence within the current beta harness scope. | Breadth remains scoped; sprawling open-ended synthesis and implementation reasoning are still Goose-led. | Prove longer and messier read-only sessions stay coherent without broad Goose parity or edit/build claims. | Goose review + Codex |
-| Replace Goose for edit/build work | 35-45% | Safety doctrine and read-only gates are strong, but live mutation remains blocked. | General patchPlan, approval/apply lifecycle, stale checks, sandboxed apply, and authoritative write evidence. | Build and pass a separate live-edit gate after read-only beta is stable. | Future Tripp + Codex |
+| Replace Goose for edit/build work | 35-45% | Edit/build replacement remains a separate milestone. Current write lifecycle work is design-only, with no runtime mutation path, no approval/apply runtime behavior, and no live write capability enabled. | General patchPlan, approval/apply lifecycle, stale checks, sandboxed apply, and authoritative write evidence. | Build and pass a separate live-edit gate only after read-only beta is stable. | Future Tripp + Codex |
 
 ## Fastest Path to Add 10 Points
 
@@ -21,6 +21,7 @@ Status: working beta scoreboard. This is not a live-write approval document.
 - Prove longer and more varied read-only sessions stay coherent across repeated runs.
 - Consolidate mixed-session, multi-branch, and copy-safety checks into a durable regression harness.
 - Keep mock evidence visibly non-authoritative.
+- Follow the post-85 roadmap in `docs/read-only-post-85-roadmap-v0.1.md`.
 
 ## Passing Proofs
 
@@ -76,7 +77,10 @@ Pull the claim back if any of these occur:
 - The mixed-session, multi-branch, branch-reversal, contradiction-recovery, Warden-vs-adapter, longer-session, or operator-independence harness fails or becomes flaky.
 
 ### Replace Goose for edit/build work
-- Do not accelerate this yet.
+- Keep this as a separate milestone.
+- Current write lifecycle work is design-only.
+- No runtime mutation path is enabled.
+- No approval/apply runtime behavior is enabled.
 - First define generalized patchPlan and approval/apply requirements.
 - Keep all mutation paths blocked until the live-edit gate exists.
 

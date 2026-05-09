@@ -184,6 +184,7 @@ try {
   const sessionVarietyPack = readFileSync(new URL("../docs/read-only-session-variety-pack-v0.1.md", import.meta.url), "utf8");
   const partialEvidenceSynthesis = readFileSync(new URL("../docs/read-only-partial-evidence-synthesis-v0.1.md", import.meta.url), "utf8");
   const readOnly85MilestoneCard = readFileSync(new URL("../docs/read-only-85-percent-milestone-card-v0.1.md", import.meta.url), "utf8");
+  const post85Roadmap = readFileSync(new URL("../docs/read-only-post-85-roadmap-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -405,6 +406,11 @@ try {
     readinessScoreboard.includes("Partial-evidence synthesis harness passes.") &&
     readinessScoreboard.includes("Operator-independence pack artifact passes.") &&
     readinessScoreboard.includes("does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity") &&
+    readinessScoreboard.includes("Edit/build replacement remains a separate milestone.") &&
+    readinessScoreboard.includes("Current write lifecycle work is design-only") &&
+    readinessScoreboard.includes("No runtime mutation path is enabled.") &&
+    readinessScoreboard.includes("No approval/apply runtime behavior is enabled.") &&
+    readinessScoreboard.includes("docs/read-only-post-85-roadmap-v0.1.md") &&
     readinessScoreboard.includes("Evidence Required To Keep The 85% Claim") &&
     readinessScoreboard.includes("85% Claim Invalidation") &&
     !/\b(?:imminent|unlocked|ready for next phase|nearly replaces Goose|Goose-equivalent|autonomous reviewer|implementation-ready|edit-ready|write-ready)\b/i.test(readinessScoreboard) &&
@@ -543,6 +549,20 @@ try {
     readOnly85MilestoneCard.includes("eighty_five_percent_card_includes_scope_statement") &&
     readOnly85MilestoneCard.includes("eighty_five_percent_card_includes_blockers_and_invalidation_conditions") &&
     readOnly85MilestoneCard.includes("eighty_five_percent_requires_operator_independence_artifact_across_pack") &&
+    post85Roadmap.includes("Post-85 Read-Only Roadmap v0.1") &&
+    post85Roadmap.includes("does not enable runtime writes or change the current scoped 85% read-only planning/review readiness estimate") &&
+    post85Roadmap.includes("Tripp.g is at 85% for structured and moderately ambiguous read-only planning/review only.") &&
+    post85Roadmap.includes("90% Read-Only Planning/Review Readiness") &&
+    post85Roadmap.includes("broader everyday read-only sessions") &&
+    post85Roadmap.includes("8 to 12+ read-only tasks") &&
+    post85Roadmap.includes("Future write design remains docs-only") &&
+    post85Roadmap.includes("Keep edit/build replacement as a separate milestone.") &&
+    post85Roadmap.includes("ninety_percent_gate_requires_broader_readonly_session_pack") &&
+    post85Roadmap.includes("ninety_percent_gate_requires_deeper_partial_evidence_synthesis_quality") &&
+    post85Roadmap.includes("ninety_percent_gate_requires_long_session_stability") &&
+    post85Roadmap.includes("future_write_design_docs_do_not_change_readonly_runtime_scope") &&
+    post85Roadmap.includes("scoreboard_keeps_readonly_and_edit_build_readiness_as_distinct_tracks") &&
+    !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
