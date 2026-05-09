@@ -360,6 +360,14 @@ button {
   border-left: 1px solid var(--line);
 }
 
+.terminal-app[data-panel-focus="tools"] .ops-panel {
+  grid-template-rows: 24px minmax(180px, 260px) minmax(110px, 0.65fr) 210px 190px;
+}
+
+.terminal-app[data-panel-focus="tasks"] .ops-panel {
+  grid-template-rows: 24px 112px minmax(260px, 1fr) 230px 190px;
+}
+
 .terminal-app.ops-collapsed .ops-panel {
   grid-template-rows: 24px 1fr;
 }

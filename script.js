@@ -35,6 +35,7 @@
     mode: data.status.mode || "CHAT",
     activeRail: "terminal",
     collapsed: false,
+    panelFocus: "tasks",
     tools: data.tools.map((tool, index) => ({ ...tool, id: `tool-${index}`, expanded: false })),
     toolGroups: { online: false, offline: false },
     tasks: data.tasks || [],
@@ -99,6 +100,7 @@
 
   function renderShell() {
     elements.app.classList.toggle("ops-collapsed", state.collapsed);
+    elements.app.dataset.panelFocus = state.panelFocus;
     elements.collapse.textContent = state.collapsed ? "»" : "«";
     elements.collapse.title = state.collapsed ? "Show ops panel" : "Hide ops panel";
   }
@@ -172,6 +174,7 @@
     elements.toolRoot.querySelectorAll("[data-tool-group]").forEach((button) => {
       button.addEventListener("click", () => {
         state.toolGroups[button.dataset.toolGroup] = !state.toolGroups[button.dataset.toolGroup];
+        focusPanel(Object.values(state.toolGroups).some(Boolean) ? "tools" : "tasks");
         renderTools();
       });
     });
@@ -261,6 +264,7 @@
       header.addEventListener("click", () => {
         const task = state.tasks.find((candidate) => candidate.id === header.dataset.taskToggle);
         task.expanded = !task.expanded;
+        focusPanel("tasks");
         renderTasks();
       });
     });
@@ -470,10 +474,22 @@
     if (index === -1) {
       state.tasks.unshift(task);
       state.snapTasksToTop = true;
+      focusPanel("tasks");
       return;
     }
 
     state.tasks[index] = task;
+  }
+
+  function focusPanel(panel) {
+    state.panelFocus = panel;
+
+    if (panel === "tasks") {
+      state.toolGroups.online = false;
+      state.toolGroups.offline = false;
+    }
+
+    renderShell();
   }
 
   async function createSession() {
