@@ -181,6 +181,7 @@ try {
   const readinessScoreboard = readFileSync(new URL("../docs/tripp-readiness-scoreboard-v0.1.md", import.meta.url), "utf8");
   const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
+  const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
   const conclusionForbiddenTerms = [
     "approved",
@@ -408,6 +409,16 @@ try {
     futureWriteContract.includes("apply_failed") &&
     futureWriteContract.includes("Explicitly Out Of Scope Now") &&
     futureWriteContract.includes("live file mutation") &&
+    readOnly80Gate.includes("Read-Only 80 Percent Gate v0.1") &&
+    readOnly80Gate.includes("does not change the current 75% read-only Goose replacement estimate") &&
+    readOnly80Gate.includes("Required Proof Before 80%") &&
+    readOnly80Gate.includes("Branch reversal proof") &&
+    readOnly80Gate.includes("Repeated ambiguity proof") &&
+    readOnly80Gate.includes("Longer-session repeatability") &&
+    readOnly80Gate.includes("Operator-independence proof") &&
+    readOnly80Gate.includes("Still Out Of Scope At 80%") &&
+    readOnly80Gate.includes("edit/build replacement") &&
+    readOnly80Gate.includes("live file mutation") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
