@@ -169,6 +169,10 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.result = "Safe git status snapshot captured. No repository mutation was performed.";
   }
 
+  if (kind === "git" && tool !== "git_status") {
+    task.result = "Mutating git actions are gated until the command approval bridge is implemented.";
+  }
+
   taskQueue.unshift(task);
   return task;
 }
@@ -187,7 +191,7 @@ function supervisorMessage(task) {
   if (task.kind === "git") {
     return task.tool === "git_status"
       ? "I checked git status and put the read-only snapshot in TASKS."
-      : "I staged that git request for review. Mutating git actions stay gated.";
+      : "That git action is gated for now. I recorded it in TASKS without asking you to click through a disabled flow.";
   }
 
   return "I staged that analysis task for review in TASKS.";
@@ -237,6 +241,7 @@ function summarizeTask(prompt) {
 function initialTaskStatus(kind, tool) {
   if (kind === "inspect") return "inspected";
   if (kind === "git" && tool === "git_status") return "completed";
+  if (kind === "git") return "gated";
   return "pending";
 }
 

@@ -37,6 +37,7 @@
     collapsed: false,
     tools: data.tools.map((tool, index) => ({ ...tool, id: `tool-${index}`, expanded: false })),
     tasks: data.tasks || [],
+    snapTasksToTop: false,
     sessions: data.sessions.map((session, index) => ({
       ...session,
       id: `session-${index}`,
@@ -185,6 +186,7 @@
 
     if (!state.tasks.length) {
       elements.taskRoot.innerHTML = `<div class="empty-tasks">No supervised tasks.</div>`;
+      elements.taskRoot.scrollTop = 0;
       return;
     }
 
@@ -242,6 +244,11 @@
     elements.taskRoot.querySelectorAll("[data-task-action]").forEach((button) => {
       button.addEventListener("click", () => updateTask(button.dataset.task, button.dataset.taskAction));
     });
+
+    if (state.snapTasksToTop) {
+      elements.taskRoot.scrollTop = 0;
+      state.snapTasksToTop = false;
+    }
   }
 
   function renderSessions() {
@@ -405,6 +412,7 @@
     const index = state.tasks.findIndex((candidate) => candidate.id === task.id);
     if (index === -1) {
       state.tasks.unshift(task);
+      state.snapTasksToTop = true;
       return;
     }
 
