@@ -796,15 +796,24 @@ try {
   const cystLifecyclePass =
     cystAfterTrial.events?.every((event) => Number.isFinite(Number(event.cystSequence))) &&
     cystAfterTrial.events?.some(
-      (event) => event.eventType === "gate_run" && event.descriptorId === trialRun.id && event.gateStage === "started",
+      (event) =>
+        event.eventType === "gate_run_started" &&
+        event.descriptorId === trialRun.id &&
+        event.gateKind === "read_only" &&
+        event.status === "started" &&
+        event.matrixVersion === "0.1" &&
+        event.goCriteriaVersion === "0.1",
     ) &&
     cystAfterTrial.events?.some(
       (event) =>
-        event.eventType === "gate_run" &&
+        event.eventType === "gate_run_completed" &&
         event.descriptorId === trialRun.id &&
-        event.gateStage === "completed" &&
+        event.gateKind === "read_only" &&
+        event.status === "completed" &&
         event.suiteStatus === "go" &&
         event.goNoGo === "go" &&
+        event.matrixVersion === "0.1" &&
+        event.goCriteriaVersion === "0.1" &&
         event.passedCount === 5 &&
         event.requiredScenarioCount === 5,
     ) &&

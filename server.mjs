@@ -821,7 +821,7 @@ function runReadOnlyHarnessTrials() {
   const runId = `trial-run-${Date.now()}`;
   recordReadOnlyGateEvent({
     id: runId,
-    gateStage: "started",
+    status: "started",
     suiteStatus: "running",
     goNoGo: "running",
     startedAt,
@@ -855,7 +855,7 @@ function runReadOnlyHarnessTrials() {
     task,
   };
   recordTrialRunEvent(result);
-  recordReadOnlyGateEvent({ ...result, gateStage: "completed" });
+  recordReadOnlyGateEvent({ ...result, status: "completed" });
   taskQueue.unshift(task);
   saveTaskQueue();
   return result;
@@ -3038,8 +3038,8 @@ function recordTrialRunEvent(result = {}) {
 }
 
 function recordReadOnlyGateEvent(result = {}) {
-  const stage = result.gateStage || "completed";
-  const complete = stage === "completed";
+  const status = result.status === "started" ? "started" : "completed";
+  const complete = status === "completed";
   const go = result.suiteStatus === "go";
   const requiredScenarioIds = result.suiteSummary?.requiredScenarioIds || [];
   const requiredPassedCount = Array.isArray(result.scenarioResults)
@@ -3048,7 +3048,7 @@ function recordReadOnlyGateEvent(result = {}) {
       ).length
     : result.suiteSummary?.passedCount ?? null;
   return recordCystEvent({
-    eventType: "gate_run",
+    eventType: complete ? "gate_run_completed" : "gate_run_started",
     descriptorId: result.id,
     traceId: result.id,
     ownerId: "tripp.inspector",
@@ -3056,9 +3056,12 @@ function recordReadOnlyGateEvent(result = {}) {
     tool: "read_only_gate",
     resultStatus: complete ? (go ? "ok" : "blocked") : "active",
     errorCode: complete && !go ? "READ_ONLY_GATE_NO_GO" : null,
-    gateStage: stage,
+    gateKind: "read_only",
+    status,
     suiteStatus: result.suiteStatus || "running",
     goNoGo: result.goNoGo || result.suiteStatus || "running",
+    matrixVersion: result.matrixVersion || "0.1",
+    goCriteriaVersion: result.goCriteriaVersion || "0.1",
     requiredScenarioCount: result.suiteSummary?.requiredScenarioCount ?? null,
     passedCount: requiredPassedCount,
     failedCount: result.suiteSummary?.failedCount ?? null,

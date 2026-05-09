@@ -655,7 +655,7 @@
   }
 
   function cystCompact(event) {
-    if (event.eventType === "gate_run") {
+    if (event.eventType === "gate_run" || event.eventType === "gate_run_started" || event.eventType === "gate_run_completed") {
       return gateRunCompact(event);
     }
 
@@ -680,9 +680,9 @@
   }
 
   function gateRunCompact(event) {
-    const stage = String(event.gateStage || "").toLowerCase();
-    if (stage === "started") {
-      return ["READ-ONLY GATE RUN", formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
+    const started = event.eventType === "gate_run_started" || String(event.status || event.gateStage || "").toLowerCase() === "started";
+    if (started) {
+      return ["READ-ONLY GATE RUN", "Started formal read-only gate", formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
     }
 
     const verdict = String(event.suiteStatus || event.goNoGo || "unknown").toUpperCase();
