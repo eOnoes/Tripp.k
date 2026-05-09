@@ -188,6 +188,7 @@ try {
   const readOnly90Gate = readFileSync(new URL("../docs/read-only-90-percent-gate-v0.1.md", import.meta.url), "utf8");
   const longSessionStressDoc = readFileSync(new URL("../docs/read-only-long-session-stress-v0.1.md", import.meta.url), "utf8");
   const everydayMixedSessionDoc = readFileSync(new URL("../docs/read-only-everyday-mixed-session-v0.1.md", import.meta.url), "utf8");
+  const evidenceProvenanceDoc = readFileSync(new URL("../docs/read-only-evidence-provenance-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -271,6 +272,14 @@ try {
     appScript.includes("buildTaskConclusion") &&
     appScript.includes("renderPlanningSummary") &&
     appScript.includes("buildPlanningSummary") &&
+    appScript.includes("buildPlanningProvenance") &&
+    appScript.includes("Evidence provenance") &&
+    appScript.includes("DIRECT_INSPECT") &&
+    appScript.includes("MOCK_RETRIEVAL") &&
+    appScript.includes("SAFE_SHELL") &&
+    appScript.includes("BLOCKED_OUTCOME") &&
+    appScript.includes("READONLY_GATE") &&
+    appScript.includes("SYNTHESIS") &&
     appScript.includes("isGateBranchRetrieval") &&
     appScript.includes("isDocsRuntimeBranchRetrieval") &&
     appScript.includes("isCystRenderingBranchRetrieval") &&
@@ -400,6 +409,7 @@ try {
     appCss.includes(".cyst-activity li.group-end") &&
     appCss.includes(".cyst-activity li.group-single") &&
     appCss.includes(".read-only-summary") &&
+    appCss.includes(".provenance-strip") &&
     appCss.includes(".go-no-go") &&
     appCss.includes(".go-no-go.no_go") &&
     appCss.includes(".go-no-go small + small") &&
@@ -632,6 +642,18 @@ try {
     everydayMixedSessionDoc.includes("Read-Only Gate review scoped to harness readiness only") &&
     everydayMixedSessionDoc.includes("everyday_mixed_session_is_required_for_ninety_percent_breadth") &&
     everydayMixedSessionDoc.includes("everyday_mixed_session_includes_inspect_safe_shell_blocked_and_gate_evidence") &&
+    evidenceProvenanceDoc.includes("Read-Only Evidence Provenance v0.1") &&
+    evidenceProvenanceDoc.includes("DIRECT_INSPECT") &&
+    evidenceProvenanceDoc.includes("MOCK_RETRIEVAL") &&
+    evidenceProvenanceDoc.includes("SAFE_SHELL") &&
+    evidenceProvenanceDoc.includes("BLOCKED_OUTCOME") &&
+    evidenceProvenanceDoc.includes("READONLY_GATE") &&
+    evidenceProvenanceDoc.includes("SYNTHESIS") &&
+    evidenceProvenanceDoc.includes("What we know") &&
+    evidenceProvenanceDoc.includes("What remains uncertain") &&
+    evidenceProvenanceDoc.includes("MOCK_RETRIEVAL must not be restated as direct inspection") &&
+    evidenceProvenanceDoc.includes("SYNTHESIS must not endorse policy/config mutation or produce operational write instructions") &&
+    evidenceProvenanceDoc.includes("current_understanding_displays_evidence_provenance_classes") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&

@@ -459,6 +459,7 @@
           <strong>Current Understanding</strong>
           <span>${escapeHtml(summary.countLabel)}</span>
         </header>
+        <p class="provenance-strip"><b>Evidence provenance</b> ${summary.provenance.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</p>
         <dl>
           ${rows
             .map(
@@ -504,8 +505,10 @@
     );
     const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
     const totalPlanningOnly = completedTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
+    const safeShell = recentTasks.filter((task) => (task.kind === "shell" || task.tool === "shell_execute") && task.status === "completed" && task.adapter?.invoked === true).length;
     const totalBlocked = completedTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
     const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
+    const provenance = buildPlanningProvenance({ inspected, planningOnly, safeShell, blocked, gateTask });
     const hasBranchRetrieval = recentTasks.some((task) => isGateBranchRetrieval(task));
     const hasDocsRuntimeRetrieval = recentTasks.some((task) => isDocsRuntimeBranchRetrieval(task));
     const hasReversalRetrieval = recentTasks.some((task) => isCystRenderingBranchRetrieval(task));
@@ -584,6 +587,7 @@
 
     return {
       countLabel: recentTasks.length ? `${recentTasks.length} recent read-only tasks` : "No read-only tasks yet",
+      provenance,
       known: known.length ? known : ["No read-only findings yet"],
       uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
       blocked: blockedSummary,
@@ -607,6 +611,17 @@
           ? "Review blocked tasks or inspect related sources."
           : "Inspect, compare, narrow, or run the read-only gate.",
     };
+  }
+
+  function buildPlanningProvenance({ inspected, planningOnly, safeShell, blocked, gateTask }) {
+    return uniqueList([
+      inspected.length ? "DIRECT_INSPECT" : null,
+      planningOnly ? "MOCK_RETRIEVAL" : null,
+      safeShell ? "SAFE_SHELL" : null,
+      blocked ? "BLOCKED_OUTCOME" : null,
+      gateTask ? "READONLY_GATE" : null,
+      "SYNTHESIS",
+    ].filter(Boolean));
   }
 
   function uniqueList(values) {

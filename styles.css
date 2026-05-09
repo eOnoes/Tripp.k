@@ -1071,6 +1071,30 @@ button {
   font-size: 9px;
 }
 
+.provenance-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 6px;
+  color: var(--dim);
+  font-size: 8px;
+}
+
+.provenance-strip b {
+  margin-right: 2px;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.provenance-strip span {
+  border: 1px solid #263400;
+  padding: 1px 4px;
+  color: var(--lime);
+  background: #020402;
+}
+
 .read-only-summary dl {
   display: grid;
   gap: 4px;
