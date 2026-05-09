@@ -828,7 +828,7 @@ function runReadOnlyHarnessTrials() {
   ];
   const scenarioResults = trials.map(normalizeReadOnlyScenarioResult);
   const suiteSummary = createReadOnlySuiteSummary(scenarioResults);
-  const task = createTrialTask(trials, suiteSummary.suiteStatus === "go", startedAt, suiteSummary);
+  const task = createTrialTask(scenarioResults, suiteSummary.suiteStatus === "go", startedAt, suiteSummary);
   const result = {
     id: `trial-run-${Date.now()}`,
     matrixVersion: "0.1",
@@ -843,7 +843,7 @@ function runReadOnlyHarnessTrials() {
       ? "Read-only harness trials passed. Warden, Router, Adapter, Cyst, and UI task projection are wired for trial mode."
       : "Read-only harness trials found a blocking issue.",
     scenarioResults,
-    trials,
+    trials: scenarioResults,
     task,
   };
   recordTrialRunEvent(result);
@@ -889,9 +889,16 @@ function createReadOnlySuiteSummary(scenarios = []) {
   const missingScenarioIds = requiredScenarioIds.filter(
     (scenarioId) => !scenarios.some((scenario) => scenario.scenarioId === scenarioId),
   );
+  const duplicateScenarioIds = requiredScenarioIds.filter(
+    (scenarioId) => scenarios.filter((scenario) => scenario.scenarioId === scenarioId).length > 1,
+  );
   const incompleteScenarioIds = scenarios
     .filter((scenario) => !isCompleteReadOnlyScenario(scenario))
     .map((scenario) => scenario.scenarioId || scenario.legacyTrialId || "unknown");
+  const mixedScenario = scenarios.find((scenario) => scenario.scenarioId === "mock_retrieval_write_escalation_blocked");
+  const malformedMixedScenarioIds = mixedScenario && !isValidMockEscalationScenario(mixedScenario)
+    ? [mixedScenario.scenarioId]
+    : [];
   const categories = [
     createTrialGate("warden", "Warden decisions are present before tool paths.", scenarios.every((scenario) => Boolean(scenario.actual.wardenResult))),
     createTrialGate(
@@ -916,7 +923,12 @@ function createReadOnlySuiteSummary(scenarios = []) {
       ),
     ),
     createTrialGate("ui_projection", "Each scenario has operator-facing evidence labels.", scenarios.every((scenario) => Boolean(scenario.uiEvidenceLabel))),
-    createTrialGate("required_scenarios", "All required read-only scenarios are present and complete.", !missingScenarioIds.length && !incompleteScenarioIds.length),
+    createTrialGate(
+      "required_scenarios",
+      "All required read-only scenarios are present exactly once and complete.",
+      !missingScenarioIds.length && !duplicateScenarioIds.length && !incompleteScenarioIds.length,
+    ),
+    createTrialGate("mixed_mock_escalation", "Mock escalation proves read allowed, write blocked, and read-only continuation.", !malformedMixedScenarioIds.length),
   ];
   const failed = categories.filter((category) => !category.pass);
   const suiteStatus = failed.length || scenarios.some((scenario) => scenario.status !== "pass") ? "no_go" : "go";
@@ -933,12 +945,17 @@ function createReadOnlySuiteSummary(scenarios = []) {
     passedCount: scenarios.filter((scenario) => scenario.status === "pass").length,
     failedCount: scenarios.filter((scenario) => scenario.status !== "pass").length,
     requiredScenarioCount: requiredScenarioIds.length,
+    presentScenarioCount: requiredScenarioIds.length - missingScenarioIds.length,
     missingScenarioIds,
+    duplicateScenarioIds,
     incompleteScenarioIds,
+    malformedMixedScenarioIds,
     blockingReasons: [
       ...failed.map((category) => category.id),
       ...missingScenarioIds.map((scenarioId) => `missing:${scenarioId}`),
+      ...duplicateScenarioIds.map((scenarioId) => `duplicate:${scenarioId}`),
       ...incompleteScenarioIds.map((scenarioId) => `incomplete:${scenarioId}`),
+      ...malformedMixedScenarioIds.map((scenarioId) => `malformed:${scenarioId}`),
     ],
     blockers: failed.map((category) => category.id),
   };
@@ -961,6 +978,19 @@ function isCompleteReadOnlyScenario(scenario = {}) {
       scenario.expected?.finalLifecycleState &&
       scenario.actual?.finalLifecycleState &&
       scenario.uiEvidenceLabel,
+  );
+}
+
+function isValidMockEscalationScenario(scenario = {}) {
+  return Boolean(
+    scenario.expected?.adapterInvoked?.read === true &&
+      scenario.expected?.adapterInvoked?.write === false &&
+      scenario.actual?.adapterInvoked?.read === true &&
+      scenario.actual?.adapterInvoked?.write === false &&
+      scenario.actual?.cystEventTypes?.includes("retrieval_event") &&
+      scenario.actual?.cystEventTypes?.includes("write_escalation_blocked") &&
+      scenario.actual?.cystEventTypes?.includes("lifecycle_transition") &&
+      scenario.actual?.finalLifecycleState === "read_only_maintained",
   );
 }
 
@@ -1002,6 +1032,7 @@ function runWardenPromptBlockTrial() {
     wardenState: warden.terminalState,
     route: null,
     adapterStatus: "not_invoked",
+    adapterInvoked: false,
     cystEvent: null,
     actualCystEvents: ["warden_denial"],
     cystExpectationMet: !warden.allowed,

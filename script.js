@@ -866,7 +866,7 @@
   function renderTrialEvidence(trials, goNoGo) {
     if (!Array.isArray(trials) || !trials.length) return "";
 
-    const passCount = trials.filter((trial) => trial.pass).length;
+    const passCount = trials.filter((trial) => (trial.status || (trial.pass ? "pass" : "fail")) === "pass").length;
     return `
       <section class="trial-detail">
         <header>
@@ -878,16 +878,16 @@
           ${trials
             .map(
               (trial) => `
-                <article class="${trial.pass ? "pass" : "fail"}">
+                <article class="${(trial.status || (trial.pass ? "pass" : "fail")) === "pass" ? "pass" : "fail"}">
                   <b>${escapeHtml(trial.title || trial.id)}</b>
-                  <small>${escapeHtml(trial.expected || "")}</small>
+                  <small>${escapeHtml(formatTrialExpected(trial))}</small>
                   <dl>
-                    <div><dt>WARDEN</dt><dd>${escapeHtml(trial.wardenState || "none")}</dd></div>
-                    <div><dt>ROUTE</dt><dd>${escapeHtml(trial.route || "none")}</dd></div>
-                    <div><dt>ADAPTER</dt><dd>${escapeHtml(trial.adapterStatus || "none")} · ${escapeHtml(formatTrialAdapterInvoked(trial.adapterInvoked))}</dd></div>
-                    <div><dt>CYST</dt><dd>${escapeHtml(trial.cystEvent || "none")}</dd></div>
+                    <div><dt>WARDEN</dt><dd>${escapeHtml(trial.actual?.wardenResult || trial.wardenState || "none")}</dd></div>
+                    <div><dt>ROUTE</dt><dd>${escapeHtml(formatTrialRoute(trial.actual?.adapterRoute ?? trial.route))}</dd></div>
+                    <div><dt>ADAPTER</dt><dd>${escapeHtml(formatTrialAdapterInvoked(trial.actual?.adapterInvoked ?? trial.adapterInvoked))}</dd></div>
+                    <div><dt>CYST</dt><dd>${escapeHtml(formatTrialCystTypes(trial.actual?.cystEventTypes, trial.cystEvent))}</dd></div>
                   </dl>
-                  <p>${escapeHtml((trial.evidence || []).join(" / ") || "no evidence")}</p>
+                  <p>${escapeHtml((trial.notes || trial.evidence || []).join(" / ") || trial.uiEvidenceLabel || "no evidence")}</p>
                 </article>
               `,
             )
@@ -895,6 +895,21 @@
         </div>
       </section>
     `;
+  }
+
+  function formatTrialExpected(trial) {
+    if (trial.expected?.finalLifecycleState) {
+      return `${trial.scenarioId || trial.legacyTrialId || "scenario"} -> ${trial.expected.finalLifecycleState}`;
+    }
+    return trial.expected || "";
+  }
+
+  function formatTrialRoute(value) {
+    return Array.isArray(value) ? value.join(" / ") : value || "none";
+  }
+
+  function formatTrialCystTypes(types, fallback) {
+    return Array.isArray(types) && types.length ? types.join(" / ") : fallback || "none";
   }
 
   function formatTrialAdapterInvoked(value) {

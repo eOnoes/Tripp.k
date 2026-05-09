@@ -204,6 +204,9 @@ try {
     appScript.includes("group-single") &&
     appScript.includes("event.taskId || event.traceId || event.descriptorId") &&
     appScript.includes("renderGoNoGoSummary") &&
+    appScript.includes("formatTrialExpected") &&
+    appScript.includes("formatTrialRoute") &&
+    appScript.includes("formatTrialCystTypes") &&
     appScript.includes("formatTrialAdapterInvoked") &&
     appScript.includes("goNoGo.decision") &&
     appScript.includes("write_escalation_blocked") &&
@@ -256,6 +259,9 @@ try {
     serverSource.includes("createReadOnlyGoNoGo") &&
     serverSource.includes("createReadOnlySuiteSummary") &&
     serverSource.includes("isCompleteReadOnlyScenario") &&
+    serverSource.includes("isValidMockEscalationScenario") &&
+    serverSource.includes("duplicateScenarioIds") &&
+    serverSource.includes("malformedMixedScenarioIds") &&
     serverSource.includes("expectedAdapterInvoked") &&
     serverSource.includes("normalizeReadOnlyScenarioResult") &&
     serverSource.includes("scenarioResults") &&
@@ -705,15 +711,18 @@ try {
     trialRun.suiteSummary?.goNoGo === "go" &&
     trialRun.suiteSummary?.matrixVersion === "0.1" &&
     trialRun.suiteSummary?.goCriteriaVersion === "0.1" &&
-    trialRun.suiteSummary?.categories?.length === 6 &&
+    trialRun.suiteSummary?.categories?.length === 7 &&
     trialRun.suiteSummary?.categories?.every((category) => category.pass === true) &&
     trialRun.suiteSummary?.missingScenarioIds?.length === 0 &&
+    trialRun.suiteSummary?.duplicateScenarioIds?.length === 0 &&
     trialRun.suiteSummary?.incompleteScenarioIds?.length === 0 &&
+    trialRun.suiteSummary?.malformedMixedScenarioIds?.length === 0 &&
     trialRun.suiteSummary?.blockingReasons?.length === 0 &&
     trialRun.suiteSummary?.requiredScenarioCount === 5 &&
+    trialRun.suiteSummary?.presentScenarioCount === 5 &&
+    JSON.stringify(trialRun.trials) === JSON.stringify(trialRun.scenarioResults) &&
     trialRun.trials?.length === 6 &&
-    trialRun.trials?.every((trial) => trial.pass === true) &&
-    trialRun.trials?.every((trial) => Array.isArray(trial.expectedCystEvents) && trial.expectedFinalState) &&
+    trialRun.trials?.every((trial) => trial.status === "pass") &&
     trialRun.scenarioResults?.length === 6 &&
     trialRun.scenarioResults?.every(
       (scenario) =>
@@ -721,6 +730,10 @@ try {
         scenario.status === "pass" &&
         scenario.expected?.wardenResult &&
         scenario.actual?.wardenResult &&
+        Object.hasOwn(scenario.expected || {}, "adapterRoute") &&
+        Object.hasOwn(scenario.actual || {}, "adapterRoute") &&
+        Object.hasOwn(scenario.expected || {}, "adapterInvoked") &&
+        Object.hasOwn(scenario.actual || {}, "adapterInvoked") &&
         Array.isArray(scenario.expected?.cystEventTypes) &&
         Array.isArray(scenario.actual?.cystEventTypes) &&
         scenario.expected?.finalLifecycleState &&
@@ -730,13 +743,18 @@ try {
     ["readonly_retrieval_allowed", "readonly_inspect_allowed", "readonly_safe_shell_allowed", "readonly_unsafe_shell_blocked", "mock_retrieval_write_escalation_blocked"].every(
       (scenarioId) => trialRun.scenarioResults?.some((scenario) => scenario.scenarioId === scenarioId),
     ) &&
-    trialRun.trials?.some((trial) => trial.id === "trial-blocked-shell" && trial.evidence?.includes("GIT_WRITE_BLOCKED")) &&
+    trialRun.scenarioResults?.some(
+      (scenario) => scenario.scenarioId === "readonly_unsafe_shell_blocked" && scenario.notes?.includes("GIT_WRITE_BLOCKED"),
+    ) &&
     trialRun.scenarioResults?.some(
       (scenario) =>
         scenario.scenarioId === "mock_retrieval_write_escalation_blocked" &&
+        scenario.expected?.adapterInvoked?.read === true &&
         scenario.expected?.adapterInvoked?.write === false &&
+        scenario.actual?.adapterInvoked?.read === true &&
         scenario.actual?.adapterInvoked?.write === false &&
-        scenario.actual?.cystEventTypes?.includes("write_escalation_blocked"),
+        scenario.actual?.cystEventTypes?.includes("write_escalation_blocked") &&
+        scenario.actual?.finalLifecycleState === "read_only_maintained",
     ) &&
     tasksAfterTrial.tasks?.some(
       (task) => task.id === trialRun.task?.id && task.status === "completed" && task.goNoGo?.suiteStatus === "go",
