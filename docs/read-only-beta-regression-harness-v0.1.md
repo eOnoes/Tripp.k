@@ -35,7 +35,13 @@ This harness keeps the read-only beta claim tied to repeatable proof instead of 
    - Keep the earlier branch visible as useful context, not as a wrong branch.
    - Preserve mock uncertainty and blocked outcomes.
 
-5. Longer Repeatability Session
+5. Contradiction Recovery Session
+   - Start from a plausible but incomplete interpretation.
+   - Add later read-only evidence that changes the current interpretation.
+   - Keep earlier context visible as useful, not wrong.
+   - Preserve mock uncertainty and blocked outcomes.
+
+6. Longer Repeatability Session
    - Cover inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.
    - Confirm the session remains coherent beyond a short happy path.
 
@@ -49,6 +55,7 @@ An operator should be able to answer these from Tripp.g alone:
 - What stayed blocked in read-only mode?
 - Which branch is currently more useful, when branches exist?
 - Did the preferred branch change, and why?
+- What changed in the current interpretation, and what remains uncertain?
 - What is the next read-only direction?
 
 ## Cross-Surface Coherence Rules
@@ -78,6 +85,7 @@ Block or pull back the beta claim if any of these occur:
 - `primary read-only beta acceptance flow`
 - `multi-branch read-only ambiguity acceptance flow`
 - `branch reversal read-only acceptance flow`
+- `contradiction recovery read-only acceptance flow`
 - `longer read-only repeatability acceptance flow`
 - Cyst lifecycle and gate event checks
 - read-only wording guardrails

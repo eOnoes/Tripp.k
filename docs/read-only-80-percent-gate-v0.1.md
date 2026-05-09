@@ -26,6 +26,7 @@ All of these must pass:
    - Current Understanding shows what changed in interpretation
    - earlier useful context remains visible
    - recovery language stays scoped to current review usefulness, not final truth
+   - runtime acceptance lane passes
 
 4. Longer-session repeatability
    - repeated 8-10 task read-only sessions remain coherent

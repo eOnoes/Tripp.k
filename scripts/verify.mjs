@@ -264,6 +264,7 @@ try {
     appScript.includes("buildPlanningSummary") &&
     appScript.includes("isGateBranchRetrieval") &&
     appScript.includes("isCystRenderingBranchRetrieval") &&
+    appScript.includes("isBlockedOutcomeRecoveryRetrieval") &&
     appScript.includes("Current Understanding") &&
     appScript.includes("recent read-only tasks") &&
     appScript.includes("No read-only findings yet") &&
@@ -283,6 +284,11 @@ try {
     appScript.includes("Inspection of script.js provided more useful context for the current Cyst activity rendering question.") &&
     appScript.includes("server.mjs remains useful for backend event context, but is less central to the current rendering question.") &&
     appScript.includes("Continue from the UI rendering branch and inspect the next related source if more display detail is needed.") &&
+    appScript.includes("Earlier inspection of the UI branch provided useful presentation context for blocked outcomes.") &&
+    appScript.includes("Later inspection of the runtime-handling branch provided more useful context for how blocked outcomes are handled in the current harness.") &&
+    appScript.includes("The current interpretation changed after additional inspection and remains scoped to read-only review.") &&
+    appScript.includes("Presentation behavior may still depend on additional related files beyond the current runtime path.") &&
+    appScript.includes("Continue from the runtime-handling branch and inspect the next related source if more clarification is needed.") &&
     appScript.includes("This file provides backend/runtime context for read-only review.") &&
     appScript.includes("This file provides UI/result-display context for read-only review.") &&
     continuityCopyGuardPass &&
@@ -379,12 +385,14 @@ try {
     betaRegressionHarness.includes("Operator-Independence Questions") &&
     betaRegressionHarness.includes("Multi-Branch Ambiguity Session") &&
     betaRegressionHarness.includes("Branch Reversal Session") &&
+    betaRegressionHarness.includes("Contradiction Recovery Session") &&
     betaRegressionHarness.includes("Longer Repeatability Session") &&
     betaRegressionHarness.includes("TASKS, Current Understanding, and Cyst materially contradict each other") &&
     betaRegressionHarness.includes("Gate GO means read-only harness readiness only") &&
     betaRegressionHarness.includes("primary read-only beta acceptance flow") &&
     betaRegressionHarness.includes("multi-branch read-only ambiguity acceptance flow") &&
     betaRegressionHarness.includes("branch reversal read-only acceptance flow") &&
+    betaRegressionHarness.includes("contradiction recovery read-only acceptance flow") &&
     betaRegressionHarness.includes("longer read-only repeatability acceptance flow") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -421,6 +429,7 @@ try {
     readOnly80Gate.includes("Repeated ambiguity proof") &&
     readOnly80Gate.includes("Contradiction and safe recovery proof") &&
     readOnly80Gate.includes("new read-only evidence can reduce confidence in an earlier synthesis without calling it wrong") &&
+    readOnly80Gate.includes("runtime acceptance lane passes") &&
     readOnly80Gate.includes("Longer-session repeatability") &&
     readOnly80Gate.includes("Operator-independence proof") &&
     readOnly80Gate.includes("contradiction recovery is missing or only documented without acceptance proof") &&
@@ -1230,6 +1239,72 @@ try {
   console.log(`${branchReversalAcceptancePass ? "PASS" : "FAIL"} beta: branch reversal read-only acceptance flow`);
   if (!branchReversalAcceptancePass) {
     failures.push({ name: "branch reversal read-only acceptance" });
+  }
+
+  const recoverySessionId = "verify-readonly-contradiction-recovery";
+  const recoveryRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files likely explain how blocked outcomes are surfaced to the operator: policy handling or UI rendering behavior?",
+    mode: "AUTO",
+    sessionId: recoverySessionId,
+  });
+  const recoveryUiInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect script.js",
+    mode: "AUTO",
+    sessionId: recoverySessionId,
+  });
+  const recoverySafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: recoverySessionId,
+  });
+  const recoveryBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: recoverySessionId,
+  });
+  const recoveryRuntimeInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: recoverySessionId,
+  });
+  const recoveryGate = await postJson("/api/tripp/trials/read-only", {});
+  const recoveryCyst = await getJson("/api/tripp/cyst/events");
+  const recoveryTaskIds = [
+    recoveryRetrieval.task?.id,
+    recoveryUiInspect.task?.id,
+    recoverySafeShell.task?.id,
+    recoveryBlockedShell.task?.id,
+    recoveryRuntimeInspect.task?.id,
+    recoveryGate.task?.id,
+  ].filter(Boolean);
+  const recoveryCystEvents = recoveryCyst.events?.filter((event) => recoveryTaskIds.includes(event.descriptorId) || event.descriptorId === recoveryGate.id) || [];
+  const contradictionRecoveryAcceptancePass =
+    recoveryRetrieval.task?.status === "retrieval_ready" &&
+    recoveryRetrieval.task?.retrieval?.sourceKind === "mock" &&
+    recoveryRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    recoveryRetrieval.task?.retrieval?.writeApprovalEligible === false &&
+    recoveryUiInspect.task?.status === "inspected" &&
+    recoveryUiInspect.task?.target === "script.js" &&
+    recoveryUiInspect.task?.adapter?.status === "ok" &&
+    recoverySafeShell.task?.status === "completed" &&
+    recoverySafeShell.task?.adapter?.invoked === true &&
+    recoveryBlockedShell.task?.status === "gated" &&
+    !recoveryBlockedShell.task?.adapter &&
+    recoveryBlockedShell.task?.permission?.decision === "gated" &&
+    recoveryRuntimeInspect.task?.status === "inspected" &&
+    recoveryRuntimeInspect.task?.target === "server.mjs" &&
+    recoveryRuntimeInspect.task?.adapter?.status === "ok" &&
+    recoveryGate.suiteStatus === "go" &&
+    recoveryGate.task?.goNoGo?.suiteStatus === "go" &&
+    recoveryCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === recoveryRetrieval.task?.id) &&
+    recoveryCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === recoveryUiInspect.task?.id) &&
+    recoveryCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === recoverySafeShell.task?.id) &&
+    recoveryCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === recoveryBlockedShell.task?.id) &&
+    recoveryCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === recoveryRuntimeInspect.task?.id) &&
+    recoveryCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === recoveryGate.id && event.gateStage === "completed");
+  console.log(`${contradictionRecoveryAcceptancePass ? "PASS" : "FAIL"} beta: contradiction recovery read-only acceptance flow`);
+  if (!contradictionRecoveryAcceptancePass) {
+    failures.push({ name: "contradiction recovery read-only acceptance" });
   }
 
   const longSessionId = "verify-readonly-long-session";
