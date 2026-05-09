@@ -65,6 +65,34 @@ An operator should be able to answer these from Tripp.g alone:
 - What changed in the current interpretation, and what remains uncertain?
 - What is the next read-only direction?
 
+## Operator-Independence Artifact
+
+The beta harness emits a generated artifact for acceptance review, not a normal product UI card.
+
+Minimum artifact fields:
+
+- `artifactType: "operator_independence_check"`
+- `mode: "read_only_beta_harness"`
+- `sessionId`
+- `scenarioId`
+- `checks.inspected`
+- `checks.learned`
+- `checks.uncertain`
+- `checks.blocked`
+- `checks.nextDirection`
+- `checks.understandableWithoutSidecar`
+- `overallStatus`
+- `summary`
+
+Pass rules:
+
+- all required checks must be present
+- all required checks must pass
+- `overallStatus` must match the individual checks
+- summary must stay scoped to read-only understandability
+
+The artifact must not render in normal product UI, Current Understanding, or Cyst.
+
 ## Cross-Surface Coherence Rules
 
 - TASKS provides conclusions and scenario detail.
@@ -95,6 +123,7 @@ Block or pull back the beta claim if any of these occur:
 - `contradiction recovery read-only acceptance flow`
 - `Warden-vs-adapter ambiguity acceptance flow`
 - `longer read-only repeatability acceptance flow`
+- `operator independence artifact`
 - Cyst lifecycle and gate event checks
 - read-only wording guardrails
 - scoreboard claim checks

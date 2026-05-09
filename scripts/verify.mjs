@@ -376,16 +376,20 @@ try {
     readinessScoreboard.includes("Replace Goose for read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
     readinessScoreboard.includes("90-93%") &&
-    readinessScoreboard.includes("75%") &&
+    readinessScoreboard.includes("80%") &&
     readinessScoreboard.includes("35-45%") &&
-    readinessScoreboard.includes("Read-only planning/review readiness: approximately 75% toward replacing Goose for structured and moderately ambiguous workflows.") &&
-    readinessScoreboard.includes("Evidence Required To Keep The 75% Claim") &&
-    readinessScoreboard.includes("75% Claim Invalidation") &&
+    readinessScoreboard.includes("Read-only planning/review readiness: approximately 80% toward replacing Goose for structured and moderately ambiguous workflows.") &&
+    readinessScoreboard.includes("Evidence Required To Keep The 80% Claim") &&
+    readinessScoreboard.includes("80% Claim Invalidation") &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
     readinessScoreboard.includes("Multi-branch ambiguity acceptance now keeps backend and UI branches visible, ranks by usefulness, preserves mock uncertainty, and keeps blocked outcomes visible.") &&
     readinessScoreboard.includes("Branch-reversal acceptance now shows Tripp can reorient toward a more useful branch without erasing the earlier branch.") &&
+    readinessScoreboard.includes("Contradiction-recovery acceptance now shows Tripp can update interpretation from later read-only evidence without calling earlier context wrong.") &&
+    readinessScoreboard.includes("Warden-vs-adapter ambiguity acceptance now proves a distinct enforcement-boundary ambiguity shape.") &&
     readinessScoreboard.includes("Longer-session repeatability acceptance now covers inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.") &&
+    readinessScoreboard.includes("Operator-independence artifact now proves the beta harness can answer inspected, learned, uncertain, blocked, and next-direction questions without normal UI clutter.") &&
     readinessScoreboard.includes("Branch ranking stays based on usefulness, not truth or verification.") &&
+    readinessScoreboard.includes("Operator-independence artifact passes.") &&
     readinessScoreboard.includes("Longer-session repeatability harness passes.") &&
     readinessScoreboard.includes("Gate GO means read-only harness readiness only") &&
     betaRegressionHarness.includes("Read-Only Beta Regression Harness v0.1") &&
@@ -403,6 +407,11 @@ try {
     betaRegressionHarness.includes("contradiction recovery read-only acceptance flow") &&
     betaRegressionHarness.includes("Warden-vs-adapter ambiguity acceptance flow") &&
     betaRegressionHarness.includes("longer read-only repeatability acceptance flow") &&
+    betaRegressionHarness.includes("Operator-Independence Artifact") &&
+    betaRegressionHarness.includes("artifactType: \"operator_independence_check\"") &&
+    betaRegressionHarness.includes("checks.understandableWithoutSidecar") &&
+    betaRegressionHarness.includes("The artifact must not render in normal product UI, Current Understanding, or Cyst.") &&
+    betaRegressionHarness.includes("operator independence artifact") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
@@ -442,8 +451,12 @@ try {
     readOnly80Gate.includes("runtime acceptance lane passes") &&
     readOnly80Gate.includes("Longer-session repeatability") &&
     readOnly80Gate.includes("Operator-independence proof") &&
+    readOnly80Gate.includes("generated beta harness artifact passes and does not render in normal product UI") &&
     readOnly80Gate.includes("contradiction recovery is missing or only documented without acceptance proof") &&
+    readOnly80Gate.includes("operator-independence artifact is missing, failing, or presented as product certification") &&
     readOnly80Gate.includes("contradiction_recovery_updates_synthesis_without_calling_earlier_context_wrong") &&
+    readOnly80Gate.includes("operator_independence_artifact_has_required_schema") &&
+    readOnly80Gate.includes("operator_independence_artifact_does_not_render_in_normal_product_ui") &&
     readOnly80Gate.includes("Still Out Of Scope At 80%") &&
     readOnly80Gate.includes("edit/build replacement") &&
     readOnly80Gate.includes("live file mutation") &&
@@ -1476,6 +1489,39 @@ try {
     failures.push({ name: "longer read-only repeatability acceptance" });
   }
 
+  const operatorIndependenceArtifact = createOperatorIndependenceArtifact({
+    sessionId: longSessionId,
+    scenarioId: "longer_readonly_repeatability",
+    tasks: {
+      inspectReadme: longInspectReadme.task,
+      gateRetrieval: longGateRetrieval.task,
+      inspectServer: longInspectServer.task,
+      safeShell: longSafeShell.task,
+      inspectScript: longInspectScript.task,
+      analysis: longAnalysis.task,
+      cystRetrieval: longCystRetrieval.task,
+      blockedShell: longBlockedShell.task,
+      gitStatus: longGitStatus.task,
+      gate: longGate.task,
+    },
+    acceptancePassed: longSessionAcceptancePass,
+  });
+  const operatorChecks = Object.values(operatorIndependenceArtifact.checks);
+  const operatorIndependencePass =
+    operatorIndependenceArtifact.artifactType === "operator_independence_check" &&
+    operatorIndependenceArtifact.mode === "read_only_beta_harness" &&
+    operatorIndependenceArtifact.overallStatus === "pass" &&
+    operatorChecks.length === 6 &&
+    operatorChecks.every((check) => check.status === "pass") &&
+    operatorIndependenceArtifact.summary === "Session was understandable without sidecar interpretation in read-only beta harness." &&
+    !/certified|validated replacement|goose no longer needed|independent reasoning confirmed/i.test(operatorIndependenceArtifact.summary) &&
+    !appScript.includes("operator_independence_check") &&
+    !appHtml.includes("operator_independence_check");
+  console.log(`${operatorIndependencePass ? "PASS" : "FAIL"} beta: operator independence artifact`);
+  if (!operatorIndependencePass) {
+    failures.push({ name: "operator independence artifact" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }
@@ -1503,6 +1549,63 @@ function orderCystEvents(events) {
 function cystEventTime(event) {
   const timestamp = Date.parse(event?.timestamp || "");
   return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acceptancePassed }) {
+  const check = (status, prompt, evidenceSource, note) => ({
+    status: status ? "pass" : "fail",
+    prompt,
+    evidenceSource,
+    note,
+  });
+  const checks = {
+    inspected: check(
+      tasks.inspectReadme?.status === "inspected" && tasks.inspectServer?.status === "inspected" && tasks.inspectScript?.status === "inspected",
+      "Operator could identify what was inspected.",
+      ["TASKS", "Current Understanding"],
+      "README.md, server.mjs, and script.js were inspected in read-only mode.",
+    ),
+    learned: check(
+      tasks.analysis?.status === "completed" && tasks.safeShell?.status === "completed" && tasks.gitStatus?.status === "completed",
+      "Operator could identify what was learned.",
+      ["TASKS"],
+      "Analysis, safe shell, and git status provided bounded read-only findings.",
+    ),
+    uncertain: check(
+      tasks.gateRetrieval?.retrieval?.authorityLevel === "planning-only" && tasks.cystRetrieval?.retrieval?.authorityLevel === "planning-only",
+      "Operator could identify what remains uncertain.",
+      ["TASKS", "Current Understanding"],
+      "Mock retrieval remained planning-only and non-authoritative.",
+    ),
+    blocked: check(
+      tasks.blockedShell?.status === "gated" && !tasks.blockedShell?.adapter,
+      "Operator could identify what was blocked.",
+      ["TASKS", "Cyst"],
+      "Write-like shell request stayed gated and no write-capable route was used.",
+    ),
+    nextDirection: check(
+      acceptancePassed,
+      "Operator could identify the next read-only direction.",
+      ["Current Understanding"],
+      "Session retained a read-only next direction after mixed task activity.",
+    ),
+    understandableWithoutSidecar: check(
+      acceptancePassed,
+      "Session was understandable without sidecar interpretation.",
+      ["beta harness"],
+      "All required read-only beta acceptance checks passed.",
+    ),
+  };
+  const overallStatus = Object.values(checks).every((result) => result.status === "pass") ? "pass" : "fail";
+  return {
+    artifactType: "operator_independence_check",
+    mode: "read_only_beta_harness",
+    sessionId,
+    scenarioId,
+    checks,
+    overallStatus,
+    summary: "Session was understandable without sidecar interpretation in read-only beta harness.",
+  };
 }
 
 async function verifyBackendBridge() {

@@ -37,6 +37,7 @@ All of these must pass:
 5. Operator-independence proof
    - a reviewer can answer what was inspected, learned, uncertain, blocked, and next without Goose narration
    - TASKS, Current Understanding, and Cyst remain confidence-coherent
+   - generated beta harness artifact passes and does not render in normal product UI
 
 ## 80% Blockers
 
@@ -50,6 +51,7 @@ Do not move to 80% if:
 - Gate GO sounds broader than read-only harness readiness
 - Current Understanding compresses uncertainty into a settled answer
 - operators still need Goose to explain ordinary read-only sessions
+- operator-independence artifact is missing, failing, or presented as product certification
 
 ## Still Out Of Scope At 80%
 
@@ -69,4 +71,6 @@ Do not move to 80% if:
 - `long_session_keeps_relevant_blocked_outcomes_visible`
 - `current_understanding_does_not_overcompress_uncertainty`
 - `operator_independence_check_passes_without_sidecar_explanation`
+- `operator_independence_artifact_has_required_schema`
+- `operator_independence_artifact_does_not_render_in_normal_product_ui`
 - `tasks_current_understanding_and_cyst_stay_confidence_coherent_after_reversal`
