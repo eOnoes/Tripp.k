@@ -923,6 +923,66 @@ try {
     failures.push({ name: "cyst lifecycle events" });
   }
 
+  const betaSessionId = "verify-readonly-beta-console";
+  const betaInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: betaSessionId,
+  });
+  const betaRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "where is Munch health exposed",
+    mode: "AUTO",
+    sessionId: betaSessionId,
+  });
+  const betaSafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: betaSessionId,
+  });
+  const betaBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: betaSessionId,
+  });
+  const betaGate = await postJson("/api/tripp/trials/read-only", {});
+  const betaCyst = await getJson("/api/tripp/cyst/events");
+  const betaTaskIds = [
+    betaInspect.task?.id,
+    betaRetrieval.task?.id,
+    betaSafeShell.task?.id,
+    betaBlockedShell.task?.id,
+    betaGate.task?.id,
+  ].filter(Boolean);
+  const betaCystEvents = betaCyst.events?.filter((event) => betaTaskIds.includes(event.descriptorId) || event.descriptorId === betaGate.id) || [];
+  const betaAcceptancePass =
+    betaInspect.task?.status === "inspected" &&
+    betaInspect.task?.target === "README.md" &&
+    betaInspect.task?.adapter?.status === "ok" &&
+    betaInspect.task?.excerpt &&
+    betaRetrieval.task?.status === "retrieval_ready" &&
+    betaRetrieval.task?.retrieval?.sourceKind === "mock" &&
+    betaRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    betaRetrieval.task?.retrieval?.writeApprovalEligible === false &&
+    betaRetrieval.task?.evidenceGate?.status === "blocked" &&
+    betaSafeShell.task?.status === "completed" &&
+    betaSafeShell.task?.adapter?.status === "ok" &&
+    betaSafeShell.task?.adapter?.invoked === true &&
+    betaBlockedShell.task?.status === "gated" &&
+    !betaBlockedShell.task?.adapter &&
+    betaBlockedShell.task?.permission?.decision === "gated" &&
+    betaGate.suiteStatus === "go" &&
+    betaGate.task?.title === "Read-Only Gate" &&
+    betaGate.task?.goNoGo?.suiteStatus === "go" &&
+    betaCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === betaInspect.task?.id) &&
+    betaCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === betaRetrieval.task?.id) &&
+    betaCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === betaSafeShell.task?.id) &&
+    betaCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === betaBlockedShell.task?.id) &&
+    betaCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === betaGate.id && event.gateStage === "completed");
+  console.log(`${betaAcceptancePass ? "PASS" : "FAIL"} beta: primary read-only console acceptance flow`);
+  if (!betaAcceptancePass) {
+    failures.push({ name: "primary read-only beta acceptance" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }
