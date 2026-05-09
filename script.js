@@ -1,5 +1,6 @@
 (async function bootTrippTerminal() {
-  const data = await loadData();
+  const runtime = createTrippRuntime();
+  const data = await runtime.bootstrap();
   const now = () =>
     new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
@@ -40,6 +41,8 @@
       transcript: index === 0 ? normalizeMessages(data.messages) : seedSession(session, now()),
     })),
     status: { ...data.status },
+    runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
+    busy: false,
   };
 
   if (!state.sessions.some((session) => session.active)) {
@@ -260,34 +263,27 @@
     renderMessages();
   }
 
-  function submitCommand() {
+  async function submitCommand() {
     const value = elements.command.value.trim();
-    if (!value) return;
+    if (!value || state.busy) return;
 
     elements.command.value = "";
     pushMessage({ kind: "user", speaker: "you>", time: now(), body: value });
+    setBusy(true);
+    renderMessages();
 
-    if (state.mode === "AUTO") {
-      pushMessage({
-        kind: "tool",
-        speaker: "tripp.auto>",
-        time: now(),
-        tool: chooseTool(value),
-        result: "queued for supervised execution",
-      });
-    }
-
-    pushMessage({
-      kind: "agent",
-      speaker: state.mode === "AUTO" ? "tripp.supervisor>" : "tripp>",
-      time: now(),
-      body:
-        state.mode === "AUTO"
-          ? "I can route that as an executable task. Next bridge step is session reply plus tool confirmation handling."
-          : "Locked in. I am keeping this as calm Tripp chat until you ask me to shift into coding/autonomous work.",
+    const reply = await runtime.reply({
+      prompt: value,
+      mode: state.mode,
+      sessionId: activeSession().id,
     });
 
-    updateCounters(value);
+    reply.messages.forEach((message) => {
+      pushMessage({ ...message, time: now() });
+    });
+
+    updateCounters(reply.status, value);
+    setBusy(false);
     renderSessions();
     renderStatus();
     renderMessages();
@@ -329,27 +325,27 @@
     ];
   }
 
-  function updateCounters(value) {
-    const inTokens = Number(String(state.status.tokensIn).replaceAll(",", "")) + value.length;
-    const outTokens = Number(String(state.status.tokensOut).replaceAll(",", "")) + 48;
+  function setBusy(busy) {
+    state.busy = busy;
+    elements.command.disabled = busy;
+    elements.form.classList.toggle("busy", busy);
+  }
+
+  function updateCounters(replyStatus, prompt) {
+    const inputDelta = Number(replyStatus?.tokensIn || prompt.length || 0);
+    const outputDelta = Number(replyStatus?.tokensOut || 0);
+    const inTokens = Number(String(state.status.tokensIn).replaceAll(",", "")) + inputDelta;
+    const outTokens = Number(String(state.status.tokensOut).replaceAll(",", "")) + outputDelta;
     state.status.tokensIn = inTokens.toLocaleString("en-US");
     state.status.tokensOut = outTokens.toLocaleString("en-US");
-    state.status.latency = `${420 + Math.floor(Math.random() * 180)}ms`;
+    state.status.latency = replyStatus?.latency || `${420 + Math.floor(Math.random() * 180)}ms`;
+    state.status.model = replyStatus?.model || state.status.model;
   }
 
   function totalTokens() {
     const input = Number(String(state.status.tokensIn).replaceAll(",", ""));
     const output = Number(String(state.status.tokensOut).replaceAll(",", ""));
     return (input + output).toLocaleString("en-US");
-  }
-
-  function chooseTool(value) {
-    const lower = value.toLowerCase();
-    if (lower.includes("git")) return "git_status";
-    if (lower.includes("file") || lower.includes("read")) return "filesystem_read";
-    if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
-    if (lower.includes("web") || lower.includes("search")) return "web_search";
-    return "code_analyze";
   }
 
   function railMessage(rail) {
@@ -366,7 +362,41 @@
   }
 })();
 
-async function loadData() {
+function createTrippRuntime() {
+  return {
+    async bootstrap() {
+      try {
+        return await fetchJson("./api/tripp/bootstrap");
+      } catch (apiError) {
+        console.warn("Tripp API bootstrap unavailable; using static JSON fallback.", apiError);
+        return loadStaticData();
+      }
+    },
+
+    async reply(payload) {
+      try {
+        return await fetchJson("./api/tripp/reply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (apiError) {
+        console.warn("Tripp API reply unavailable; using local mock fallback.", apiError);
+        return createLocalReply(payload);
+      }
+    },
+  };
+}
+
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function loadStaticData() {
   try {
     return await fetch("./tripp-terminal-data.json").then((response) => response.json());
   } catch (error) {
@@ -413,6 +443,51 @@ async function loadData() {
       },
     };
   }
+}
+
+function createLocalReply(payload) {
+  const mode = String(payload?.mode || "CHAT").toUpperCase();
+  const prompt = String(payload?.prompt || "");
+
+  return {
+    status: {
+      model: "tripp-adapter/local",
+      latency: `${420 + Math.floor(Math.random() * 180)}ms`,
+      tokensIn: prompt.length,
+      tokensOut: mode === "AUTO" ? 74 : 42,
+    },
+    messages:
+      mode === "AUTO"
+        ? [
+            {
+              kind: "tool",
+              speaker: "tripp.auto>",
+              tool: chooseTool(prompt),
+              result: "local fallback queued for supervised execution",
+            },
+            {
+              kind: "agent",
+              speaker: "tripp.supervisor>",
+              body: "The local fallback caught that prompt. Backend wiring can swap in without changing this UI path.",
+            },
+          ]
+        : [
+            {
+              kind: "agent",
+              speaker: "tripp>",
+              body: "Prompt received through the local fallback. The adapter path is ready for live backend wiring.",
+            },
+          ],
+  };
+}
+
+function chooseTool(value) {
+  const lower = value.toLowerCase();
+  if (lower.includes("git")) return "git_status";
+  if (lower.includes("file") || lower.includes("read")) return "filesystem_read";
+  if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
+  if (lower.includes("web") || lower.includes("search")) return "web_search";
+  return "code_analyze";
 }
 
 function escapeHtml(value) {

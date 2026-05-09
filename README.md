@@ -31,4 +31,7 @@ http://127.0.0.1:4177/
 - Static HTML/CSS/vanilla JS prototype.
 - Local JSON-backed terminal, tools, sessions, and status data.
 - Interactive chat/auto modes, session switching, new chat action, expandable tools, and collapsible ops panel.
+- Tripp adapter routes for bootstrap and prompt replies:
+  - `GET /api/tripp/bootstrap`
+  - `POST /api/tripp/reply`
 - Agent role/soul/operator doctrine lives under `agents/`.
