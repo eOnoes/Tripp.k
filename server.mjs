@@ -401,6 +401,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
 
   if (kind === "edit") {
     task.permission = permissionDecision(tool, "gated", "filesystem writes require patch preview and guarded apply");
+    task.patchPlan = createPatchPlan(task);
   }
 
   task.codingMode = chooseCodingMode(prompt, kind, tool);
@@ -456,8 +457,11 @@ function updateTask(taskId, action) {
     }
 
     task.status = "patch_ready";
+    task.patchPlan ||= createPatchPlan(task);
     task.patch = createPatchPreview(task);
-    task.result = "Patch preview prepared. Real execution remains disabled until the filesystem bridge is implemented.";
+    task.result = task.patchPlan
+      ? "Patch preview prepared. Apply will run the guarded scoped patch."
+      : "No guarded patch is available for this task yet.";
     saveTaskQueue();
     return { task };
   }
@@ -634,17 +638,40 @@ function initialTaskStatus(kind, tool) {
 }
 
 function createPatchPreview(task) {
-  if (task.tool !== "filesystem_write") {
+  if (task.tool !== "filesystem_write" || !task.patchPlan) {
     return `# ${task.tool}\n\nNo file mutation preview is available for this tool yet.`;
   }
 
-  return [
-    "--- a/tripp-terminal-data.json",
-    "+++ b/tripp-terminal-data.json",
-    "@@",
-    '-      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
-    '+      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
-  ].join("\n");
+  const plan = task.patchPlan;
+  return [`--- a/${plan.file}`, `+++ b/${plan.file}`, "@@", `-${plan.expected}`, `+${plan.replacement}`].join("\n");
+}
+
+function createPatchPlan(task) {
+  if (task.tool !== "filesystem_write") return null;
+
+  const lower = String(task.prompt || "").toLowerCase();
+  if (lower.includes("welcome message")) {
+    return {
+      file: "tripp-terminal-data.json",
+      operation: "replace",
+      expected:
+        '      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
+      replacement:
+        '      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
+    };
+  }
+
+  if (lower.includes("readme") && lower.includes("runtime")) {
+    return {
+      file: "README.md",
+      operation: "append-once",
+      expected: "The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.",
+      replacement:
+        "The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.\nScoped patch tasks use preview-first plans with exact file guards.",
+    };
+  }
+
+  return null;
 }
 
 function createFileExcerpt(target) {
@@ -783,27 +810,28 @@ function applyTaskPatch(task) {
     return { ok: false, message: "Apply blocked. Patch preview does not match the approved guarded patch." };
   }
 
-  const target = resolve(root, "tripp-terminal-data.json");
-  if (target !== bootstrapFile || !target.startsWith(root + sep)) {
+  const plan = task.patchPlan || createPatchPlan(task);
+  if (!plan) {
+    return { ok: false, message: "Apply blocked. No guarded patch plan is available for this task." };
+  }
+
+  const target = resolve(root, plan.file);
+  if (!target.startsWith(root + sep) || !["tripp-terminal-data.json", "README.md"].includes(plan.file)) {
     return { ok: false, message: "Apply blocked. Target file is outside the approved workspace guard." };
   }
 
-  const data = JSON.parse(readFileSync(target, "utf8"));
-  const current = data?.messages?.[0]?.body;
-  const expected = "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin.";
-  const next = "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits.";
-
-  if (current === next) {
-    return { ok: true, message: "Patch already applied to tripp-terminal-data.json." };
+  const current = readFileSync(target, "utf8");
+  if (current.includes(plan.replacement)) {
+    return { ok: true, message: `Patch already applied to ${plan.file}.` };
   }
 
-  if (current !== expected) {
+  if (!current.includes(plan.expected)) {
     return { ok: false, message: "Apply blocked. File content changed since patch preview was prepared." };
   }
 
-  const updated = readFileSync(target, "utf8").replace(JSON.stringify(expected), JSON.stringify(next));
+  const updated = current.replace(plan.expected, plan.replacement);
   writeFileSync(target, updated, "utf8");
-  return { ok: true, message: "Applied guarded patch to tripp-terminal-data.json." };
+  return { ok: true, message: `Applied guarded patch to ${plan.file}.` };
 }
 
 async function tryCreateBackendReply(payload) {

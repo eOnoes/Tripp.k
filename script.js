@@ -217,6 +217,7 @@
                       <div><dt>STYLE</dt><dd>${escapeHtml(task.codingMode || "goose")}</dd></div>
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
                       <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>
+                      <div><dt>PATCH</dt><dd>${escapeHtml(task.patchPlan?.file || "none")}</dd></div>
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
                     </dl>
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}

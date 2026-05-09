@@ -63,6 +63,7 @@ The verifier uses an isolated temporary runtime directory so test tasks and sess
 - The machine-readable swarm manifest lives at `agents/tripp-swarm-manifest.json`.
 
 Task approval is guarded. Approving a write task prepares a patch preview; applying currently supports only the approved welcome-message patch in `tripp-terminal-data.json`.
+Patch tasks now carry a scoped `patchPlan` with exact target file, expected text, and replacement text. Apply remains guarded to approved repo-local files and refuses stale previews.
 Inspect tasks are read-only, auto-complete without acknowledgement, and can show excerpts for approved repo-local files such as `README.md`, `server.mjs`, `script.js`, `styles.css`, and `tripp-terminal-data.json`.
 `git status` tasks are also read-only and auto-complete; mutating git actions such as commit are recorded as gated without an approval/apply click-through.
 Shell tasks auto-run only a small read-only allowlist such as `node --version`, `npm --version`, and repo file listing; other shell requests are recorded as gated.

@@ -89,7 +89,8 @@ try {
   const codingModePass =
     codingModes.defaultMode === "goose" &&
     codingModes.modes?.some((mode) => mode.id === "cline") &&
-    clineReply.task?.codingMode === "cline";
+    clineReply.task?.codingMode === "cline" &&
+    clineReply.task?.patchPlan?.file === "tripp-terminal-data.json";
   console.log(`${codingModePass ? "PASS" : "FAIL"} coding modes: policy and task style`);
   if (!codingModePass) {
     failures.push({ name: "coding modes" });
