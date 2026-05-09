@@ -265,6 +265,7 @@ try {
     appScript.includes("isGateBranchRetrieval") &&
     appScript.includes("isCystRenderingBranchRetrieval") &&
     appScript.includes("isBlockedOutcomeRecoveryRetrieval") &&
+    appScript.includes("isEnforcementBranchRetrieval") &&
     appScript.includes("Current Understanding") &&
     appScript.includes("recent read-only tasks") &&
     appScript.includes("No read-only findings yet") &&
@@ -289,6 +290,12 @@ try {
     appScript.includes("The current interpretation changed after additional inspection and remains scoped to read-only review.") &&
     appScript.includes("Presentation behavior may still depend on additional related files beyond the current runtime path.") &&
     appScript.includes("Continue from the runtime-handling branch and inspect the next related source if more clarification is needed.") &&
+    appScript.includes("Planning-only retrieval suggested policy denial and adapter/tool-route refusal as plausible review paths.") &&
+    appScript.includes("Inspection of the policy branch provided useful context for read-only denial behavior.") &&
+    appScript.includes("Inspection of the adapter branch provided useful context for how blocked tool routes are handled in the current harness.") &&
+    appScript.includes("The current branch ranking reflects usefulness for the blocked-behavior question, not final enforcement certainty.") &&
+    appScript.includes("Both policy and adapter behavior may contribute, even if one branch is currently more useful for review.") &&
+    appScript.includes("Continue from the currently more useful enforcement branch and inspect the next related source if more clarification is needed.") &&
     appScript.includes("This file provides backend/runtime context for read-only review.") &&
     appScript.includes("This file provides UI/result-display context for read-only review.") &&
     continuityCopyGuardPass &&
@@ -386,6 +393,7 @@ try {
     betaRegressionHarness.includes("Multi-Branch Ambiguity Session") &&
     betaRegressionHarness.includes("Branch Reversal Session") &&
     betaRegressionHarness.includes("Contradiction Recovery Session") &&
+    betaRegressionHarness.includes("Warden-vs-Adapter Ambiguity Session") &&
     betaRegressionHarness.includes("Longer Repeatability Session") &&
     betaRegressionHarness.includes("TASKS, Current Understanding, and Cyst materially contradict each other") &&
     betaRegressionHarness.includes("Gate GO means read-only harness readiness only") &&
@@ -393,6 +401,7 @@ try {
     betaRegressionHarness.includes("multi-branch read-only ambiguity acceptance flow") &&
     betaRegressionHarness.includes("branch reversal read-only acceptance flow") &&
     betaRegressionHarness.includes("contradiction recovery read-only acceptance flow") &&
+    betaRegressionHarness.includes("Warden-vs-adapter ambiguity acceptance flow") &&
     betaRegressionHarness.includes("longer read-only repeatability acceptance flow") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -427,6 +436,7 @@ try {
     readOnly80Gate.includes("Required Proof Before 80%") &&
     readOnly80Gate.includes("Branch reversal proof") &&
     readOnly80Gate.includes("Repeated ambiguity proof") &&
+    readOnly80Gate.includes("Warden-vs-adapter ambiguity acceptance lane passes") &&
     readOnly80Gate.includes("Contradiction and safe recovery proof") &&
     readOnly80Gate.includes("new read-only evidence can reduce confidence in an earlier synthesis without calling it wrong") &&
     readOnly80Gate.includes("runtime acceptance lane passes") &&
@@ -1305,6 +1315,72 @@ try {
   console.log(`${contradictionRecoveryAcceptancePass ? "PASS" : "FAIL"} beta: contradiction recovery read-only acceptance flow`);
   if (!contradictionRecoveryAcceptancePass) {
     failures.push({ name: "contradiction recovery read-only acceptance" });
+  }
+
+  const enforcementSessionId = "verify-readonly-warden-adapter-ambiguity";
+  const enforcementRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files explain blocked escalation behavior: Warden policy denial or adapter tool-route refusal?",
+    mode: "AUTO",
+    sessionId: enforcementSessionId,
+  });
+  const enforcementPolicyInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: enforcementSessionId,
+  });
+  const enforcementBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: enforcementSessionId,
+  });
+  const enforcementAdapterInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: enforcementSessionId,
+  });
+  const enforcementSafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: enforcementSessionId,
+  });
+  const enforcementGate = await postJson("/api/tripp/trials/read-only", {});
+  const enforcementCyst = await getJson("/api/tripp/cyst/events");
+  const enforcementTaskIds = [
+    enforcementRetrieval.task?.id,
+    enforcementPolicyInspect.task?.id,
+    enforcementBlockedShell.task?.id,
+    enforcementAdapterInspect.task?.id,
+    enforcementSafeShell.task?.id,
+    enforcementGate.task?.id,
+  ].filter(Boolean);
+  const enforcementCystEvents = enforcementCyst.events?.filter((event) => enforcementTaskIds.includes(event.descriptorId) || event.descriptorId === enforcementGate.id) || [];
+  const wardenAdapterAmbiguityPass =
+    enforcementRetrieval.task?.status === "retrieval_ready" &&
+    enforcementRetrieval.task?.retrieval?.sourceKind === "mock" &&
+    enforcementRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    enforcementRetrieval.task?.retrieval?.writeApprovalEligible === false &&
+    enforcementPolicyInspect.task?.status === "inspected" &&
+    enforcementPolicyInspect.task?.target === "README.md" &&
+    enforcementPolicyInspect.task?.adapter?.status === "ok" &&
+    enforcementBlockedShell.task?.status === "gated" &&
+    !enforcementBlockedShell.task?.adapter &&
+    enforcementBlockedShell.task?.permission?.decision === "gated" &&
+    enforcementAdapterInspect.task?.status === "inspected" &&
+    enforcementAdapterInspect.task?.target === "server.mjs" &&
+    enforcementAdapterInspect.task?.adapter?.status === "ok" &&
+    enforcementSafeShell.task?.status === "completed" &&
+    enforcementSafeShell.task?.adapter?.invoked === true &&
+    enforcementGate.suiteStatus === "go" &&
+    enforcementGate.task?.goNoGo?.suiteStatus === "go" &&
+    enforcementCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === enforcementRetrieval.task?.id) &&
+    enforcementCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === enforcementPolicyInspect.task?.id) &&
+    enforcementCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === enforcementBlockedShell.task?.id) &&
+    enforcementCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === enforcementAdapterInspect.task?.id) &&
+    enforcementCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === enforcementSafeShell.task?.id) &&
+    enforcementCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === enforcementGate.id && event.gateStage === "completed");
+  console.log(`${wardenAdapterAmbiguityPass ? "PASS" : "FAIL"} beta: Warden-vs-adapter ambiguity acceptance flow`);
+  if (!wardenAdapterAmbiguityPass) {
+    failures.push({ name: "Warden-vs-adapter ambiguity acceptance" });
   }
 
   const longSessionId = "verify-readonly-long-session";

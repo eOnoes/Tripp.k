@@ -41,7 +41,14 @@ This harness keeps the read-only beta claim tied to repeatable proof instead of 
    - Keep earlier context visible as useful, not wrong.
    - Preserve mock uncertainty and blocked outcomes.
 
-6. Longer Repeatability Session
+6. Warden-vs-Adapter Ambiguity Session
+   - Start from planning-only retrieval with policy and adapter enforcement branches.
+   - Inspect policy-facing context and adapter/runtime context.
+   - Trigger a blocked shell or escalation outcome.
+   - Keep both branches visible without assigning final enforcement ownership.
+   - Preserve mock uncertainty and blocked outcomes.
+
+7. Longer Repeatability Session
    - Cover inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.
    - Confirm the session remains coherent beyond a short happy path.
 
@@ -86,6 +93,7 @@ Block or pull back the beta claim if any of these occur:
 - `multi-branch read-only ambiguity acceptance flow`
 - `branch reversal read-only acceptance flow`
 - `contradiction recovery read-only acceptance flow`
+- `Warden-vs-adapter ambiguity acceptance flow`
 - `longer read-only repeatability acceptance flow`
 - Cyst lifecycle and gate event checks
 - read-only wording guardrails

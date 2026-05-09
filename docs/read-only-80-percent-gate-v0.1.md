@@ -20,6 +20,7 @@ All of these must pass:
    - at least two different ambiguity shapes pass
    - branch ranking stays based on usefulness for review
    - the next read-only direction remains clear
+   - Warden-vs-adapter ambiguity acceptance lane passes
 
 3. Contradiction and safe recovery proof
    - new read-only evidence can reduce confidence in an earlier synthesis without calling it wrong

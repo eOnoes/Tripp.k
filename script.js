@@ -496,13 +496,19 @@
     const hasBranchRetrieval = recentTasks.some((task) => isGateBranchRetrieval(task));
     const hasReversalRetrieval = recentTasks.some((task) => isCystRenderingBranchRetrieval(task));
     const hasRecoveryRetrieval = recentTasks.some((task) => isBlockedOutcomeRecoveryRetrieval(task));
+    const hasEnforcementRetrieval = recentTasks.some((task) => isEnforcementBranchRetrieval(task));
     const hasBackendBranch = inspected.includes("server.mjs");
     const hasUiBranch = inspected.includes("script.js");
+    const hasPolicyBranch = inspected.includes("README.md") || inspected.some((file) => file.startsWith("docs/"));
     const hasBranchReview = hasBranchRetrieval && hasBackendBranch && hasUiBranch;
     const hasReversalReview = hasReversalRetrieval && hasBackendBranch && hasUiBranch;
     const hasRecoveryReview = hasRecoveryRetrieval && hasBackendBranch && hasUiBranch && blocked;
+    const hasEnforcementReview = hasEnforcementRetrieval && hasBackendBranch && hasPolicyBranch && blocked;
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
     const known = uniqueList([
+      hasEnforcementReview ? "Planning-only retrieval suggested policy denial and adapter/tool-route refusal as plausible review paths." : null,
+      hasEnforcementReview ? "Inspection of the policy branch provided useful context for read-only denial behavior." : null,
+      hasEnforcementReview ? "Inspection of the adapter branch provided useful context for how blocked tool routes are handled in the current harness." : null,
       hasRecoveryReview ? "Earlier inspection of the UI branch provided useful presentation context for blocked outcomes." : null,
       hasRecoveryReview ? "Later inspection of the runtime-handling branch provided more useful context for how blocked outcomes are handled in the current harness." : null,
       hasReversalReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
@@ -517,6 +523,9 @@
       .filter((finding) => !/blocked|failed|non-authoritative/i.test(finding)),
     ].filter(Boolean)).slice(0, 4);
     const uncertain = [
+      hasEnforcementReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
+      hasEnforcementReview ? "The current branch ranking reflects usefulness for the blocked-behavior question, not final enforcement certainty." : null,
+      hasEnforcementReview ? "Both policy and adapter behavior may contribute, even if one branch is currently more useful for review." : null,
       hasRecoveryReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
       hasRecoveryReview ? "The current interpretation changed after additional inspection and remains scoped to read-only review." : null,
       hasRecoveryReview ? "Presentation behavior may still depend on additional related files beyond the current runtime path." : null,
@@ -530,7 +539,7 @@
       inspected.length ? null : "No files have been inspected in the recent read-only thread.",
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
     ].filter(Boolean);
-    const blockedSummary = (hasBranchReview || hasReversalReview || hasRecoveryReview) && blocked
+    const blockedSummary = (hasBranchReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
       ? ["A write-like shell or escalation path was blocked.", "No write-capable route was used."]
       : blocked
         ? `${blocked} read-only boundary preserved`
@@ -541,7 +550,9 @@
       known: known.length ? known : ["No read-only findings yet"],
       uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
       blocked: blockedSummary,
-      next: hasRecoveryReview
+      next: hasEnforcementReview
+        ? "Continue from the currently more useful enforcement branch and inspect the next related source if more clarification is needed."
+        : hasRecoveryReview
         ? "Continue from the runtime-handling branch and inspect the next related source if more clarification is needed."
         : hasReversalReview
         ? "Continue from the UI rendering branch and inspect the next related source if more display detail is needed."
@@ -584,6 +595,16 @@
       prompt.includes("blocked") &&
       (prompt.includes("policy") || prompt.includes("runtime")) &&
       (prompt.includes("ui") || prompt.includes("rendering") || prompt.includes("operator")),
+    );
+  }
+
+  function isEnforcementBranchRetrieval(task) {
+    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
+    return Boolean(
+      task?.retrieval &&
+      (prompt.includes("warden") || prompt.includes("policy")) &&
+      (prompt.includes("adapter") || prompt.includes("tool-route") || prompt.includes("tool route")) &&
+      (prompt.includes("blocked") || prompt.includes("escalation")),
     );
   }
 
