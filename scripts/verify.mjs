@@ -388,10 +388,24 @@ try {
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
+    futureWriteContract.includes("Not active in current read-only harness.") &&
+    futureWriteContract.includes("Design-only contract; no runtime mutation path is enabled.") &&
     futureWriteContract.includes("Warden remains default-deny for every mutation-capable path.") &&
     futureWriteContract.includes("Mock or planning-only evidence can never authorize file changes.") &&
+    futureWriteContract.includes("Mock or planning-only evidence is never sufficient for write approval and can never unlock apply.") &&
+    futureWriteContract.includes("Future Review / Approve / Apply Split") &&
+    futureWriteContract.includes("review does not authorize writes.") &&
+    futureWriteContract.includes("approve does not execute writes.") &&
+    futureWriteContract.includes("apply cannot proceed from mock or planning-only evidence.") &&
     futureWriteContract.includes("approval is bound to a preview fingerprint") &&
     futureWriteContract.includes("stale approval blocks apply") &&
+    futureWriteContract.includes("write_intent_received") &&
+    futureWriteContract.includes("patch_preview_generated") &&
+    futureWriteContract.includes("approval_recorded") &&
+    futureWriteContract.includes("stale_check_performed") &&
+    futureWriteContract.includes("apply_requested") &&
+    futureWriteContract.includes("apply_succeeded") &&
+    futureWriteContract.includes("apply_failed") &&
     futureWriteContract.includes("Explicitly Out Of Scope Now") &&
     futureWriteContract.includes("live file mutation") &&
     serverSource.includes("cystSequence") &&

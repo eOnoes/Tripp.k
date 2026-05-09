@@ -2,6 +2,8 @@
 
 Status: design-only contract. This document must not enable live mutation paths.
 
+Not active in current read-only harness. Design-only contract; no runtime mutation path is enabled.
+
 ## Purpose
 
 This contract describes the future write lifecycle so the read-only prototype can evolve deliberately later. Current runtime behavior remains read-only. Mock retrieval, read-only inspection, safe shell, and Read-Only Gate GO do not authorize edits.
@@ -11,7 +13,9 @@ This contract describes the future write lifecycle so the read-only prototype ca
 - Warden remains default-deny for every mutation-capable path.
 - No write-capable adapter route may be invoked without explicit future approval/apply gates.
 - Mock or planning-only evidence can never authorize file changes.
+- Mock or planning-only evidence is never sufficient for write approval and can never unlock apply.
 - Approval and apply are separate states.
+- Review, approve, and apply are separate future lifecycle steps.
 - A previewed patch is not an applied patch.
 - Stale approval must block apply.
 - Cyst records write lifecycle audit truth; TASKS presents operator interpretation.
@@ -33,6 +37,22 @@ A future `patchPlan` should carry:
 
 Required rule:
 - `writeApprovalEligible` must be false unless evidence is explicitly authoritative for write review.
+
+## Future Review / Approve / Apply Split
+
+Future lifecycle meanings:
+
+- `review`: inspect a proposed change and its evidence without authorizing mutation.
+- `approve`: authorize the exact reviewed proposal and preview fingerprint.
+- `apply`: execute an approved proposal only after fresh policy, fingerprint, target-drift, and evidence checks.
+
+Rules:
+
+- review does not authorize writes.
+- approve does not execute writes.
+- apply cannot proceed from mock or planning-only evidence.
+- apply cannot proceed from stale or dismissed approval.
+- apply cannot proceed unless the exact reviewed preview remains current.
 
 ## Future Approval States
 
@@ -68,14 +88,18 @@ Any failed condition must produce an apply-blocked or write-escalation-blocked e
 
 Candidate event types:
 
+- `write_intent_received`
 - `patch_plan_created`
-- `patch_preview_ready`
-- `patch_approval_granted`
+- `patch_preview_generated`
+- `approval_recorded`
+- `stale_check_performed`
+- `apply_requested`
+- `apply_started`
 - `patch_approval_stale`
 - `patch_approval_dismissed`
-- `apply_attempt_started`
 - `apply_blocked`
-- `apply_completed`
+- `apply_succeeded`
+- `apply_failed`
 
 Required event fields:
 
