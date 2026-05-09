@@ -369,14 +369,18 @@ function createTraceDroneMap(payload = {}) {
     role: candidate.role,
     signals: candidate.signals,
   }));
+  const ownerFiles = owners.map((owner) => owner.file);
   const related = uniqueStrings([
-    ...owners.map((owner) => owner.file),
     "docs/tripcore-munch-g-integration-plan.md",
     "docs/tripp-supervisor-retrieval-playbook.md",
-  ]).slice(0, 8);
+    "docs/agent-retrieval-responsibilities-matrix.md",
+  ])
+    .filter((file) => !ownerFiles.includes(file))
+    .slice(0, 8);
   const tests = ["scripts/verify.mjs", "scripts/verify-linked.mjs"].filter((file) => existsSync(join(root, file)));
   const confidence = owners.length ? Math.max(...owners.map((owner) => owner.confidence)) : 0.05;
   const warnings = ["mock Trace.Drone map; real trace runtime is not wired yet"];
+  const forbidden = ["node_modules/", ".git/", "dist/", "build/", "coverage/", "generated/", "vendor/"];
 
   const traceMap = {
     traceId,
@@ -391,12 +395,14 @@ function createTraceDroneMap(payload = {}) {
     related,
     tests,
     chain_effects: traceChainEffects(task),
-    forbidden: [".git/", "node_modules/", "vendor/", "dist/"],
+    forbidden,
     rollback_surface: {
-      files: owners.map((owner) => owner.file),
-      tests,
+      files: uniqueStrings([...ownerFiles, ...related.slice(0, 2)]).slice(0, 8),
+      tests: tests.slice(0, 6),
       scope: owners.length > 4 ? "broad_owner_surface" : owners.length ? "bounded_owner_surface" : "unresolved",
-      note: owners.length ? "Mock bounded surface from task keyword matching." : "No owner surface found.",
+      note: owners.length
+        ? "If validation fails, roll back only files in this bounded owner surface before widening scope."
+        : "Do not patch until an owner surface is identified.",
     },
     confidence,
     confidenceLabel: confidenceLabel(confidence),
@@ -409,7 +415,7 @@ function createTraceDroneMap(payload = {}) {
     warnings,
     trace: {
       traceId,
-      source: "trace-drone-mock",
+      source: "trace-drone",
     },
   };
   traceMap.traceVerification = verifyTraceDroneMap(traceMap);
@@ -422,15 +428,20 @@ function verifyTraceDroneMap(traceMap = {}) {
   const warnings = Array.isArray(traceMap.warnings) ? [...traceMap.warnings] : [];
   const blocking = [];
   const confidence = Number(traceMap.confidence || 0);
+  const task = String(traceMap.task || "").toLowerCase();
+  const editIntent = isTraceEditIntent(task);
   const docsOnly = owners.length > 0 && owners.every((owner) => String(owner.file || "").toLowerCase().endsWith(".md"));
   const forbiddenHit = owners.some((owner) =>
-    [".git/", "node_modules/", "vendor/", "dist/"].some((prefix) => String(owner.file || "").startsWith(prefix)),
+    [".git/", "node_modules/", "vendor/", "dist/", "build/", "coverage/", "generated/"].some((prefix) =>
+      String(owner.file || "").startsWith(prefix),
+    ),
   );
   const broadSurface = owners.length > 4;
 
   if (!owners.length) blocking.push("no owners found");
   if (confidence < 0.45) blocking.push("confidence below trace threshold");
-  if (docsOnly) blocking.push("owners are docs-only");
+  if (docsOnly && editIntent) blocking.push("owners are docs-only for edit intent");
+  else if (docsOnly) warnings.push("owners are docs-only; acceptable for retrieval but not edit approval");
   if (forbiddenHit) blocking.push("forbidden path in owners");
   if (broadSurface) warnings.push("owner surface is broad and should be tightened");
   if (!tests.length) warnings.push("no related tests found");
@@ -462,6 +473,10 @@ function verifyTraceDroneMap(traceMap = {}) {
     tightened: Boolean(traceMap.traceVerification?.tightened || false),
     previous: traceMap.traceVerification?.previous || null,
   };
+}
+
+function isTraceEditIntent(task) {
+  return /\b(edit|modify|patch|write|change|fix|implement|refactor|delete|remove|create|add)\b/.test(String(task || ""));
 }
 
 function rankTraceCandidates(task) {
