@@ -18,6 +18,12 @@ Then open:
 http://127.0.0.1:4177/
 ```
 
+Run the core AUTO-lane verifier:
+
+```powershell
+node .\scripts\verify.mjs
+```
+
 ## Design Direction
 
 - Match the Tripp terminal shell first: lime header, glyph rail, terminal surface, right ops panel, and bottom command/status bars.
