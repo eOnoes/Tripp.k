@@ -73,6 +73,12 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/tripp/swarm/route") {
+    const payload = await readJson(request);
+    sendJson(response, { route: routePrompt(payload?.prompt || "", payload?.tool || "") });
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/tripp/reply") {
     const payload = await readJson(request);
     sendJson(response, await createReply(payload));
@@ -281,6 +287,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
     target: target?.relative || null,
     sessionId: sessionId || null,
     status: initialTaskStatus(kind, tool),
+    agentId: routePrompt(prompt, tool, kind).agentId,
     createdAt: new Date().toISOString(),
   };
 
@@ -788,7 +795,50 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
     result: value.result || value.body || value.message || value.content || "Backend event completed.",
     excerpt: value.excerpt || value.output || null,
     origin: "backend",
+    agentId: routePrompt(prompt, tool, value.kind || "backend").agentId,
     createdAt: new Date().toISOString(),
+  };
+}
+
+function routePrompt(prompt, tool = "", kind = "") {
+  const lower = `${prompt} ${tool} ${kind}`.toLowerCase();
+
+  if (lower.includes("audit") || lower.includes("permission") || lower.includes("risk")) {
+    return route("tripp.auditor", "risk and permission traceability");
+  }
+
+  if (lower.includes("inspect") || lower.includes("quality") || lower.includes("review")) {
+    return route("tripp.inspector", "quality and scope review");
+  }
+
+  if (lower.includes("shell") || lower.includes("command") || lower.includes("test") || lower.includes("git")) {
+    return route("tripp.drone.three", "execution, verification, and git lane");
+  }
+
+  if (lower.includes("analyze") || lower.includes("search") || lower.includes("explain") || tool === "code_analyze") {
+    return route("tripp.drone.two", "code search and analysis lane");
+  }
+
+  if (lower.includes("read") || lower.includes("list") || lower.includes("status") || tool.startsWith("filesystem_")) {
+    return route("tripp.drone.one", "workspace context and file lane");
+  }
+
+  if (lower.includes("frontend") || lower.includes("ui") || lower.includes("theme")) {
+    return route("tripp.picasso", "frontend bridge lane");
+  }
+
+  return route("tripp.supervisor", "default coordination lane");
+}
+
+function route(agentId, reason) {
+  const swarm = readSwarmManifest();
+  const agent = swarm.agents.find((candidate) => candidate.id === agentId) || swarm.agents[0];
+  return {
+    agentId: agent?.id || "tripp.supervisor",
+    label: agent?.label || "Tripp.supervisor",
+    lane: agent?.lane || "coordination",
+    toolSet: agent?.toolSet || "delegation",
+    reason,
   };
 }
 

@@ -79,6 +79,20 @@ try {
     failures.push({ name: "swarm" });
   }
 
+  const routePreview = await postJson("/api/tripp/swarm/route", { prompt: "run test command", tool: "shell_execute" });
+  const routedReply = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: "verify-route-session",
+  });
+  const routePass =
+    routePreview.route?.agentId === "tripp.drone.three" &&
+    routedReply.task?.agentId === "tripp.drone.three";
+  console.log(`${routePass ? "PASS" : "FAIL"} swarm: supervisor route preview and task assignment`);
+  if (!routePass) {
+    failures.push({ name: "swarm route" });
+  }
+
   const bridgePass = await verifyBackendBridge();
   if (!bridgePass) {
     failures.push({ name: "backend bridge" });
@@ -176,8 +190,8 @@ async function verifyBackendBridge() {
     status.reachable === true &&
     reply.status?.model === "tripp-adapter/backend" &&
     reply.messages?.some((message) => message.body === "bridge received: backend contract smoke") &&
-    reply.tasks?.some((task) => task.origin === "backend" && task.tool === "filesystem_read") &&
-    taskSnapshot.tasks?.some((task) => task.origin === "backend" && task.tool === "filesystem_read") &&
+    reply.tasks?.some((task) => task.origin === "backend" && task.agentId === "tripp.drone.one") &&
+    taskSnapshot.tasks?.some((task) => task.origin === "backend" && task.agentId === "tripp.drone.one") &&
     persisted?.transcript?.some((message) => message.body === "bridge received: backend contract smoke");
   console.log(`${pass ? "PASS" : "FAIL"} backend bridge: health -> reply -> persisted transcript`);
   return pass;

@@ -44,6 +44,7 @@ The verifier uses an isolated temporary runtime directory so test tasks and sess
   - `GET /api/tripp/health`
   - `GET /api/tripp/backend/status`
   - `GET /api/tripp/swarm`
+  - `POST /api/tripp/swarm/route`
   - `POST /api/tripp/reply`
   - `GET /api/tripp/tasks`
   - `POST /api/tripp/tasks/:taskId/approve`
@@ -77,3 +78,4 @@ When backend replies are enabled, Tripp.g expects:
 Reply requests send `{ "message": "...", "mode": "CHAT|AUTO", "sessionId": "..." }`.
 Reply responses can return a simple `message`, `content`, or `text`, or a `messages` array with `{ kind, speaker, body }` entries. Optional usage can be returned as `{ usage: { inputTokens, outputTokens } }`.
 Backend `messages` with `{ kind: "tool", tool, result }` and explicit `tasks` arrays are normalized into right-panel task cards with `origin: "backend"`.
+Tasks also receive a first-pass `agentId` from the local swarm router, so the UI can show which Tripp role owns the lane.

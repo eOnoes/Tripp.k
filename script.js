@@ -212,6 +212,7 @@
                       <div><dt>ID</dt><dd>${escapeHtml(task.id)}</dd></div>
                       <div><dt>KIND</dt><dd>${escapeHtml(task.kind || "task")}</dd></div>
                       <div><dt>SOURCE</dt><dd>${escapeHtml(task.origin || "local")}</dd></div>
+                      <div><dt>AGENT</dt><dd>${escapeHtml(task.agentId || "tripp.supervisor")}</dd></div>
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
                       <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
