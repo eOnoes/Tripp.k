@@ -13,6 +13,8 @@
     form: document.querySelector("#terminalForm"),
     command: document.querySelector("#command"),
     inputPrompt: document.querySelector("#inputPrompt"),
+    inputModel: document.querySelector("#inputModel"),
+    compactContext: document.querySelector(".compact-context"),
     messageRoot: document.querySelector("#messageRoot"),
     feed: document.querySelector(".terminal-feed"),
     returnChat: document.querySelector(".return-chat"),
@@ -60,6 +62,11 @@
             : seedSession(session, now()),
     })),
     status: { ...data.status },
+    context: {
+      limit: Number(data.status.contextLimit || 128000),
+      autoCompactAt: Number(data.status.autoCompactAt || 96000),
+      lastCompactedAt: null,
+    },
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
     munch: data.munch || null,
     cystEvents: [],
@@ -104,6 +111,7 @@
     elements.runTrials.addEventListener("click", runReadOnlyTrials);
     elements.workspaceRefresh.addEventListener("click", () => loadWorkspaceTree({ force: true }));
     elements.returnChat.addEventListener("click", scrollToCurrentChat);
+    elements.compactContext.addEventListener("click", compactCurrentChat);
     elements.feed.addEventListener("scroll", updateChatFollowState);
     elements.messageRoot.addEventListener("click", handleMessageClick);
 
@@ -556,6 +564,18 @@
     elements.footerMetrics.innerHTML = `TOKENS: ${escapeHtml(totalTokens())}&nbsp;&nbsp; ${escapeHtml(
       state.status.latency,
     )}&nbsp;&nbsp; ${escapeHtml(state.status.version)}`;
+    renderInputTelemetry();
+  }
+
+  function renderInputTelemetry() {
+    const used = contextTokens();
+    const limit = state.context.limit;
+    const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+    elements.inputModel.textContent = `model: ${displayActiveModel(state.status.model)}`;
+    elements.compactContext.textContent = `CTX ${formatCompactNumber(used)} / ${formatCompactNumber(limit)}`;
+    elements.compactContext.title = `Compact current chat context. Auto compact target: ${formatCompactNumber(
+      state.context.autoCompactAt,
+    )}. Current usage: ${pct}%.`;
   }
 
   function renderCystActivity() {
@@ -1164,6 +1184,14 @@
     return value || "Unknown";
   }
 
+  function displayActiveModel(model) {
+    const value = String(model || "");
+    if (value === "tripp-adapter/mock") return "mock";
+    if (value === "tripp-adapter/local") return "local";
+    if (value === "tripp-adapter/backend") return "backend";
+    return value || "unknown";
+  }
+
   function displayCapability(value) {
     const labels = {
       "persistent-local": "Persistent Local",
@@ -1184,9 +1212,41 @@
   }
 
   function totalTokens() {
+    return contextTokens().toLocaleString("en-US");
+  }
+
+  function contextTokens() {
     const input = Number(String(state.status.tokensIn).replaceAll(",", ""));
     const output = Number(String(state.status.tokensOut).replaceAll(",", ""));
-    return (input + output).toLocaleString("en-US");
+    return input + output;
+  }
+
+  function formatCompactNumber(value) {
+    const number = Number(value) || 0;
+    if (number >= 1000000) return `${(number / 1000000).toFixed(1)}m`;
+    if (number >= 1000) return `${Math.round(number / 1000)}k`;
+    return String(number);
+  }
+
+  function compactCurrentChat() {
+    const before = contextTokens();
+    const target = Math.min(4096, Math.max(1200, Math.round(before * 0.16)));
+    const input = Math.max(800, Math.round(target * 0.72));
+    const output = Math.max(300, target - input);
+    state.status.tokensIn = input.toLocaleString("en-US");
+    state.status.tokensOut = output.toLocaleString("en-US");
+    state.context.lastCompactedAt = new Date().toISOString();
+    const message = {
+      kind: "system",
+      speaker: "system>",
+      time: now(),
+      body: `Context compacted from ${formatCompactNumber(before)} to ${formatCompactNumber(contextTokens())}.`,
+    };
+    activeSession().transcript.push(message);
+    activeSession().messages = activeSession().transcript.length;
+    renderMessages();
+    renderStatus();
+    requestAnimationFrame(scrollToCurrentChat);
   }
 
   function formatBytes(value) {
@@ -1355,6 +1415,8 @@ async function loadStaticData() {
         model: "gpt-4",
         tokensIn: "1,240",
         tokensOut: "3,891",
+        contextLimit: 128000,
+        autoCompactAt: 96000,
         latency: "679ms",
         mode: "CHAT",
         version: "v1.0.0",

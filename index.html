@@ -37,6 +37,10 @@
           <form class="terminal-input" id="terminalForm">
             <label for="command" id="inputPrompt">chat&gt;</label>
             <input id="command" type="text" placeholder="Enter command..." />
+            <div class="input-telemetry" id="inputTelemetry" aria-label="Current model and context">
+              <span id="inputModel">model: --</span>
+              <button class="compact-context" type="button" title="Compact current chat context">CTX -- / --</button>
+            </div>
             <button type="submit" title="Send command">→</button>
           </form>
         </main>
