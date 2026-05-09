@@ -128,8 +128,7 @@ async function createReply(payload) {
             {
               kind: "agent",
               speaker: "tripp.supervisor>",
-              body:
-                "I staged that as a supervised task. Review it in TASKS before anything writes or executes.",
+              body: supervisorMessage(task),
             },
           ]
         : [
@@ -153,19 +152,37 @@ function createTask({ prompt, tool, kind, sessionId }) {
     tool,
     target: target?.relative || null,
     sessionId: sessionId || null,
-    status: kind === "inspect" ? "inspection_ready" : "pending",
+    status: kind === "inspect" ? "inspected" : "pending",
     createdAt: new Date().toISOString(),
   };
 
   if (kind === "inspect") {
     task.excerpt = createFileExcerpt(target);
     task.result = target
-      ? `Read-only excerpt prepared from ${target.relative}.`
+      ? `Read-only excerpt prepared from ${target.relative}. No acknowledgement required.`
       : "Inspection blocked. No approved repo-local target file was detected.";
   }
 
   taskQueue.unshift(task);
   return task;
+}
+
+function supervisorMessage(task) {
+  if (task.kind === "inspect") {
+    return task.target
+      ? `I inspected ${task.target} and prepared a read-only excerpt in TASKS. No file mutation was performed.`
+      : "I could not find an approved repo-local file to inspect. Name a target like README.md or server.mjs.";
+  }
+
+  if (task.kind === "edit") {
+    return "I staged that edit as a supervised task. Review the patch before anything writes.";
+  }
+
+  if (task.kind === "git") {
+    return "I staged that git request for review. Command execution will stay gated.";
+  }
+
+  return "I staged that analysis task for review in TASKS.";
 }
 
 function updateTask(taskId, action) {

@@ -218,12 +218,6 @@
                     <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Approve</button>
                     <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
                   </div>`
-                : task.status === "inspection_ready"
-                  ? `<div>
-                      <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Acknowledge</button>
-                      <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
-                    </div>
-                    <small>${escapeHtml(task.result || "Inspection ready.")}</small>`
                 : task.status === "patch_ready"
                   ? `<div>
                       <button type="button" data-task-action="apply" data-task="${escapeHtml(task.id)}">Apply</button>
