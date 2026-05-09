@@ -889,8 +889,21 @@ function createReadOnlySuiteSummary(scenarios = []) {
   const missingScenarioIds = requiredScenarioIds.filter(
     (scenarioId) => !scenarios.some((scenario) => scenario.scenarioId === scenarioId),
   );
+  const presentScenarioIds = requiredScenarioIds.filter(
+    (scenarioId) => scenarios.some((scenario) => scenario.scenarioId === scenarioId),
+  );
+  const duplicateScenarioCounts = Object.fromEntries(
+    requiredScenarioIds
+      .map((scenarioId) => [scenarioId, scenarios.filter((scenario) => scenario.scenarioId === scenarioId).length])
+      .filter(([, count]) => count > 1),
+  );
   const duplicateScenarioIds = requiredScenarioIds.filter(
     (scenarioId) => scenarios.filter((scenario) => scenario.scenarioId === scenarioId).length > 1,
+  );
+  const incompleteScenarioFields = Object.fromEntries(
+    scenarios
+      .map((scenario) => [scenario.scenarioId || scenario.legacyTrialId || "unknown", missingReadOnlyScenarioFields(scenario)])
+      .filter(([, fields]) => fields.length),
   );
   const incompleteScenarioIds = scenarios
     .filter((scenario) => !isCompleteReadOnlyScenario(scenario))
@@ -945,10 +958,14 @@ function createReadOnlySuiteSummary(scenarios = []) {
     passedCount: scenarios.filter((scenario) => scenario.status === "pass").length,
     failedCount: scenarios.filter((scenario) => scenario.status !== "pass").length,
     requiredScenarioCount: requiredScenarioIds.length,
-    presentScenarioCount: requiredScenarioIds.length - missingScenarioIds.length,
+    requiredScenarioIds,
+    presentScenarioIds,
+    presentScenarioCount: presentScenarioIds.length,
     missingScenarioIds,
     duplicateScenarioIds,
+    duplicateScenarioCounts,
     incompleteScenarioIds,
+    incompleteScenarioFields,
     malformedMixedScenarioIds,
     blockingReasons: [
       ...failed.map((category) => category.id),
@@ -964,21 +981,25 @@ function createReadOnlySuiteSummary(scenarios = []) {
 const createReadOnlyGoNoGo = createReadOnlySuiteSummary;
 
 function isCompleteReadOnlyScenario(scenario = {}) {
-  return Boolean(
-    scenario.scenarioId &&
-      scenario.status &&
-      scenario.expected?.wardenResult &&
-      scenario.actual?.wardenResult &&
-      Object.hasOwn(scenario.expected || {}, "adapterRoute") &&
-      Object.hasOwn(scenario.actual || {}, "adapterRoute") &&
-      Object.hasOwn(scenario.expected || {}, "adapterInvoked") &&
-      Object.hasOwn(scenario.actual || {}, "adapterInvoked") &&
-      Array.isArray(scenario.expected?.cystEventTypes) &&
-      Array.isArray(scenario.actual?.cystEventTypes) &&
-      scenario.expected?.finalLifecycleState &&
-      scenario.actual?.finalLifecycleState &&
-      scenario.uiEvidenceLabel,
-  );
+  return missingReadOnlyScenarioFields(scenario).length === 0;
+}
+
+function missingReadOnlyScenarioFields(scenario = {}) {
+  const fields = [];
+  if (!scenario.scenarioId) fields.push("scenarioId");
+  if (!scenario.status) fields.push("status");
+  if (!scenario.expected?.wardenResult) fields.push("expected.wardenResult");
+  if (!scenario.actual?.wardenResult) fields.push("actual.wardenResult");
+  if (!Object.hasOwn(scenario.expected || {}, "adapterRoute")) fields.push("expected.adapterRoute");
+  if (!Object.hasOwn(scenario.actual || {}, "adapterRoute")) fields.push("actual.adapterRoute");
+  if (!Object.hasOwn(scenario.expected || {}, "adapterInvoked")) fields.push("expected.adapterInvoked");
+  if (!Object.hasOwn(scenario.actual || {}, "adapterInvoked")) fields.push("actual.adapterInvoked");
+  if (!Array.isArray(scenario.expected?.cystEventTypes)) fields.push("expected.cystEventTypes");
+  if (!Array.isArray(scenario.actual?.cystEventTypes)) fields.push("actual.cystEventTypes");
+  if (!scenario.expected?.finalLifecycleState) fields.push("expected.finalLifecycleState");
+  if (!scenario.actual?.finalLifecycleState) fields.push("actual.finalLifecycleState");
+  if (!scenario.uiEvidenceLabel) fields.push("uiEvidenceLabel");
+  return fields;
 }
 
 function isValidMockEscalationScenario(scenario = {}) {

@@ -259,8 +259,10 @@ try {
     serverSource.includes("createReadOnlyGoNoGo") &&
     serverSource.includes("createReadOnlySuiteSummary") &&
     serverSource.includes("isCompleteReadOnlyScenario") &&
+    serverSource.includes("missingReadOnlyScenarioFields") &&
     serverSource.includes("isValidMockEscalationScenario") &&
     serverSource.includes("duplicateScenarioIds") &&
+    serverSource.includes("duplicateScenarioCounts") &&
     serverSource.includes("malformedMixedScenarioIds") &&
     serverSource.includes("expectedAdapterInvoked") &&
     serverSource.includes("normalizeReadOnlyScenarioResult") &&
@@ -714,8 +716,14 @@ try {
     trialRun.suiteSummary?.categories?.length === 7 &&
     trialRun.suiteSummary?.categories?.every((category) => category.pass === true) &&
     trialRun.suiteSummary?.missingScenarioIds?.length === 0 &&
+    Array.isArray(trialRun.suiteSummary?.requiredScenarioIds) &&
+    trialRun.suiteSummary?.requiredScenarioIds?.length === 5 &&
+    Array.isArray(trialRun.suiteSummary?.presentScenarioIds) &&
+    trialRun.suiteSummary?.presentScenarioIds?.length === 5 &&
     trialRun.suiteSummary?.duplicateScenarioIds?.length === 0 &&
+    Object.keys(trialRun.suiteSummary?.duplicateScenarioCounts || {}).length === 0 &&
     trialRun.suiteSummary?.incompleteScenarioIds?.length === 0 &&
+    Object.keys(trialRun.suiteSummary?.incompleteScenarioFields || {}).length === 0 &&
     trialRun.suiteSummary?.malformedMixedScenarioIds?.length === 0 &&
     trialRun.suiteSummary?.blockingReasons?.length === 0 &&
     trialRun.suiteSummary?.requiredScenarioCount === 5 &&
