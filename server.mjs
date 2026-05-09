@@ -79,6 +79,12 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/tripp/executor/goose-adapter") {
+    const payload = await readJson(request);
+    sendJson(response, gooseAdapterCall(payload?.route || {}, payload?.descriptor || payload));
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/coding-modes") {
     sendJson(response, readCodingModes());
     return;
@@ -236,6 +242,7 @@ function readHealth() {
       codingModes: "policy-local",
       workspace: "repo-local-readonly",
       munch: "mock-contract",
+      executorAdapter: "goose-readonly-v0.1",
     },
     contract: backendContract(),
     munch: readMunchHealth(),
@@ -654,6 +661,393 @@ function readTaskLifecycleContract() {
     rollbackRequiredFrom: ["approved", "running", "completed", "failed"],
     auditFields: ["taskId", "descriptorStatus", "state", "previousState", "actor", "reason", "timestamp", "rollback"],
   };
+}
+
+function gooseAdapterCall(route = {}, descriptor = {}) {
+  const started = Date.now();
+  const tool = normalizeGooseTool(descriptor.args?.tool || route.tool || descriptor.targetTool || descriptor.tool || "");
+  const traceId = descriptor.trace?.traceId || `adapter_${Date.now()}`;
+  const redaction = redactAdapterArgs(descriptor.args || {});
+  const cystBase = {
+    eventType: "adapter_invocation",
+    adapter: "goose.adapter",
+    descriptorId: descriptor.id || null,
+    traceId,
+    ownerId: descriptor.trace?.ownerId || descriptor.trace?.owner || null,
+    wardenDecision: descriptor.trace?.wardenDecision || null,
+    munchDecision: descriptor.trace?.munch || null,
+    routeId: route.id || null,
+    tool,
+    argsRedacted: redaction.value,
+    errorCode: null,
+    redactionCount: redaction.log.length,
+    elapsedMs: null,
+    timestamp: new Date().toISOString(),
+    sandboxCheck: false,
+  };
+
+  const gate = validateGooseAdapterGates(route, descriptor, tool);
+  if (gate) {
+    return createAdapterResult({
+      status: gate.status,
+      tool,
+      invoked: false,
+      error: gate.error,
+      traceId,
+      argsRedacted: redaction.value,
+      redactionLog: redaction.log,
+      cystEvent: { ...cystBase, resultStatus: gate.status, errorCode: gate.error.code, elapsedMs: Date.now() - started },
+      elapsedMs: Date.now() - started,
+    });
+  }
+
+  const sandbox = validateAdapterSandbox(descriptor.args || {}, descriptor.constraints || {});
+  if (!sandbox.ok) {
+    return createAdapterResult({
+      status: "blocked",
+      tool,
+      invoked: false,
+      error: createAdapterError(sandbox.code, sandbox.message, descriptor),
+      traceId,
+      argsRedacted: redaction.value,
+      redactionLog: redaction.log,
+      cystEvent: { ...cystBase, resultStatus: "blocked", errorCode: sandbox.code, elapsedMs: Date.now() - started },
+      elapsedMs: Date.now() - started,
+    });
+  }
+
+  const shellBlock = tool === "Developer.shell" ? validateReadonlyShell(descriptor.args?.command || "") : null;
+  if (shellBlock) {
+    return createAdapterResult({
+      status: "blocked",
+      tool,
+      invoked: false,
+      error: createAdapterError(shellBlock.code, shellBlock.message, descriptor),
+      traceId,
+      argsRedacted: redaction.value,
+      redactionLog: redaction.log,
+      cystEvent: { ...cystBase, resultStatus: "blocked", errorCode: shellBlock.code, elapsedMs: Date.now() - started, sandboxCheck: true },
+      elapsedMs: Date.now() - started,
+    });
+  }
+
+  try {
+    const shaped = invokeReadonlyGooseTool(tool, descriptor.args || {});
+    const elapsedMs = Date.now() - started;
+    return createAdapterResult({
+      status: "ok",
+      tool,
+      invoked: true,
+      result: { raw: shaped.raw, shaped: shaped.result },
+      error: null,
+      traceId,
+      argsRedacted: redaction.value,
+      redactionLog: redaction.log,
+      cystEvent: { ...cystBase, resultStatus: "ok", elapsedMs, sandboxCheck: true },
+      elapsedMs,
+    });
+  } catch (error) {
+    const elapsedMs = Date.now() - started;
+    const adapterError = shapeAdapterException(error, descriptor);
+    return createAdapterResult({
+      status: "error",
+      tool,
+      invoked: true,
+      error: adapterError,
+      traceId,
+      argsRedacted: redaction.value,
+      redactionLog: redaction.log,
+      cystEvent: { ...cystBase, resultStatus: "error", errorCode: adapterError.code, elapsedMs, sandboxCheck: true },
+      elapsedMs,
+    });
+  }
+}
+
+function validateGooseAdapterGates(route, descriptor, tool) {
+  if (!descriptor.trace?.wardenDecision) {
+    return { status: "denied", error: createAdapterError("WARDEN_MISSING", "Warden decision is missing.", descriptor) };
+  }
+  if (descriptor.trace.wardenDecision !== "WARDEN_PASS") {
+    return { status: "denied", error: createAdapterError("WARDEN_DENIED", "Warden did not pass this descriptor.", descriptor) };
+  }
+  if (!descriptor.trace?.munch) {
+    return { status: "denied", error: createAdapterError("MUNCH_MISSING", "Munch budget/context decision is missing.", descriptor) };
+  }
+  if (descriptor.trace.munch.decision === "deny" || descriptor.trace.munch.budgetDecision === "denied") {
+    return { status: "denied", error: createAdapterError("MUNCH_BUDGET_DENIED", "Munch denied the budget/context request.", descriptor) };
+  }
+  if (!route?.id || !route?.destination) {
+    return { status: "denied", error: createAdapterError("ROUTER_MISSING", "Router route is missing.", descriptor) };
+  }
+  if (route.destination !== "goose.adapter") {
+    return { status: "blocked", error: createAdapterError("ROUTE_DESTINATION_MISMATCH", "Route destination is not goose.adapter.", descriptor) };
+  }
+  const blocked = blockedGooseTool(tool);
+  if (blocked) {
+    return { status: "blocked", error: createAdapterError(blocked.code, blocked.message, descriptor) };
+  }
+  if (!["Developer.tree", "Developer.read", "Developer.shell"].includes(tool)) {
+    return { status: "blocked", error: createAdapterError("GOOSE_TOOL_UNAVAILABLE", "Requested tool is not available in this runtime.", descriptor) };
+  }
+  return null;
+}
+
+function normalizeGooseTool(tool) {
+  const value = String(tool || "").trim();
+  const aliases = {
+    tree: "Developer.tree",
+    filesystem_list: "Developer.tree",
+    read: "Developer.read",
+    filesystem_read: "Developer.read",
+    shell: "Developer.shell",
+    shell_execute: "Developer.shell",
+  };
+  return aliases[value] || value;
+}
+
+function blockedGooseTool(tool) {
+  const blocked = {
+    "Developer.edit": ["GOOSE_EDIT_BLOCKED", "Developer.edit is blocked in read-only adapter v0.1."],
+    "Developer.write": ["GOOSE_WRITE_BLOCKED", "Developer.write is blocked in read-only adapter v0.1."],
+    "Summon.delegate": ["GOOSE_DELEGATE_BLOCKED", "Delegation is blocked in the Goose adapter."],
+    "Apps.createApp": ["GOOSE_APP_CREATE_BLOCKED", "App creation is blocked in the Goose adapter."],
+    "Apps.iterateApp": ["GOOSE_APP_ITERATE_BLOCKED", "App mutation is blocked in the Goose adapter."],
+    "Apps.deleteApp": ["GOOSE_APP_DELETE_BLOCKED", "App deletion is blocked in the Goose adapter."],
+    "Extensionmanager.manageExtensions": ["EXTENSION_MANAGE_BLOCKED", "Extension management is blocked in the Goose adapter."],
+    git_commit: ["GIT_WRITE_BLOCKED", "Git write operations are blocked in the Goose adapter."],
+  };
+  if (!blocked[tool]) return null;
+  return { code: blocked[tool][0], message: blocked[tool][1] };
+}
+
+function validateAdapterSandbox(args, constraints) {
+  const pathValue = args.path || args.file || "";
+  if (!pathValue) return { ok: true };
+  const resolved = resolveWorkspacePath(pathValue);
+  if (!resolved.ok) return { ok: false, code: "PATH_SANDBOX_ESCAPE", message: resolved.error };
+
+  const allowedPaths = Array.isArray(constraints.allowedPaths) ? constraints.allowedPaths : [];
+  if (allowedPaths.length && !allowedPaths.some((prefix) => resolved.relative.startsWith(String(prefix).replaceAll("\\", "/")))) {
+    return { ok: false, code: "PATH_SANDBOX_ESCAPE", message: "Requested path is outside descriptor.allowedPaths." };
+  }
+
+  return { ok: true, relative: resolved.relative, absolute: resolved.absolute };
+}
+
+function validateReadonlyShell(command) {
+  const value = String(command || "").trim();
+  const lower = value.toLowerCase();
+  if (!value) return { code: "SHELL_COMMAND_BLOCKED", message: "Shell command is missing." };
+  if (/[|<>]/.test(value)) return { code: "SHELL_COMMAND_BLOCKED", message: "Pipes and redirects are blocked in read-only shell." };
+  const deniedTokens = [" del ", " rmdir", " rd ", " format", "mkfs", "git commit", "git push", "git merge", "git rebase", "npm install", "pip install", "set-executionpolicy", "invoke-expression", "curl ", "wget ", " rm ", " mv ", " cp "];
+  if (deniedTokens.some((token) => ` ${lower} `.includes(token))) {
+    return { code: lower.includes("git ") ? "GIT_WRITE_BLOCKED" : "SHELL_COMMAND_BLOCKED", message: "Shell command is outside the read-only allowlist." };
+  }
+  const allowedPrefixes = ["node --version", "npm --version", "git status", "dir", "echo ", "type "];
+  if (!allowedPrefixes.some((prefix) => lower.startsWith(prefix))) {
+    return { code: "SHELL_COMMAND_BLOCKED", message: "Shell command is not on the read-only allowlist." };
+  }
+  return null;
+}
+
+function invokeReadonlyGooseTool(tool, args) {
+  if (tool === "Developer.tree") return invokeTreeTool(args);
+  if (tool === "Developer.read") return invokeReadTool(args);
+  if (tool === "Developer.shell") return invokeShellTool(args);
+  throw Object.assign(new Error("Requested tool is not available in this runtime."), { code: "GOOSE_TOOL_UNAVAILABLE" });
+}
+
+function invokeTreeTool(args) {
+  const target = validateAdapterSandbox(args, {});
+  const absolute = target.absolute || root;
+  const entries = statSync(absolute).isDirectory() ? listWorkspaceChildren(absolute, target.relative || "", 0) : [];
+  const paths = flattenWorkspaceTree(entries).slice(0, 120);
+  return {
+    raw: { paths },
+    result: {
+      type: "tree",
+      summary: `Directory tree with ${paths.length} visible entries.`,
+      lines: paths.length,
+      paths,
+      content: null,
+      stdout: null,
+      stderr: null,
+      exitCode: null,
+    },
+  };
+}
+
+function invokeReadTool(args) {
+  const file = readWorkspaceFile(args.path || args.file || "");
+  if (file.error) throw Object.assign(new Error(file.error), { code: "PATH_NOT_FOUND" });
+  const content = truncateAdapterText(file.content || "");
+  return {
+    raw: { path: file.path, size: file.size },
+    result: {
+      type: "file_content",
+      summary: `Read ${file.path} (${file.size} bytes).`,
+      lines: String(file.content || "").split(/\r?\n/).length,
+      paths: [file.path],
+      content: content.text,
+      stdout: null,
+      stderr: null,
+      exitCode: null,
+      meta: { truncated: content.truncated },
+    },
+  };
+}
+
+function invokeShellTool(args) {
+  const command = String(args.command || "").trim();
+  const lower = command.toLowerCase();
+  if (lower.startsWith("dir")) {
+    const tree = invokeTreeTool({ path: command.split(/\s+/)[1] || "" });
+    return {
+      raw: { command },
+      result: { ...tree.result, type: "shell_output", stdout: tree.result.paths.join("\n"), exitCode: 0 },
+    };
+  }
+  if (lower.startsWith("type ")) {
+    const read = invokeReadTool({ path: command.slice(5).trim() });
+    return {
+      raw: { command },
+      result: { ...read.result, type: "shell_output", stdout: read.result.content, content: null, exitCode: 0 },
+    };
+  }
+  if (lower.startsWith("echo ")) {
+    const stdout = `${command.slice(5)}\n`;
+    return {
+      raw: { command },
+      result: {
+        type: "shell_output",
+        summary: `Read-only shell command completed: ${command}`,
+        lines: 1,
+        paths: null,
+        content: null,
+        stdout,
+        stderr: "",
+        exitCode: 0,
+      },
+    };
+  }
+  const parts = command.split(/\s+/);
+  const executable = parts[0];
+  const shellArgs = parts.slice(1);
+  const stdout = execFileSync(executable, shellArgs, { cwd: root, encoding: "utf8", timeout: 5000, windowsHide: true });
+  const shaped = truncateAdapterText(stdout);
+  return {
+    raw: { command },
+    result: {
+      type: "shell_output",
+      summary: `Read-only shell command completed: ${command}`,
+      lines: stdout.split(/\r?\n/).filter(Boolean).length,
+      paths: null,
+      content: null,
+      stdout: shaped.text,
+      stderr: "",
+      exitCode: 0,
+      meta: { truncated: shaped.truncated },
+    },
+  };
+}
+
+function flattenWorkspaceTree(entries) {
+  const paths = [];
+  entries.forEach((entry) => {
+    paths.push(entry.path);
+    if (entry.children) paths.push(...flattenWorkspaceTree(entry.children));
+  });
+  return paths;
+}
+
+function truncateAdapterText(value) {
+  const text = String(value || "");
+  const max = 8192;
+  if (text.length <= max) return { text, truncated: false };
+  return { text: `${text.slice(0, max)}\n[TRUNCATED: ${text.length - max} bytes omitted]`, truncated: true };
+}
+
+function redactAdapterArgs(value, path = []) {
+  if (Array.isArray(value)) {
+    const items = value.map((item, index) => redactAdapterArgs(item, [...path, String(index)]));
+    return {
+      value: items.map((item) => item.value),
+      log: items.flatMap((item) => item.log),
+    };
+  }
+  if (value && typeof value === "object") {
+    const output = {};
+    const log = [];
+    Object.entries(value).forEach(([key, child]) => {
+      const redacted = redactAdapterArgs(child, [...path, key]);
+      output[key] = shouldRedactKey(key) ? "[REDACTED]" : redactPathValue(key, redacted.value, log, [...path, key]);
+      if (shouldRedactKey(key)) log.push([...path, key].join("."));
+      log.push(...redacted.log);
+    });
+    return { value: output, log };
+  }
+  if (typeof value === "string") {
+    let text = value.replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [BEARER_REDACTED]");
+    const log = text !== value ? [[...path].join(".") || "value"] : [];
+    return { value: text, log };
+  }
+  return { value, log: [] };
+}
+
+function shouldRedactKey(key) {
+  return /apiKey|token|secret|password|credential/i.test(key);
+}
+
+function redactPathValue(key, value, log, path) {
+  if (typeof value !== "string" || !/path|cwd|workspace/i.test(key)) return value;
+  if (/^[a-zA-Z]:\\Users\\/.test(value) || value.startsWith("~")) {
+    log.push(path.join("."));
+    return "[HOME_DIR]";
+  }
+  if (isAbsoluteWindowsPath(value) && !resolve(value).startsWith(root)) {
+    log.push(path.join("."));
+    return "[OUTSIDE_WORKSPACE]";
+  }
+  return value;
+}
+
+function createAdapterResult({ status, tool, invoked, result = null, error = null, traceId, argsRedacted, redactionLog, cystEvent, elapsedMs }) {
+  return {
+    status,
+    tool,
+    invoked,
+    result,
+    error,
+    trace: {
+      traceId,
+      adapter: "goose.adapter",
+      tool,
+      argsRedacted,
+      resultStatus: status,
+      elapsedMs,
+      timestamp: cystEvent.timestamp,
+      cysToken: cystEvent.descriptorId && cystEvent.traceId && cystEvent.ownerId ? `cyst_${cystEvent.traceId}` : null,
+    },
+    redactionLog,
+    cystEvent,
+  };
+}
+
+function createAdapterError(code, message, descriptor) {
+  return {
+    code,
+    message,
+    wardenDecision: descriptor.trace?.wardenDecision || null,
+    munchDecision: descriptor.trace?.munch?.decision || descriptor.trace?.munch?.budgetDecision || null,
+    retryable: code === "ADAPTER_TIMEOUT",
+    retryAfterMs: code === "ADAPTER_TIMEOUT" ? 1000 : null,
+  };
+}
+
+function shapeAdapterException(error, descriptor) {
+  const code = error?.code === "ENOENT" ? "GOOSE_TOOL_UNAVAILABLE" : error?.code || "ADAPTER_INTERNAL_ERROR";
+  const known = ["GOOSE_TOOL_UNAVAILABLE", "PATH_NOT_FOUND", "PATH_ACCESS_DENIED", "ADAPTER_TIMEOUT"];
+  return createAdapterError(known.includes(code) ? code : "ADAPTER_INTERNAL_ERROR", known.includes(code) ? error.message : "Adapter encountered an unexpected condition.", descriptor);
 }
 
 function wardenPrecheck(descriptor = {}) {

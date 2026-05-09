@@ -66,7 +66,8 @@ try {
     health.capabilities?.permissions === "policy-local" &&
     health.capabilities?.codingModes === "policy-local" &&
     health.capabilities?.workspace === "repo-local-readonly" &&
-    health.capabilities?.munch === "mock-contract";
+    health.capabilities?.munch === "mock-contract" &&
+    health.capabilities?.executorAdapter === "goose-readonly-v0.1";
   console.log(`${healthPass ? "PASS" : "FAIL"} health: adapter capabilities`);
   if (!healthPass) {
     failures.push({ name: "health" });
@@ -382,6 +383,71 @@ try {
   console.log(`${wardenPass ? "PASS" : "FAIL"} warden: descriptor precheck`);
   if (!wardenPass) {
     failures.push({ name: "warden precheck" });
+  }
+
+  const adapterBaseDescriptor = {
+    id: "verify-adapter",
+    type: "task_descriptor",
+    intent: "inspect",
+    target: "tool",
+    targetTool: "Developer.read",
+    constraints: { allowedPaths: ["README.md", "server.mjs", "scripts"] },
+    budget: { maxTokens: 500 },
+    allowedTools: ["Developer.read", "Developer.tree", "Developer.shell"],
+    trace: {
+      traceId: "verify-adapter",
+      source: "supervisor",
+      ownerId: "tripp.supervisor",
+      wardenDecision: "WARDEN_PASS",
+      munch: { decision: "allow", budgetDecision: "allow" },
+    },
+    args: { tool: "read", path: "README.md", token: "secret-value" },
+  };
+  const adapterRoute = { id: "route-adapter", destination: "goose.adapter", tool: "Developer.read" };
+  const adapterRead = await postJson("/api/tripp/executor/goose-adapter", {
+    route: adapterRoute,
+    descriptor: adapterBaseDescriptor,
+  });
+  const adapterTree = await postJson("/api/tripp/executor/goose-adapter", {
+    route: { ...adapterRoute, tool: "Developer.tree" },
+    descriptor: { ...adapterBaseDescriptor, targetTool: "Developer.tree", args: { tool: "tree", path: "scripts" } },
+  });
+  const adapterShell = await postJson("/api/tripp/executor/goose-adapter", {
+    route: { ...adapterRoute, tool: "Developer.shell" },
+    descriptor: { ...adapterBaseDescriptor, targetTool: "Developer.shell", args: { tool: "shell", command: "node --version" } },
+  });
+  const adapterMissingWarden = await postJson("/api/tripp/executor/goose-adapter", {
+    route: adapterRoute,
+    descriptor: { ...adapterBaseDescriptor, trace: { traceId: "verify-missing-warden", source: "supervisor", ownerId: "tripp.supervisor", munch: { decision: "allow" } } },
+  });
+  const adapterRouteMismatch = await postJson("/api/tripp/executor/goose-adapter", {
+    route: { id: "route-wrong", destination: "other.adapter", tool: "Developer.read" },
+    descriptor: adapterBaseDescriptor,
+  });
+  const adapterBlockedEdit = await postJson("/api/tripp/executor/goose-adapter", {
+    route: { ...adapterRoute, tool: "Developer.write" },
+    descriptor: { ...adapterBaseDescriptor, targetTool: "Developer.write", args: { tool: "Developer.write", path: "README.md" } },
+  });
+  const adapterBlockedShell = await postJson("/api/tripp/executor/goose-adapter", {
+    route: { ...adapterRoute, tool: "Developer.shell" },
+    descriptor: { ...adapterBaseDescriptor, targetTool: "Developer.shell", args: { tool: "shell", command: "git push origin main" } },
+  });
+  const adapterPass =
+    adapterRead.status === "ok" &&
+    adapterRead.result?.shaped?.type === "file_content" &&
+    adapterRead.redactionLog?.includes("token") &&
+    adapterRead.cystEvent?.eventType === "adapter_invocation" &&
+    adapterTree.status === "ok" &&
+    adapterTree.result?.shaped?.paths?.some((path) => path.endsWith("verify.mjs")) &&
+    adapterShell.status === "ok" &&
+    adapterShell.result?.shaped?.stdout?.startsWith("v") &&
+    adapterMissingWarden.error?.code === "WARDEN_MISSING" &&
+    adapterRouteMismatch.error?.code === "ROUTE_DESTINATION_MISMATCH" &&
+    adapterBlockedEdit.error?.code === "GOOSE_WRITE_BLOCKED" &&
+    adapterBlockedShell.error?.code === "GIT_WRITE_BLOCKED";
+  console.log(`${adapterPass ? "PASS" : "FAIL"} executor: goose adapter read-only gates`);
+  if (!adapterPass) {
+    failures.push({ name: "goose adapter" });
   }
 
   if (failures.length) {
