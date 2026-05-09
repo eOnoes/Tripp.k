@@ -40,9 +40,14 @@
     snapTasksToTop: false,
     sessions: data.sessions.map((session, index) => ({
       ...session,
-      id: `session-${index}`,
-      messages: Number(session.messages) || 0,
-      transcript: index === 0 ? normalizeMessages(data.messages) : seedSession(session, now()),
+      id: session.id || `session-${index}`,
+      messages: Number(session.messages) || Number(session.transcript?.length) || 0,
+      transcript:
+        "transcript" in session
+          ? normalizeMessages(session.transcript)
+          : index === 0
+            ? normalizeMessages(data.messages)
+            : seedSession(session, now()),
     })),
     status: { ...data.status },
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
@@ -273,6 +278,9 @@
         });
         renderSessions();
         renderMessages();
+        runtime.selectSession(button.dataset.session).catch((apiError) => {
+          console.warn("Tripp session select unavailable; keeping local selection.", apiError);
+        });
       });
     });
   }
@@ -362,6 +370,10 @@
       upsertTask(reply.task);
     }
 
+    if (reply.session) {
+      upsertSession(reply.session);
+    }
+
     updateCounters(reply.status, value);
     setBusy(false);
     renderSessions();
@@ -420,13 +432,9 @@
     state.tasks[index] = task;
   }
 
-  function createSession() {
-    const session = activeSession();
-    session.title = "New Tripp session";
-    session.age = "now";
-    session.messages = 0;
-    session.transcript = [];
-
+  async function createSession() {
+    const session = await runtime.createSession();
+    upsertSession(session);
     renderSessions();
     renderMessages();
   }
@@ -439,6 +447,28 @@
 
   function activeSession() {
     return state.sessions.find((session) => session.active) || state.sessions[0];
+  }
+
+  function upsertSession(session) {
+    const nextSession = {
+      ...session,
+      transcript: Array.isArray(session.transcript) ? normalizeMessages(session.transcript) : [],
+      messages: Number(session.messages) || Number(session.transcript?.length) || 0,
+      active: true,
+    };
+    const index = state.sessions.findIndex((candidate) => candidate.id === session.id);
+
+    state.sessions.forEach((candidate) => {
+      candidate.active = false;
+    });
+
+    if (index === -1) {
+      state.sessions.unshift(nextSession);
+      return;
+    }
+
+    state.sessions.splice(index, 1);
+    state.sessions.unshift(nextSession);
   }
 
   function normalizeMessages(messages) {
@@ -545,6 +575,35 @@ function createTrippRuntime() {
           },
         };
       }
+    },
+
+    async createSession() {
+      try {
+        const result = await fetchJson("./api/tripp/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        return result.session;
+      } catch (apiError) {
+        console.warn("Tripp session create unavailable; using local session fallback.", apiError);
+        return {
+          id: `local-session-${Date.now()}`,
+          title: "New Tripp session",
+          age: "now",
+          messages: 0,
+          active: true,
+          transcript: [],
+        };
+      }
+    },
+
+    async selectSession(sessionId) {
+      return fetchJson(`./api/tripp/sessions/${encodeURIComponent(sessionId)}/select`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
     },
   };
 }

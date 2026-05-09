@@ -32,6 +32,24 @@ try {
     console.log(`${result.pass ? "PASS" : "FAIL"} ${result.name}: ${result.tool} -> ${result.status}`);
   }
 
+  const created = await postJson("/api/tripp/sessions", {});
+  const sessionId = created.session?.id;
+  const sessionReply = await postJson("/api/tripp/reply", {
+    prompt: "hello persisted session",
+    mode: "CHAT",
+    sessionId,
+  });
+  const bootstrap = await getJson("/api/tripp/bootstrap");
+  const persisted = bootstrap.sessions.find((session) => session.id === sessionId);
+  const sessionPass =
+    Boolean(sessionId) &&
+    sessionReply.session?.id === sessionId &&
+    persisted?.transcript?.some((message) => message.body === "hello persisted session");
+  console.log(`${sessionPass ? "PASS" : "FAIL"} sessions: create -> reply -> bootstrap persistence`);
+  if (!sessionPass) {
+    failures.push({ name: "sessions" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }
@@ -59,6 +77,16 @@ async function postJson(path, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+  if (!response.ok) {
+    throw new Error(`${path} failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function getJson(path) {
+  const response = await fetch(`${baseUrl}${path}`);
 
   if (!response.ok) {
     throw new Error(`${path} failed with ${response.status}`);

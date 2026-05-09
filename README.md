@@ -43,6 +43,8 @@ node .\scripts\verify.mjs
   - `GET /api/tripp/tasks`
   - `POST /api/tripp/tasks/:taskId/approve`
   - `POST /api/tripp/tasks/:taskId/dismiss`
+  - `POST /api/tripp/sessions`
+  - `POST /api/tripp/sessions/:sessionId/select`
 - Optional backend bridge env:
   - `TRIPP_BACKEND_URL`
   - `TRIPP_BACKEND_SECRET` or `GOOSE_SERVER__SECRET_KEY`
@@ -54,5 +56,5 @@ Inspect tasks are read-only, auto-complete without acknowledgement, and can show
 `git status` tasks are also read-only and auto-complete; mutating git actions such as commit are recorded as gated without an approval/apply click-through.
 Shell tasks auto-run only a small read-only allowlist such as `node --version`, `npm --version`, and repo file listing; other shell requests are recorded as gated.
 Analysis tasks are read-only, auto-complete for approved repo-local files, and show a short excerpt plus lightweight findings in the task detail.
-Task history is persisted locally under `.tripp-runtime/`, which is ignored by Git.
+Task and session history are persisted locally under `.tripp-runtime/`, which is ignored by Git.
 The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.

@@ -10,10 +10,12 @@ const host = process.env.HOST || "127.0.0.1";
 const bootstrapFile = join(root, "tripp-terminal-data.json");
 const runtimeDir = join(root, ".tripp-runtime");
 const taskStoreFile = join(runtimeDir, "tasks.json");
+const sessionStoreFile = join(runtimeDir, "sessions.json");
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
 const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
 const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
 const taskQueue = loadTaskQueue();
+const sessionStore = loadSessionStore();
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -65,6 +67,18 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/tripp/sessions") {
+    sendJson(response, createSession());
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname.startsWith("/api/tripp/sessions/")) {
+    const sessionId = decodeURIComponent(url.pathname.split("/").at(-2) || "");
+    const action = decodeURIComponent(url.pathname.split("/").at(-1) || "");
+    sendJson(response, updateSession(sessionId, action));
+    return;
+  }
+
   if (request.method === "POST" && url.pathname.startsWith("/api/tripp/tasks/")) {
     const payload = await readJson(request);
     const taskId = decodeURIComponent(url.pathname.split("/").at(-2) || "");
@@ -78,9 +92,11 @@ async function handleTrippApi(request, response, url) {
 
 function readBootstrap() {
   const bootstrap = JSON.parse(readFileSync(bootstrapFile, "utf8"));
+  const sessions = ensureSessionStore(bootstrap);
 
   return {
     ...bootstrap,
+    sessions,
     status: {
       ...bootstrap.status,
       connection: backendUrl ? "BRIDGE READY" : bootstrap.status.connection,
@@ -108,6 +124,31 @@ async function createReply(payload) {
   const kind = chooseTaskKind(prompt, tool);
   const task = mode === "AUTO" ? createTask({ prompt, tool, kind, sessionId: payload?.sessionId }) : null;
 
+  const messages =
+    mode === "AUTO"
+      ? [
+          {
+            kind: "tool",
+            speaker: "tripp.auto>",
+            tool,
+            result: `task ${task.id} ${task.status}`,
+          },
+          {
+            kind: "agent",
+            speaker: "tripp.supervisor>",
+            body: supervisorMessage(task),
+          },
+        ]
+      : [
+          {
+            kind: "agent",
+            speaker: "tripp>",
+            body:
+              "I have the prompt. Chat mode stays conversational for now; switch to AUTO when you want tool-backed coding behavior.",
+          },
+        ];
+  const session = recordSessionExchange(payload?.sessionId, prompt, messages);
+
   return {
     id: `reply-${Date.now()}`,
     mode,
@@ -119,29 +160,8 @@ async function createReply(payload) {
       tokensOut: mode === "AUTO" ? 74 : 42,
     },
     task,
-    messages:
-      mode === "AUTO"
-        ? [
-            {
-              kind: "tool",
-              speaker: "tripp.auto>",
-              tool,
-              result: `task ${task.id} ${task.status}`,
-            },
-            {
-              kind: "agent",
-              speaker: "tripp.supervisor>",
-              body: supervisorMessage(task),
-            },
-          ]
-        : [
-            {
-              kind: "agent",
-              speaker: "tripp>",
-              body:
-                "I have the prompt. Chat mode stays conversational for now; switch to AUTO when you want tool-backed coding behavior.",
-            },
-          ],
+    messages,
+    session,
   };
 }
 
@@ -275,9 +295,132 @@ function loadTaskQueue() {
   }
 }
 
+function loadSessionStore() {
+  try {
+    if (!existsSync(sessionStoreFile)) return { sessions: [] };
+    const parsed = JSON.parse(readFileSync(sessionStoreFile, "utf8"));
+    return { sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [] };
+  } catch {
+    return { sessions: [] };
+  }
+}
+
 function saveTaskQueue() {
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(taskStoreFile, `${JSON.stringify({ tasks: taskQueue.slice(0, 50) }, null, 2)}\n`, "utf8");
+}
+
+function saveSessionStore() {
+  mkdirSync(runtimeDir, { recursive: true });
+  writeFileSync(sessionStoreFile, `${JSON.stringify({ sessions: sessionStore.sessions.slice(0, 50) }, null, 2)}\n`, "utf8");
+}
+
+function ensureSessionStore(bootstrap) {
+  if (sessionStore.sessions.length) {
+    if (!sessionStore.sessions.some((session) => session.active)) {
+      sessionStore.sessions[0].active = true;
+      saveSessionStore();
+    }
+    return sessionStore.sessions;
+  }
+
+  sessionStore.sessions = bootstrap.sessions.map((session, index) => ({
+    ...session,
+    id: `session-${index}`,
+    active: Boolean(session.active || index === 0),
+    messages: index === 0 ? bootstrap.messages.length : Number(session.messages) || 0,
+    transcript: index === 0 ? normalizeTranscript(bootstrap.messages) : [],
+  }));
+  saveSessionStore();
+  return sessionStore.sessions;
+}
+
+function createSession() {
+  const session = {
+    id: `session-${Date.now()}`,
+    title: "New Tripp session",
+    age: "now",
+    messages: 0,
+    active: true,
+    transcript: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  sessionStore.sessions.forEach((candidate) => {
+    candidate.active = false;
+  });
+  sessionStore.sessions.unshift(session);
+  saveSessionStore();
+  return { session };
+}
+
+function updateSession(sessionId, action) {
+  const session = sessionStore.sessions.find((candidate) => candidate.id === sessionId);
+  if (!session) return { error: "Session not found." };
+
+  if (action === "select") {
+    sessionStore.sessions.forEach((candidate) => {
+      candidate.active = candidate.id === sessionId;
+    });
+    saveSessionStore();
+    return { session };
+  }
+
+  return { error: "Unknown session action.", session };
+}
+
+function recordSessionExchange(sessionId, prompt, messages) {
+  const session = findOrCreateSession(sessionId);
+  const time = timeLabel();
+  session.transcript ||= [];
+  session.transcript.push({ kind: "user", speaker: "you>", time, body: prompt });
+  messages.forEach((message) => {
+    session.transcript.push({ ...message, time });
+  });
+  session.messages = session.transcript.length;
+  session.age = "now";
+  session.updatedAt = new Date().toISOString();
+
+  if (session.title === "New Tripp session" || session.title === "Untitled session") {
+    session.title = summarizeTask(prompt);
+  }
+
+  sessionStore.sessions.forEach((candidate) => {
+    candidate.active = candidate.id === session.id;
+  });
+  saveSessionStore();
+  return session;
+}
+
+function findOrCreateSession(sessionId) {
+  const existing = sessionStore.sessions.find((candidate) => candidate.id === sessionId);
+  if (existing) return existing;
+
+  const created = {
+    id: sessionId || `session-${Date.now()}`,
+    title: "Untitled session",
+    age: "now",
+    messages: 0,
+    active: true,
+    transcript: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  sessionStore.sessions.unshift(created);
+  return created;
+}
+
+function normalizeTranscript(messages) {
+  return messages.map((message) => ({ kind: "agent", ...message }));
+}
+
+function timeLabel() {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
 }
 
 function summarizeTask(prompt) {
