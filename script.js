@@ -491,10 +491,10 @@
       result: "Planning only",
       findings: [
         "Retrieval identified likely planning context.",
-        `${sourceKind === "mock" ? "Mock" : sourceKind} evidence is ${authority} and cannot authorize edits.`,
+        `${sourceKind === "mock" ? "Mock" : sourceKind} evidence is ${authority} and non-authoritative for file changes.`,
       ],
       evidence: sourceKind === "mock" ? "Mock evidence - planning only" : `${sourceKind} evidence - ${authority}`,
-      nextStep: "Inspect related files or continue narrowing before any edit-capable work.",
+      nextStep: "Inspect related files or continue read-only narrowing.",
     };
   }
 
@@ -518,8 +518,8 @@
       tone: blocked ? "blocked" : "readonly",
       result: blocked ? "Blocked" : "Safe shell",
       findings: blocked
-        ? ["Shell request stayed blocked before write-capable invocation.", "Read-only mode remained intact."]
-        : ["Allowed shell command completed through the adapter.", "No write-capable route was used."],
+        ? ["Shell request stayed blocked before mutation.", "Read-only mode remained intact."]
+        : ["Allowed shell command completed through the adapter.", "The result supports read-only review."],
       evidence: invoked ? "Safe shell output" : "Read-only policy block",
       nextStep: blocked ? "Use an allowlisted read-only command or inspect a file instead." : "Use the output to continue read-only review.",
     };
@@ -539,7 +539,7 @@
     return {
       tone: "blocked",
       result: "Blocked",
-      findings: ["The request did not reach a write-capable action.", task.permission?.reason || "Read-only policy kept the task gated."],
+      findings: ["The request stayed inside the read-only boundary.", task.permission?.reason || "Read-only policy kept the task gated."],
       evidence: "Read-only gate or permission block",
       nextStep: "Rephrase as inspection, retrieval, or safe-shell work.",
     };

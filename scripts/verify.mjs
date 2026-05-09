@@ -209,6 +209,8 @@ try {
     appScript.includes("Next safe step") &&
     appScript.includes("Read-only inspection") &&
     appScript.includes("Mock evidence - planning only") &&
+    appScript.includes("non-authoritative for file changes") &&
+    appScript.includes("continue read-only narrowing") &&
     appScript.includes("Safe shell output") &&
     appScript.includes("Read-only policy block") &&
     appScript.includes("renderGoNoGoSummary") &&
