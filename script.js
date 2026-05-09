@@ -716,25 +716,59 @@
   }
 
   function writeBlockDetails(event) {
-    return [
+    const always = [
       event.blockLayer ? `layer:${event.blockLayer}` : null,
       event.reasonCode ? `reason:${event.reasonCode}` : null,
       event.reason ? `note:${event.reason}` : null,
       event.escalationTarget ? `target:${event.escalationTarget}` : null,
       event.escalationStage ? `stage:${event.escalationStage}` : null,
-      event.sourceKind ? `source:${event.sourceKind}` : null,
-      event.retrievalMode ? `mode:${event.retrievalMode}` : null,
-      event.authorityLevel ? `authority:${event.authorityLevel}` : null,
-      event.degraded === true ? "degraded:true" : null,
-      event.degradationReason ? `degradation:${event.degradationReason}` : null,
-      event.writeApprovalEligible === false ? "writeApprovalEligible:false" : null,
-      event.applyEligible === false ? "applyEligible:false" : null,
-      event.approvalEvidence === false ? "approvalEvidence:false" : null,
-      event.approvalState ? `approval:${event.approvalState}` : null,
-      event.wardenDecision ? `warden:${event.wardenDecision}` : null,
-      event.adapterDecision ? `adapter:${event.adapterDecision}` : null,
-      event.invoked === false ? "invoked:false" : null,
-    ].filter(Boolean);
+    ];
+    const family = writeBlockFamilyDetails(event);
+    const invoked = event.invoked === false ? ["invoked:false"] : [];
+
+    return [...always, ...family, ...invoked].filter(Boolean);
+  }
+
+  function writeBlockFamilyDetails(event) {
+    const layer = String(event.blockLayer || "").toLowerCase();
+    const target = String(event.escalationTarget || "").toLowerCase();
+    const code = String(event.reasonCode || event.errorCode || "").toLowerCase();
+
+    if (layer === "evidence") {
+      return [
+        event.sourceKind ? `source:${event.sourceKind}` : null,
+        event.retrievalMode ? `mode:${event.retrievalMode}` : null,
+        event.authorityLevel ? `authority:${event.authorityLevel}` : null,
+        event.degraded === true ? "degraded:true" : null,
+        event.degradationReason ? `degradation:${event.degradationReason}` : null,
+        event.planningAllowed === true ? "planningAllowed:true" : null,
+        event.narrowingAllowed === true ? "narrowingAllowed:true" : null,
+        event.writeApprovalEligible === false ? "writeApprovalEligible:false" : null,
+        event.applyEligible === false ? "applyEligible:false" : null,
+        event.approvalEvidence === false ? "approvalEvidence:false" : null,
+      ];
+    }
+
+    if (layer === "approval_state" || code.includes("approval_")) {
+      return [event.approvalState ? `approval:${event.approvalState}` : null];
+    }
+
+    if (layer === "warden") {
+      return [event.wardenDecision ? `warden:${event.wardenDecision}` : null];
+    }
+
+    if (layer === "adapter") {
+      return [event.adapterDecision ? `adapter:${event.adapterDecision}` : null];
+    }
+
+    if (target.includes("apply") || code.includes("apply_") || code.includes("target_not_apply_ready")) {
+      return [
+        event.applyEligible === false ? "applyEligible:false" : null,
+        event.approvalState ? `approval:${event.approvalState}` : null,
+      ];
+    }
+
+    return [];
   }
 
   function displayCystSummary() {
