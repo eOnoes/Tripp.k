@@ -1738,10 +1738,34 @@ button {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   gap: 7px;
+  margin-top: 2px;
   padding: 7px;
   background: #050505;
   border: 1px solid var(--line-soft);
   border-left: 2px solid var(--line);
+}
+
+.cyst-activity li.group-start {
+  margin-top: 7px;
+  border-bottom-color: #202800;
+}
+
+.cyst-activity li.group-middle,
+.cyst-activity li.group-end {
+  margin-top: -2px;
+  border-top-color: #202800;
+}
+
+.cyst-activity li.group-middle {
+  border-bottom-color: #202800;
+}
+
+.cyst-activity li.group-single {
+  margin-top: 7px;
+}
+
+.cyst-activity li:first-child {
+  margin-top: 0;
 }
 
 .cyst-activity li.ok {

@@ -176,6 +176,7 @@ try {
   const bootstrapAfterSettings = await getJson("/api/tripp/bootstrap");
   const appHtml = await getText("/");
   const appScript = await getText("/script.js");
+  const appCss = await getText("/styles.css");
   const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
   const workspacePass =
     workspaceTree.files?.some((entry) => entry.name === "README.md") &&
@@ -195,6 +196,13 @@ try {
     appScript.includes("latestCystTimeline") &&
     appScript.includes("orderCystEvents") &&
     appScript.includes("cystEventSequence") &&
+    appScript.includes("groupCystTimeline") &&
+    appScript.includes("cystFlowKey") &&
+    appScript.includes("group-start") &&
+    appScript.includes("group-middle") &&
+    appScript.includes("group-end") &&
+    appScript.includes("group-single") &&
+    appScript.includes("event.taskId || event.traceId || event.descriptorId") &&
     appScript.includes("write_escalation_blocked") &&
     appScript.includes("WRITE BLOCKED") &&
     appScript.includes("Mock evidence cannot authorize edits") &&
@@ -233,6 +241,10 @@ try {
     appScript.includes("renderReviewChanges") &&
     appScript.includes("saveCompactSettings") &&
     appScript.includes("/api/tripp/cyst/events") &&
+    appCss.includes(".cyst-activity li.group-start") &&
+    appCss.includes(".cyst-activity li.group-middle") &&
+    appCss.includes(".cyst-activity li.group-end") &&
+    appCss.includes(".cyst-activity li.group-single") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id");

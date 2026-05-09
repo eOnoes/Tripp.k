@@ -603,6 +603,7 @@
 
   function renderCystActivity() {
     const events = latestCystTimeline(state.cystEvents, 8);
+    const rows = groupCystTimeline(events);
     if (!events.length) {
       elements.cystRoot.innerHTML = `<section><header><strong>CYST ACTIVITY</strong><span>empty</span></header><p>No audit events recorded.</p></section>`;
       return;
@@ -615,10 +616,10 @@
           <span>${escapeHtml(`${events.length}/${state.cystEvents.length}`)}</span>
         </header>
         <ol>
-          ${events
+          ${rows
             .map(
-              (event) => `
-                <li class="${escapeHtml(cystTone(event))}" title="Audit event - not an action item.">
+              ({ event, groupClass }) => `
+                <li class="${escapeHtml(`${cystTone(event)} ${groupClass}`)}" title="Audit event - not an action item.">
                   <span>${escapeHtml(cystGlyph(event))}</span>
                   <div>
                     <strong>${escapeHtml(event.eventType || "event")}</strong>
@@ -787,6 +788,29 @@
 
   function latestCystTimeline(events, limit) {
     return orderCystEvents(events).slice(-limit);
+  }
+
+  function groupCystTimeline(events) {
+    return (Array.isArray(events) ? events : []).map((event, index, list) => {
+      const key = cystFlowKey(event);
+      const previousKey = cystFlowKey(list[index - 1]);
+      const nextKey = cystFlowKey(list[index + 1]);
+      const joinsPrevious = Boolean(key && key === previousKey);
+      const joinsNext = Boolean(key && key === nextKey);
+      const groupClass = joinsPrevious && joinsNext
+        ? "group-middle"
+        : joinsPrevious
+          ? "group-end"
+          : joinsNext
+            ? "group-start"
+            : "group-single";
+      return { event, groupClass };
+    });
+  }
+
+  function cystFlowKey(event) {
+    if (!event) return "";
+    return event.taskId || event.traceId || event.descriptorId || "";
   }
 
   function orderCystEvents(events) {
