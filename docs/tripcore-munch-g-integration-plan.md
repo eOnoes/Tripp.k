@@ -33,6 +33,8 @@ These routes should return schema-compatible objects even in mock mode. The UI a
 
 ## Supervisor Routing Doctrine
 
+See also: `docs/tripp-supervisor-retrieval-playbook.md`.
+
 Prefer TripCore.Munch.g when the task asks:
 - where is the active implementation?
 - which file owns this behavior?
