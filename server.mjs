@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
 
@@ -8,10 +8,12 @@ const port = Number(process.env.PORT || 4177);
 const host = process.env.HOST || "127.0.0.1";
 
 const bootstrapFile = join(root, "tripp-terminal-data.json");
+const runtimeDir = join(root, ".tripp-runtime");
+const taskStoreFile = join(runtimeDir, "tasks.json");
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
 const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
 const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
-const taskQueue = [];
+const taskQueue = loadTaskQueue();
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -189,6 +191,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
   }
 
   taskQueue.unshift(task);
+  saveTaskQueue();
   return task;
 }
 
@@ -240,6 +243,7 @@ function updateTask(taskId, action) {
     task.status = "patch_ready";
     task.patch = createPatchPreview(task);
     task.result = "Patch preview prepared. Real execution remains disabled until the filesystem bridge is implemented.";
+    saveTaskQueue();
     return { task };
   }
 
@@ -247,16 +251,33 @@ function updateTask(taskId, action) {
     const applied = applyTaskPatch(task);
     task.status = applied.ok ? "applied" : "apply_blocked";
     task.result = applied.message;
+    saveTaskQueue();
     return { task };
   }
 
   if (action === "dismiss") {
     task.status = "dismissed";
     task.result = "Dismissed by operator.";
+    saveTaskQueue();
     return { task };
   }
 
   return { error: "Unknown task action.", task };
+}
+
+function loadTaskQueue() {
+  try {
+    if (!existsSync(taskStoreFile)) return [];
+    const parsed = JSON.parse(readFileSync(taskStoreFile, "utf8"));
+    return Array.isArray(parsed.tasks) ? parsed.tasks : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTaskQueue() {
+  mkdirSync(runtimeDir, { recursive: true });
+  writeFileSync(taskStoreFile, `${JSON.stringify({ tasks: taskQueue.slice(0, 50) }, null, 2)}\n`, "utf8");
 }
 
 function summarizeTask(prompt) {
