@@ -343,8 +343,11 @@ try {
     readinessScoreboard.includes("Replace Goose for read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
     readinessScoreboard.includes("88-92%") &&
-    readinessScoreboard.includes("68-72%") &&
+    readinessScoreboard.includes("70%") &&
     readinessScoreboard.includes("35-45%") &&
+    readinessScoreboard.includes("Read-only planning/review readiness: approximately 70% toward replacing Goose for structured workflows.") &&
+    readinessScoreboard.includes("Evidence Required To Keep The 70% Claim") &&
+    readinessScoreboard.includes("70% Claim Invalidation") &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
     readinessScoreboard.includes("Gate GO means read-only harness readiness only") &&
     serverSource.includes("cystSequence") &&
