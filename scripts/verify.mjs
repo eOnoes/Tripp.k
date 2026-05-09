@@ -352,7 +352,7 @@ try {
     readinessScoreboard.includes("Primary read-only console beta") &&
     readinessScoreboard.includes("Replace Goose for read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
-    readinessScoreboard.includes("88-92%") &&
+    readinessScoreboard.includes("90-93%") &&
     readinessScoreboard.includes("75%") &&
     readinessScoreboard.includes("35-45%") &&
     readinessScoreboard.includes("Read-only planning/review readiness: approximately 75% toward replacing Goose for structured and moderately ambiguous workflows.") &&
@@ -360,7 +360,9 @@ try {
     readinessScoreboard.includes("75% Claim Invalidation") &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
     readinessScoreboard.includes("Multi-branch ambiguity acceptance now keeps backend and UI branches visible, ranks by usefulness, preserves mock uncertainty, and keeps blocked outcomes visible.") &&
+    readinessScoreboard.includes("Longer-session repeatability acceptance now covers inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.") &&
     readinessScoreboard.includes("Branch ranking stays based on usefulness, not truth or verification.") &&
+    readinessScoreboard.includes("Longer-session repeatability harness passes.") &&
     readinessScoreboard.includes("Gate GO means read-only harness readiness only") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
@@ -1098,6 +1100,99 @@ try {
   console.log(`${multiBranchAcceptancePass ? "PASS" : "FAIL"} beta: multi-branch read-only ambiguity acceptance flow`);
   if (!multiBranchAcceptancePass) {
     failures.push({ name: "multi-branch read-only ambiguity acceptance" });
+  }
+
+  const longSessionId = "verify-readonly-long-session";
+  const longInspectReadme = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longGateRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "where is formal read-only gate behavior defined",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longInspectServer = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longSafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longInspectScript = await postJson("/api/tripp/reply", {
+    prompt: "inspect script.js",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longAnalysis = await postJson("/api/tripp/reply", {
+    prompt: "analyze server.mjs",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longCystRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "which files likely own Cyst activity rendering",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longGitStatus = await postJson("/api/tripp/reply", {
+    prompt: "git status",
+    mode: "AUTO",
+    sessionId: longSessionId,
+  });
+  const longGate = await postJson("/api/tripp/trials/read-only", {});
+  const longCyst = await getJson("/api/tripp/cyst/events");
+  const longTaskIds = [
+    longInspectReadme.task?.id,
+    longGateRetrieval.task?.id,
+    longInspectServer.task?.id,
+    longSafeShell.task?.id,
+    longInspectScript.task?.id,
+    longAnalysis.task?.id,
+    longCystRetrieval.task?.id,
+    longBlockedShell.task?.id,
+    longGitStatus.task?.id,
+    longGate.task?.id,
+  ].filter(Boolean);
+  const longCystEvents = longCyst.events?.filter((event) => longTaskIds.includes(event.descriptorId) || event.descriptorId === longGate.id) || [];
+  const longSessionAcceptancePass =
+    longInspectReadme.task?.status === "inspected" &&
+    longInspectReadme.task?.target === "README.md" &&
+    longGateRetrieval.task?.status === "retrieval_ready" &&
+    longGateRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    longInspectServer.task?.status === "inspected" &&
+    longInspectServer.task?.target === "server.mjs" &&
+    longSafeShell.task?.status === "completed" &&
+    longSafeShell.task?.adapter?.invoked === true &&
+    longInspectScript.task?.status === "inspected" &&
+    longInspectScript.task?.target === "script.js" &&
+    longAnalysis.task?.status === "completed" &&
+    longCystRetrieval.task?.status === "retrieval_ready" &&
+    longCystRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    longBlockedShell.task?.status === "gated" &&
+    !longBlockedShell.task?.adapter &&
+    longGitStatus.task?.status === "completed" &&
+    longGitStatus.task?.adapter?.invoked === true &&
+    longGate.suiteStatus === "go" &&
+    longGate.task?.goNoGo?.suiteStatus === "go" &&
+    longCystEvents.filter((event) => event.eventType === "retrieval_event").length >= 2 &&
+    longCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === longInspectReadme.task?.id) &&
+    longCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === longInspectServer.task?.id) &&
+    longCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === longInspectScript.task?.id) &&
+    longCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === longSafeShell.task?.id) &&
+    longCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === longBlockedShell.task?.id) &&
+    longCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === longGate.id && event.gateStage === "completed");
+  console.log(`${longSessionAcceptancePass ? "PASS" : "FAIL"} beta: longer read-only repeatability acceptance flow`);
+  if (!longSessionAcceptancePass) {
+    failures.push({ name: "longer read-only repeatability acceptance" });
   }
 
   if (failures.length) {
