@@ -224,10 +224,17 @@ try {
   const munchPass =
     munchHealth.bridge_name === "TripCore.Munch.g" &&
     munchHealth.status === "degraded" &&
+    munchHealth.evidenceAuthority === "mock" &&
+    munchHealth.editAuthoritative === false &&
     munchRetrieve.status === "warn" &&
     munchRetrieve.capability === "code_search" &&
+    munchRetrieve.evidenceAuthority === "mock" &&
+    munchRetrieve.editAuthoritative === false &&
+    munchRetrieve.warnings?.some((warning) => warning.includes("cannot authorize edits")) &&
     munchRetrieve.fallback_chain?.includes("native-tripp-tools") &&
     munchMap.status === "warn" &&
+    munchMap.evidenceAuthority === "mock" &&
+    munchMap.editAuthoritative === false &&
     munchMap.nodes?.some((node) => node.path === "server.mjs");
   console.log(`${munchPass ? "PASS" : "FAIL"} munch: health, retrieval, and context-map stubs`);
   if (!munchPass) {
@@ -242,6 +249,9 @@ try {
   const tracePass =
     traceMap.role === "Trace.Drone" &&
     traceMap.executionAllowed === false &&
+    traceMap.evidenceAuthority === "mock" &&
+    traceMap.editAuthoritative === false &&
+    traceMap.warnings?.some((warning) => warning.includes("cannot authorize edits")) &&
     traceMap.owners?.some((owner) => owner.file === "server.mjs") &&
     traceMap.rollback_surface?.files?.includes("server.mjs") &&
     traceVerify.terminalState === traceMap.traceVerification?.terminalState;
@@ -269,8 +279,12 @@ try {
     discoveryReply.task?.routingDecision?.lane === "munch" &&
     discoveryReply.task?.lifecycle?.state === "evidence_ready" &&
     discoveryReply.task?.retrieval?.backend === "tripp-munch-mock" &&
+    discoveryReply.task?.retrieval?.evidenceAuthority === "mock" &&
+    discoveryReply.task?.retrieval?.editAuthoritative === false &&
     discoveryReply.task?.traceMap?.traceVerification?.terminalState === "TRACE_PASS_WITH_WARNINGS" &&
     discoveryReply.task?.evidenceGate?.status === "blocked" &&
+    discoveryReply.task?.evidenceGate?.evidenceAuthority === "mock" &&
+    discoveryReply.task?.evidenceGate?.missing?.includes("live edit-authoritative evidence") &&
     discoveryReply.task?.evidenceGate?.missing?.includes("confidence >= medium") &&
     editReply.task?.routingDecision?.lane === "native" &&
     editReply.task?.lifecycle?.state === "routed" &&
@@ -590,7 +604,13 @@ try {
   const cystLifecyclePass =
     cystAfterTrial.events?.some((event) => event.eventType === "trial_run" && event.descriptorId === trialRun.id) &&
     cystAfterTrial.events?.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === trialRun.task?.id) &&
-    cystAfterTrial.events?.some((event) => event.eventType === "retrieval_event" && event.descriptorId === "trial-munch-retrieval");
+    cystAfterTrial.events?.some(
+      (event) =>
+        event.eventType === "retrieval_event" &&
+        event.descriptorId === "trial-munch-retrieval" &&
+        event.evidenceAuthority === "mock" &&
+        event.editAuthoritative === false,
+    );
   console.log(`${cystLifecyclePass ? "PASS" : "FAIL"} cyst: denial, trial, retrieval, and lifecycle events persisted`);
   if (!cystLifecyclePass) {
     failures.push({ name: "cyst lifecycle events" });

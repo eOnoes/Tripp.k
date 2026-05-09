@@ -293,6 +293,8 @@ function readMunchHealth() {
     bridge_name: "TripCore.Munch.g",
     status: "degraded",
     mode: "passive_assist",
+    evidenceAuthority: "mock",
+    editAuthoritative: false,
     checked_at: checkedAt,
     backends: {
       "tripcore-jmri": {
@@ -329,7 +331,7 @@ function readMunchHealth() {
       "Real retrieval backend is not connected yet",
       "Use native Tripp.g reads until TripCore.Munch.g runtime is configured",
     ],
-    warnings: ["passive mock mode only"],
+    warnings: ["passive mock mode only", "mock evidence cannot authorize edits"],
     recommended_action: "continue_native_tripp_tools",
   };
 }
@@ -385,12 +387,17 @@ function createMunchRetrieval(payload = {}) {
   const query = String(payload.query || "").trim();
   const paths = Array.isArray(payload.paths) ? payload.paths.map(String).slice(0, 12) : [];
   const warning = query ? "real Munch backend not connected; returning contract-shaped planning response" : "query missing";
+  const mockWarning = "mock retrieval is planning-only and cannot authorize edits";
 
   return {
     id,
     status: query ? "warn" : "fail",
     backend: "tripp-munch-mock",
     capability: kind,
+    evidenceAuthority: "mock",
+    editAuthoritative: false,
+    mock: true,
+    mode: "passive_assist",
     summary: query
       ? [`Munch retrieval lane reserved for: ${query}`, "Supervisor should use native reads until real backend health is healthy"]
       : ["No retrieval query supplied"],
@@ -408,14 +415,16 @@ function createMunchRetrieval(payload = {}) {
         note: "Schema-compatible stub; no TripCore.Munch backend call was made",
       },
     ],
-    warnings: [warning],
     fallback_chain: ["tripp-munch-mock", "native-tripp-tools"],
     confidence: "low",
+    warnings: [warning, mockWarning],
     next_steps: ["Wire TripCore.Munch.g runtime", "Retry retrieval with backend health confirmed"],
     meta: {
       truncated: false,
       deduped: Boolean(payload.policy?.dedupe_key),
       elapsed_ms: 0,
+      evidenceAuthority: "mock",
+      editAuthoritative: false,
     },
   };
 }
@@ -434,6 +443,10 @@ function createMunchContextMap(payload = {}) {
     scope_paths: scopePaths,
     status: rootQuestion ? "warn" : "fail",
     backend: "tripp-munch-mock",
+    evidenceAuthority: "mock",
+    editAuthoritative: false,
+    mock: true,
+    mode: "passive_assist",
     summary: rootQuestion
       ? [`Context map requested for: ${rootQuestion}`, "Real relationship mapping awaits TripCore.Munch.g wiring"]
       : ["No root question supplied"],
@@ -455,12 +468,14 @@ function createMunchContextMap(payload = {}) {
       },
     ],
     confidence: "low",
-    warnings: ["passive mock mode only"],
+    warnings: ["passive mock mode only", "mock context map is planning-only and cannot authorize edits"],
     next_steps: ["Confirm Munch bridge health", "Run map_context through TripCore.Munch.g"],
     meta: {
       truncated: false,
       fallback_chain: ["tripp-munch-mock", "native-tripp-tools"],
       elapsed_ms: 0,
+      evidenceAuthority: "mock",
+      editAuthoritative: false,
     },
   };
 }
@@ -486,13 +501,20 @@ function createTraceDroneMap(payload = {}) {
     .slice(0, 8);
   const tests = ["scripts/verify.mjs", "scripts/verify-linked.mjs"].filter((file) => existsSync(join(root, file)));
   const confidence = owners.length ? Math.max(...owners.map((owner) => owner.confidence)) : 0.05;
-  const warnings = ["mock Trace.Drone map; real trace runtime is not wired yet"];
+  const warnings = [
+    "mock Trace.Drone map; real trace runtime is not wired yet",
+    "mock trace evidence is planning-only and cannot authorize edits",
+  ];
   const forbidden = ["node_modules/", ".git/", "dist/", "build/", "coverage/", "generated/", "vendor/"];
 
   const traceMap = {
     traceId,
     role: "Trace.Drone",
     status: "boundary_map",
+    evidenceAuthority: "mock",
+    editAuthoritative: false,
+    mock: true,
+    mode: "passive_assist",
     readOnly: true,
     executionAllowed: false,
     planningAllowed: false,
@@ -523,6 +545,8 @@ function createTraceDroneMap(payload = {}) {
     trace: {
       traceId,
       source: "trace-drone",
+      evidenceAuthority: "mock",
+      editAuthoritative: false,
     },
   };
   traceMap.traceVerification = verifyTraceDroneMap(traceMap);
@@ -2123,6 +2147,7 @@ function createEvidenceGate(task) {
 
   if (lane === "munch") {
     const terminalState = task.traceMap?.traceVerification?.terminalState;
+    const mockEvidence = task.retrieval?.editAuthoritative === false || task.traceMap?.editAuthoritative === false;
     if (terminalState) satisfied.push(`trace:${terminalState}`);
     else missing.push("trace map");
     if (terminalState === "TRACE_ESCALATE" || terminalState === "TRACE_UNRESOLVED") {
@@ -2144,17 +2169,26 @@ function createEvidenceGate(task) {
     if (task.retrieval?.evidence?.length) satisfied.push("provenance evidence");
     else missing.push("evidence provenance");
 
+    if (mockEvidence) {
+      satisfied.push("mock evidence labeled");
+      missing.push("live edit-authoritative evidence");
+    }
+
     return {
       status: missing.length ? "blocked" : "ready",
       lane,
       summary: missing.length
-        ? "Retrieval evidence is not strong enough for edits yet."
+        ? mockEvidence
+          ? "Mock retrieval can support planning only. It cannot authorize edits."
+          : "Retrieval evidence is not strong enough for edits yet."
         : "Retrieval evidence is sufficient to escalate to exact native reads.",
       satisfied,
       missing,
       next: missing.length
-        ? ["wire real Munch backend", "retry retrieval with scoped query", "read exact targets only after confidence improves"]
+        ? ["wire real Munch backend", "retry retrieval with scoped query", "keep edits blocked until evidence is live"]
         : ["read exact target files natively", "prepare guarded edit plan if requested"],
+      evidenceAuthority: mockEvidence ? "mock" : "live",
+      editAuthoritative: !mockEvidence,
     };
   }
 
@@ -2492,6 +2526,9 @@ function recordRetrievalEvent(descriptorId, traceId, retrieval = {}) {
     errorCode: retrieval.status === "fail" ? "MUNCH_MOCK_FAILED" : null,
     backend: retrieval.backend,
     confidence: retrieval.confidence,
+    evidenceAuthority: retrieval.evidenceAuthority || "mock",
+    editAuthoritative: retrieval.editAuthoritative === true,
+    mode: retrieval.mode || "passive_assist",
     warnings: retrieval.warnings || [],
     lifecycleState: "evidence_ready",
     previousLifecycleState: "routed",

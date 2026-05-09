@@ -758,11 +758,18 @@
 
   function renderRetrieval(retrieval) {
     if (!retrieval) return "";
+    const authority = retrieval.evidenceAuthority || (retrieval.mock ? "mock" : "unknown");
+    const editAuthority = retrieval.editAuthoritative === true ? "edit-authoritative" : "planning-only";
 
     return `
       <section class="retrieval-detail">
         <strong>${escapeHtml(retrieval.backend || "munch")} · ${escapeHtml(retrieval.confidence || "low")}</strong>
+        <div class="authority-strip ${escapeHtml(authority)}">
+          <span>${escapeHtml(authority.toUpperCase())}</span>
+          <b>${escapeHtml(editAuthority)}</b>
+        </div>
         <p>${escapeHtml((retrieval.summary || []).join(" "))}</p>
+        <p class="mock-note">${escapeHtml((retrieval.warnings || []).join(" "))}</p>
         <small>${escapeHtml((retrieval.fallback_chain || []).join(" -> "))}</small>
       </section>
     `;
@@ -781,6 +788,11 @@
           <span>${escapeHtml(gate.status || "blocked")}</span>
         </header>
         <p>${escapeHtml(gate.summary || "")}</p>
+        ${
+          gate.evidenceAuthority
+            ? `<div class="authority-strip ${escapeHtml(gate.evidenceAuthority)}"><span>${escapeHtml(gate.evidenceAuthority.toUpperCase())}</span><b>${escapeHtml(gate.editAuthoritative ? "edit-authoritative" : "edit blocked")}</b></div>`
+            : ""
+        }
         <div class="gate-grid">
           ${renderGateColumn("OK", satisfied, "ok")}
           ${renderGateColumn("MISS", missing, "miss")}
@@ -810,6 +822,8 @@
     const tests = traceMap.rollback_surface?.tests || traceMap.tests || [];
     const warnings = uniqueStrings([...(traceMap.warnings || []), ...(verification.warnings || [])]);
     const blockers = verification.blocking || [];
+    const authority = traceMap.evidenceAuthority || (traceMap.mock ? "mock" : "unknown");
+    const editAuthority = traceMap.editAuthoritative === true ? "edit-authoritative" : "planning-only";
     const auditorNote =
       checks.docsOnly && isTraceEditIntent(traceMap.task)
         ? "Docs-only owner surface blocks edit approval."
@@ -827,6 +841,10 @@
           <b>${escapeHtml(traceMap.confidenceLabel || "none")} · ${escapeHtml(traceMap.confidence || 0)}</b>
           <b>${escapeHtml(traceMap.rollback_surface?.scope || "unresolved")}</b>
           <b>${escapeHtml(traceMap.trace?.traceId || traceMap.traceId || "trace")}</b>
+        </div>
+        <div class="authority-strip ${escapeHtml(authority)}">
+          <span>${escapeHtml(authority.toUpperCase())}</span>
+          <b>${escapeHtml(editAuthority)}</b>
         </div>
         <dl>
           <div><dt>SRC</dt><dd>${escapeHtml(traceMap.trace?.source || "trace-drone")}</dd></div>
