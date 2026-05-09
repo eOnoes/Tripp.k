@@ -788,10 +788,20 @@ async function createReply(payload) {
   const mode = String(payload?.mode || "CHAT").toUpperCase();
   const tool = chooseTool(prompt);
   const kind = chooseTaskKind(prompt, tool);
-  const task = mode === "AUTO" ? createTask({ prompt, tool, kind, sessionId: payload?.sessionId }) : null;
+  const promptBlock = createPromptBlock(prompt);
+  const task = !promptBlock && mode === "AUTO" ? createTask({ prompt, tool, kind, sessionId: payload?.sessionId }) : null;
 
   const messages =
-    mode === "AUTO"
+    promptBlock
+      ? [
+          {
+            kind: "agent",
+            speaker: "tripp.prompt>",
+            body: "Copy-ready prompt block prepared.",
+            promptBlock,
+          },
+        ]
+      : mode === "AUTO"
       ? [
           {
             kind: "tool",
@@ -1585,6 +1595,7 @@ function mapBackendMessages(value) {
       kind: message.kind || "agent",
       speaker: message.speaker || "tripp>",
       body: mapBackendReply(message),
+      promptBlock: message.promptBlock,
       tool: message.tool,
       result: message.result,
     }));
@@ -1606,6 +1617,38 @@ function mapBackendReply(value) {
   if (value?.content) return String(value.content);
   if (value?.text) return String(value.text);
   return "Backend reply received. Event streaming mapper is the next integration step.";
+}
+
+function createPromptBlock(prompt) {
+  const lower = String(prompt || "").toLowerCase();
+  const wantsPrompt =
+    lower.includes("goose.prompt") ||
+    (lower.includes("goose") && lower.includes("prompt")) ||
+    lower.includes("copy ready prompt") ||
+    lower.includes("copy-ready prompt");
+
+  if (!wantsPrompt) return null;
+
+  return {
+    label: "Goose.Prompt",
+    body: [
+      "Goose.Prompt",
+      "",
+      "Context:",
+      "- Tripp.g is the user-facing harness shell.",
+      "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
+      "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
+      "",
+      "Task:",
+      "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
+      "- Focus on schema, routing, runtime contract, or workspace UI only if it helps the next build chunk.",
+      "",
+      "Output:",
+      "- Lead with the recommendation.",
+      "- Include any risks or missing evidence.",
+      "- End with a small next-step checklist.",
+    ].join("\n"),
+  };
 }
 
 function mapBackendTasks(value, sessionId, prompt) {

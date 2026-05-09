@@ -15,6 +15,7 @@
     inputPrompt: document.querySelector("#inputPrompt"),
     messageRoot: document.querySelector("#messageRoot"),
     feed: document.querySelector(".terminal-feed"),
+    returnChat: document.querySelector(".return-chat"),
     modeButtons: [...document.querySelectorAll(".mode")],
     railButtons: [...document.querySelectorAll(".command-rail button")],
     opsTabs: [...document.querySelectorAll(".ops-tab")],
@@ -62,6 +63,7 @@
     swarm: data.swarm || { agents: [] },
     workspace: { tree: [], selectedFile: null, file: null, loading: false, error: "" },
     busy: false,
+    followChat: true,
   };
 
   if (!state.sessions.some((session) => session.active)) {
@@ -96,6 +98,9 @@
     elements.newSession.addEventListener("click", createSession);
     elements.newSessionIcon.addEventListener("click", createSession);
     elements.workspaceRefresh.addEventListener("click", () => loadWorkspaceTree({ force: true }));
+    elements.returnChat.addEventListener("click", scrollToCurrentChat);
+    elements.feed.addEventListener("scroll", updateChatFollowState);
+    elements.messageRoot.addEventListener("click", handleMessageClick);
 
     elements.collapse.addEventListener("click", () => {
       state.opsExpanded = !state.opsExpanded;
@@ -145,6 +150,8 @@
 
   function renderMessages() {
     const session = activeSession();
+    const wasFollowing = state.followChat || isFeedNearBottom();
+    const previousBottomOffset = elements.feed.scrollHeight - elements.feed.scrollTop;
 
     if (!session.transcript.length) {
       elements.messageRoot.innerHTML = `
@@ -156,6 +163,7 @@
           <small>Type a command to begin...</small>
         </div>
       `;
+      updateReturnChatButton();
       return;
     }
 
@@ -174,10 +182,19 @@
       )
       .join("");
 
-    elements.feed.scrollTop = elements.feed.scrollHeight;
+    if (wasFollowing) {
+      scrollToCurrentChat({ silent: true });
+    } else {
+      elements.feed.scrollTop = Math.max(0, elements.feed.scrollHeight - previousBottomOffset);
+      updateReturnChatButton();
+    }
   }
 
   function renderMessageBody(message) {
+    if (message.promptBlock) {
+      return renderPromptBlock(message.promptBlock);
+    }
+
     if (message.kind === "tool") {
       return `
         <div class="tool-card">
@@ -187,7 +204,77 @@
       `;
     }
 
-    return `<p>${escapeHtml(message.body)}</p>`;
+    return renderRichText(message.body);
+  }
+
+  function renderRichText(body = "") {
+    const text = String(body || "");
+    const fencePattern = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
+    let cursor = 0;
+    let match;
+    const parts = [];
+
+    while ((match = fencePattern.exec(text))) {
+      const before = text.slice(cursor, match.index).trim();
+      if (before) parts.push(`<p>${escapeHtml(before)}</p>`);
+      parts.push(renderPromptBlock({ label: match[1] || "text", body: match[2].trim() }));
+      cursor = fencePattern.lastIndex;
+    }
+
+    const after = text.slice(cursor).trim();
+    if (after) parts.push(`<p>${escapeHtml(after)}</p>`);
+    return parts.length ? parts.join("") : `<p>${escapeHtml(text)}</p>`;
+  }
+
+  function renderPromptBlock(block) {
+    const label = typeof block === "string" ? "Prompt" : block.label || block.title || "Prompt";
+    const body = typeof block === "string" ? block : block.body || block.text || "";
+    return `
+      <div class="prompt-block">
+        <header>
+          <strong>${escapeHtml(label)}</strong>
+          <button type="button" data-copy-block title="Copy prompt block">COPY</button>
+        </header>
+        <pre>${escapeHtml(body)}</pre>
+      </div>
+    `;
+  }
+
+  async function handleMessageClick(event) {
+    const button = event.target.closest("[data-copy-block]");
+    if (!button) return;
+    const value = button.closest(".prompt-block")?.querySelector("pre")?.innerText || "";
+
+    try {
+      await navigator.clipboard.writeText(value);
+      button.textContent = "COPIED";
+      setTimeout(() => {
+        button.textContent = "COPY";
+      }, 1200);
+    } catch {
+      elements.command.value = value;
+      elements.command.focus();
+    }
+  }
+
+  function isFeedNearBottom() {
+    return elements.feed.scrollHeight - elements.feed.scrollTop - elements.feed.clientHeight < 80;
+  }
+
+  function updateChatFollowState() {
+    state.followChat = isFeedNearBottom();
+    updateReturnChatButton();
+  }
+
+  function updateReturnChatButton() {
+    elements.returnChat.classList.toggle("hidden", state.followChat || isFeedNearBottom());
+  }
+
+  function scrollToCurrentChat(options = {}) {
+    elements.feed.scrollTop = elements.feed.scrollHeight;
+    state.followChat = true;
+    if (!options.silent) elements.command.focus();
+    updateReturnChatButton();
   }
 
   function renderTools() {
@@ -584,6 +671,7 @@
 
     elements.command.value = "";
     pushMessage({ kind: "user", speaker: "you>", time: now(), body: value });
+    state.followChat = true;
     setBusy(true);
     renderMessages();
 
@@ -998,8 +1086,9 @@ async function loadStaticData() {
 function createLocalReply(payload) {
   const mode = String(payload?.mode || "CHAT").toUpperCase();
   const prompt = String(payload?.prompt || "");
+  const promptBlock = createLocalPromptBlock(prompt);
   const task =
-    mode === "AUTO"
+    !promptBlock && mode === "AUTO"
       ? {
           id: `local-task-${Date.now()}`,
           title: prompt.length > 46 ? `${prompt.slice(0, 43)}...` : prompt || "Untitled task",
@@ -1020,7 +1109,16 @@ function createLocalReply(payload) {
     },
     task,
     messages:
-      mode === "AUTO"
+      promptBlock
+        ? [
+            {
+              kind: "agent",
+              speaker: "tripp.prompt>",
+              body: "Copy-ready prompt block prepared.",
+              promptBlock,
+            },
+          ]
+        : mode === "AUTO"
         ? [
             {
               kind: "tool",
@@ -1041,6 +1139,38 @@ function createLocalReply(payload) {
               body: "Prompt received through the local fallback. The adapter path is ready for live backend wiring.",
             },
           ],
+  };
+}
+
+function createLocalPromptBlock(prompt) {
+  const lower = String(prompt || "").toLowerCase();
+  const wantsPrompt =
+    lower.includes("goose.prompt") ||
+    (lower.includes("goose") && lower.includes("prompt")) ||
+    lower.includes("copy ready prompt") ||
+    lower.includes("copy-ready prompt");
+
+  if (!wantsPrompt) return null;
+
+  return {
+    label: "Goose.Prompt",
+    body: [
+      "Goose.Prompt",
+      "",
+      "Context:",
+      "- Tripp.g is the user-facing harness shell.",
+      "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
+      "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
+      "",
+      "Task:",
+      "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
+      "- Focus on schema, routing, runtime contract, or workspace UI only if it helps the next build chunk.",
+      "",
+      "Output:",
+      "- Lead with the recommendation.",
+      "- Include any risks or missing evidence.",
+      "- End with a small next-step checklist.",
+    ].join("\n"),
   };
 }
 

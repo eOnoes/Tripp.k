@@ -70,6 +70,7 @@ async function createReply(sessionId, payload) {
   const tool = chooseTool(prompt);
   const style = chooseCodingMode(prompt);
   const agent = chooseAgent(prompt, tool);
+  const promptBlock = createPromptBlock(prompt);
 
   return {
     messages: [
@@ -82,21 +83,24 @@ async function createReply(sessionId, payload) {
       },
       {
         kind: "agent",
-        speaker: "tripp.bridge>",
-        body: bridgeMessage(prompt, mode, style, agent),
+        speaker: promptBlock ? "tripp.prompt>" : "tripp.bridge>",
+        body: promptBlock ? "Copy-ready Goose.Prompt block prepared." : bridgeMessage(prompt, mode, style, agent),
+        promptBlock,
       },
     ],
-    tasks: [
-      {
-        id: `bridge-${Date.now()}`,
-        title: summarize(prompt),
-        kind: "backend_tool",
-        tool,
-        status: "completed",
-        result: `Bridge shim accepted ${mode} prompt and routed it to ${agent}.`,
-        excerpt: `mode=${mode}\nstyle=${style}\nsession=${sessionId}\ngoosed=${goosedPath}`,
-      },
-    ],
+    tasks: promptBlock
+      ? []
+      : [
+          {
+            id: `bridge-${Date.now()}`,
+            title: summarize(prompt),
+            kind: "backend_tool",
+            tool,
+            status: "completed",
+            result: `Bridge shim accepted ${mode} prompt and routed it to ${agent}.`,
+            excerpt: `mode=${mode}\nstyle=${style}\nsession=${sessionId}\ngoosed=${goosedPath}`,
+          },
+        ],
     usage: {
       inputTokens: prompt.length,
       outputTokens: 64,
@@ -164,6 +168,38 @@ function chooseCodingMode(prompt) {
 function bridgeMessage(prompt, mode, style, agent) {
   if (!prompt) return "Tripp bridge is online and waiting for a prompt.";
   return `Bridge online. ${agent} accepted this ${mode} request in ${style} style. Goose binary is detected; direct Goose forwarding will activate when GOOSE_AGENT_URL is configured.`;
+}
+
+function createPromptBlock(prompt) {
+  const lower = String(prompt || "").toLowerCase();
+  const wantsPrompt =
+    lower.includes("goose.prompt") ||
+    (lower.includes("goose") && lower.includes("prompt")) ||
+    lower.includes("copy ready prompt") ||
+    lower.includes("copy-ready prompt");
+
+  if (!wantsPrompt) return null;
+
+  return {
+    label: "Goose.Prompt",
+    body: [
+      "Goose.Prompt",
+      "",
+      "Context:",
+      "- Tripp.g is the user-facing harness shell.",
+      "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
+      "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
+      "",
+      "Task:",
+      "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
+      "- Focus on schema, routing, runtime contract, or workspace UI only if it helps the next build chunk.",
+      "",
+      "Output:",
+      "- Lead with the recommendation.",
+      "- Include any risks or missing evidence.",
+      "- End with a small next-step checklist.",
+    ].join("\n"),
+  };
 }
 
 function summarize(prompt) {
