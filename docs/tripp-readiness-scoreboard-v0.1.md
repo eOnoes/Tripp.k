@@ -7,7 +7,7 @@ Status: working beta scoreboard. This is not a live-write approval document.
 | Milestone | Current estimate | Current state | Main blocker | Next proof | Owner |
 |---|---:|---|---|---|---|
 | Primary read-only console beta | 90-93% | Formal gate, task conclusions, Current Understanding, Cyst audit, mixed-session beta acceptance, and longer-session repeatability are in place. | Operator QA across repeated real sessions. | Repeat the longer read-only session shape and confirm no cross-surface contradiction. | Codex + Goose |
-| Replace Goose for read-only planning/review | 75% | Tripp now passes linear, multi-branch, and longer read-only planning threads with inspect, mock retrieval, follow-up inspection, safe shell, blocked shell, git status, and gate review. | Broader session variety and repeated operator review. | Prove Tripp stays coherent across repeated 8-10 task read-only sessions without Goose narration. | Goose review + Codex |
+| Replace Goose for read-only planning/review | 75% | Tripp now passes linear, multi-branch, branch-reversal, and longer read-only planning threads with inspect, mock retrieval, follow-up inspection, safe shell, blocked shell, git status, and gate review. | Broader session variety and repeated operator review. | Prove Tripp stays coherent across repeated 8-10 task read-only sessions without Goose narration. | Goose review + Codex |
 | Replace Goose for edit/build work | 35-45% | Safety doctrine and read-only gates are strong, but live mutation remains blocked. | General patchPlan, approval/apply lifecycle, stale checks, sandboxed apply, and authoritative write evidence. | Build and pass a separate live-edit gate after read-only beta is stable. | Future Tripp + Codex |
 
 ## Fastest Path to Add 10 Points
@@ -28,6 +28,7 @@ Status: working beta scoreboard. This is not a live-write approval document.
 - Primary read-only beta acceptance flow passes.
 - Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.
 - Multi-branch ambiguity acceptance now keeps backend and UI branches visible, ranks by usefulness, preserves mock uncertainty, and keeps blocked outcomes visible.
+- Branch-reversal acceptance now shows Tripp can reorient toward a more useful branch without erasing the earlier branch.
 - Longer-session repeatability acceptance now covers inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.
 - Cross-surface coherence guard passes for TASKS, Current Understanding, and Cyst gate copy.
 
@@ -39,6 +40,7 @@ Read-only planning/review readiness: approximately 75% toward replacing Goose fo
 
 - Mixed-session acceptance harness passes.
 - Multi-branch ambiguity acceptance harness passes.
+- Branch-reversal acceptance harness passes.
 - Longer-session repeatability harness passes.
 - Cross-surface coherence holds across TASKS, Current Understanding, and Cyst.
 - Mock evidence remains clearly non-authoritative and planning-only.
@@ -58,7 +60,7 @@ Pull the claim back if any of these occur:
 - Blocked outcomes disappear from session synthesis.
 - Gate GO is read as broader than read-only harness readiness.
 - Operators still need Goose to interpret ordinary mixed read-only sessions.
-- The mixed-session, multi-branch, or longer-session acceptance harness fails or becomes flaky.
+- The mixed-session, multi-branch, branch-reversal, or longer-session acceptance harness fails or becomes flaky.
 
 ### Replace Goose for edit/build work
 - Do not accelerate this yet.

@@ -262,6 +262,7 @@ try {
     appScript.includes("renderPlanningSummary") &&
     appScript.includes("buildPlanningSummary") &&
     appScript.includes("isGateBranchRetrieval") &&
+    appScript.includes("isCystRenderingBranchRetrieval") &&
     appScript.includes("Current Understanding") &&
     appScript.includes("recent read-only tasks") &&
     appScript.includes("No read-only findings yet") &&
@@ -277,8 +278,12 @@ try {
     appScript.includes("The UI branch improved presentation context, but additional review may still be needed to fully connect display behavior to gate results.") &&
     appScript.includes("Continue from the backend branch and inspect the next related source if more gate detail is needed.") &&
     appScript.includes("Planning-only retrieval suggested backend/gate and UI/result-display review paths.") &&
-    appScript.includes("This branch provides stronger direct context for the current gate question.") &&
-    appScript.includes("This branch adds result-display context, but is less central to the current gate question.") &&
+    appScript.includes("server.mjs inspection provided backend event-source context for read-only review.") &&
+    appScript.includes("Inspection of script.js provided more useful context for the current Cyst activity rendering question.") &&
+    appScript.includes("server.mjs remains useful for backend event context, but is less central to the current rendering question.") &&
+    appScript.includes("Continue from the UI rendering branch and inspect the next related source if more display detail is needed.") &&
+    appScript.includes("This file provides backend/runtime context for read-only review.") &&
+    appScript.includes("This file provides UI/result-display context for read-only review.") &&
     continuityCopyGuardPass &&
     crossSurfaceReadOnlyCoherencePass &&
     appScript.includes("Continue read-only planning and review.") &&
@@ -364,6 +369,7 @@ try {
     readinessScoreboard.includes("75% Claim Invalidation") &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
     readinessScoreboard.includes("Multi-branch ambiguity acceptance now keeps backend and UI branches visible, ranks by usefulness, preserves mock uncertainty, and keeps blocked outcomes visible.") &&
+    readinessScoreboard.includes("Branch-reversal acceptance now shows Tripp can reorient toward a more useful branch without erasing the earlier branch.") &&
     readinessScoreboard.includes("Longer-session repeatability acceptance now covers inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.") &&
     readinessScoreboard.includes("Branch ranking stays based on usefulness, not truth or verification.") &&
     readinessScoreboard.includes("Longer-session repeatability harness passes.") &&
@@ -371,11 +377,13 @@ try {
     betaRegressionHarness.includes("Read-Only Beta Regression Harness v0.1") &&
     betaRegressionHarness.includes("Operator-Independence Questions") &&
     betaRegressionHarness.includes("Multi-Branch Ambiguity Session") &&
+    betaRegressionHarness.includes("Branch Reversal Session") &&
     betaRegressionHarness.includes("Longer Repeatability Session") &&
     betaRegressionHarness.includes("TASKS, Current Understanding, and Cyst materially contradict each other") &&
     betaRegressionHarness.includes("Gate GO means read-only harness readiness only") &&
     betaRegressionHarness.includes("primary read-only beta acceptance flow") &&
     betaRegressionHarness.includes("multi-branch read-only ambiguity acceptance flow") &&
+    betaRegressionHarness.includes("branch reversal read-only acceptance flow") &&
     betaRegressionHarness.includes("longer read-only repeatability acceptance flow") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -1122,6 +1130,72 @@ try {
   console.log(`${multiBranchAcceptancePass ? "PASS" : "FAIL"} beta: multi-branch read-only ambiguity acceptance flow`);
   if (!multiBranchAcceptancePass) {
     failures.push({ name: "multi-branch read-only ambiguity acceptance" });
+  }
+
+  const reversalSessionId = "verify-readonly-branch-reversal";
+  const reversalRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files likely own Cyst activity rendering and how blocked rows are shown?",
+    mode: "AUTO",
+    sessionId: reversalSessionId,
+  });
+  const reversalBackendInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: reversalSessionId,
+  });
+  const reversalUiInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect script.js",
+    mode: "AUTO",
+    sessionId: reversalSessionId,
+  });
+  const reversalSafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: reversalSessionId,
+  });
+  const reversalBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: reversalSessionId,
+  });
+  const reversalGate = await postJson("/api/tripp/trials/read-only", {});
+  const reversalCyst = await getJson("/api/tripp/cyst/events");
+  const reversalTaskIds = [
+    reversalRetrieval.task?.id,
+    reversalBackendInspect.task?.id,
+    reversalUiInspect.task?.id,
+    reversalSafeShell.task?.id,
+    reversalBlockedShell.task?.id,
+    reversalGate.task?.id,
+  ].filter(Boolean);
+  const reversalCystEvents = reversalCyst.events?.filter((event) => reversalTaskIds.includes(event.descriptorId) || event.descriptorId === reversalGate.id) || [];
+  const branchReversalAcceptancePass =
+    reversalRetrieval.task?.status === "retrieval_ready" &&
+    reversalRetrieval.task?.retrieval?.sourceKind === "mock" &&
+    reversalRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    reversalRetrieval.task?.retrieval?.writeApprovalEligible === false &&
+    reversalBackendInspect.task?.status === "inspected" &&
+    reversalBackendInspect.task?.target === "server.mjs" &&
+    reversalBackendInspect.task?.adapter?.status === "ok" &&
+    reversalUiInspect.task?.status === "inspected" &&
+    reversalUiInspect.task?.target === "script.js" &&
+    reversalUiInspect.task?.adapter?.status === "ok" &&
+    reversalSafeShell.task?.status === "completed" &&
+    reversalSafeShell.task?.adapter?.invoked === true &&
+    reversalBlockedShell.task?.status === "gated" &&
+    !reversalBlockedShell.task?.adapter &&
+    reversalBlockedShell.task?.permission?.decision === "gated" &&
+    reversalGate.suiteStatus === "go" &&
+    reversalGate.task?.goNoGo?.suiteStatus === "go" &&
+    reversalCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === reversalRetrieval.task?.id) &&
+    reversalCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === reversalBackendInspect.task?.id) &&
+    reversalCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === reversalUiInspect.task?.id) &&
+    reversalCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === reversalSafeShell.task?.id) &&
+    reversalCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === reversalBlockedShell.task?.id) &&
+    reversalCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === reversalGate.id && event.gateStage === "completed");
+  console.log(`${branchReversalAcceptancePass ? "PASS" : "FAIL"} beta: branch reversal read-only acceptance flow`);
+  if (!branchReversalAcceptancePass) {
+    failures.push({ name: "branch reversal read-only acceptance" });
   }
 
   const longSessionId = "verify-readonly-long-session";

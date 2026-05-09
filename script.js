@@ -494,11 +494,16 @@
     const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
     const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
     const hasBranchRetrieval = recentTasks.some((task) => isGateBranchRetrieval(task));
+    const hasReversalRetrieval = recentTasks.some((task) => isCystRenderingBranchRetrieval(task));
     const hasBackendBranch = inspected.includes("server.mjs");
     const hasUiBranch = inspected.includes("script.js");
     const hasBranchReview = hasBranchRetrieval && hasBackendBranch && hasUiBranch;
+    const hasReversalReview = hasReversalRetrieval && hasBackendBranch && hasUiBranch;
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
     const known = uniqueList([
+      hasReversalReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
+      hasReversalReview ? "server.mjs inspection provided backend event-source context for read-only review." : null,
+      hasReversalReview ? "Inspection of script.js provided more useful context for the current Cyst activity rendering question." : null,
       hasBranchReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
       hasBranchReview ? "Inspection of server.mjs provided stronger direct context for the current gate question." : null,
       hasBranchReview ? "Inspection of script.js added result-display context, but was less central to the current gate question." : null,
@@ -508,6 +513,9 @@
       .filter((finding) => !/blocked|failed|non-authoritative/i.test(finding)),
     ].filter(Boolean)).slice(0, 4);
     const uncertain = [
+      hasReversalReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
+      hasReversalReview ? "server.mjs remains useful for backend event context, but is less central to the current rendering question." : null,
+      hasReversalReview ? "The current branch ranking reflects usefulness for review, not final certainty." : null,
       hasBranchReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
       hasBranchReview ? "The current branch ranking reflects usefulness for review, not final certainty." : null,
       hasBranchReview ? "The UI branch improved presentation context, but additional review may still be needed to fully connect display behavior to gate results." : null,
@@ -515,7 +523,7 @@
       inspected.length ? null : "No files have been inspected in the recent read-only thread.",
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
     ].filter(Boolean);
-    const blockedSummary = hasBranchReview && blocked
+    const blockedSummary = (hasBranchReview || hasReversalReview) && blocked
       ? ["A write-like shell or escalation path was blocked.", "No write-capable route was used."]
       : blocked
         ? `${blocked} read-only boundary preserved`
@@ -526,7 +534,9 @@
       known: known.length ? known : ["No read-only findings yet"],
       uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
       blocked: blockedSummary,
-      next: hasBranchReview
+      next: hasReversalReview
+        ? "Continue from the UI rendering branch and inspect the next related source if more display detail is needed."
+        : hasBranchReview
         ? "Continue from the backend branch and inspect the next related source if more gate detail is needed."
         : gateTask?.goNoGo?.suiteStatus === "go"
         ? "Continue read-only planning and review."
@@ -546,6 +556,15 @@
       task?.retrieval &&
       prompt.includes("read-only gate") &&
       (prompt.includes("operator") || prompt.includes("shown") || prompt.includes("results")),
+    );
+  }
+
+  function isCystRenderingBranchRetrieval(task) {
+    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
+    return Boolean(
+      task?.retrieval &&
+      prompt.includes("cyst") &&
+      (prompt.includes("activity") || prompt.includes("rendering") || prompt.includes("shown")),
     );
   }
 
@@ -620,9 +639,9 @@
   function buildInspectConclusion(task) {
     const target = task.target || "the requested file";
     const branchFinding = target === "server.mjs"
-      ? "This branch provides stronger direct context for the current gate question."
+      ? "This file provides backend/runtime context for read-only review."
       : target === "script.js"
-        ? "This branch adds result-display context, but is less central to the current gate question."
+        ? "This file provides UI/result-display context for read-only review."
         : task.excerpt
           ? "A read-only excerpt is available on this card."
           : "No file changes were made.";
