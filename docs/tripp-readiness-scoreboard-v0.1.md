@@ -7,7 +7,7 @@ Status: working beta scoreboard. This is not a live-write approval document.
 | Milestone | Current estimate | Current state | Main blocker | Next proof | Owner |
 |---|---:|---|---|---|---|
 | Primary read-only console beta | 90-93% | Formal gate, task conclusions, Current Understanding, Cyst audit, mixed-session beta acceptance, and longer-session repeatability are in place. | Operator QA across repeated real sessions. | Repeat the longer read-only session shape and confirm no cross-surface contradiction. | Codex + Goose |
-| Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review | 85% | Tripp currently supports broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes, with stable synthesis, ambiguity handling, branch rolloff, blocked-state continuity, operator-independence evidence, and scoped beta release discipline. | 90% remains a future gate; an everyday mixed-session family, long-session stress, partial-evidence quality, and operator-independence coverage must expand before any further score change. | Prove the broadened scenario pack includes an everyday mixed-session family, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, and continued release/copy discipline. | Goose review + Codex |
+| Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review | 90% | Tripp.g now supports broader everyday read-only planning/review workflows across an expanded acceptance and red-team pack, including ambiguity handling, contradiction recovery, branch rolloff, long-session stress, evidence provenance discipline, blocked-state continuity, pack-level operator-independence evidence, and scoped release/readiness language within the current beta harness scope. | Keep every 90% lane gate-enforced; any regression in adversarial pack, provenance, traceability, cross-surface coherence, long-session stability, or scope wording invalidates the claim. | Repeat the broadened pack and adversarial pack across real sessions while preserving internal scoped gate-based wording. | Goose review + Codex |
 | Replace Goose for edit/build work | 35-45% | Edit/build replacement remains a separate milestone. Current write lifecycle work is design-only, with no runtime mutation path, no approval/apply runtime behavior, and no live write capability enabled. | General patchPlan, approval/apply lifecycle, stale checks, sandboxed apply, and authoritative write evidence. | Build and pass a separate live-edit gate only after read-only beta is stable. | Future Tripp + Codex |
 
 ## Fastest Path to Add 10 Points
@@ -35,18 +35,21 @@ Status: working beta scoreboard. This is not a live-write approval document.
 - Longer-session repeatability acceptance now covers inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.
 - Operator-independence artifact now proves the beta harness can answer inspected, learned, uncertain, blocked, and next-direction questions without normal UI clutter.
 - Cross-surface coherence guard passes for TASKS, Current Understanding, and Cyst gate copy.
+- Everyday mixed-session acceptance now broadens the pack beyond proof-shaped branch scenarios.
+- Long-session stress now proves compact reconstructability across 10 read-only tasks.
+- Evidence provenance discipline now distinguishes direct inspection, mock retrieval, safe-shell observation, blocked outcome, read-only gate, and synthesis.
+- Contract-to-runtime traceability now links contract rules to runtime paths, verifier coverage, and UI reflection.
+- Minimum adversarial pack now blocks or corrects policy/config laundering, mock-to-direct blending, shell write escape, Gate GO overread, and session authority laundering.
 
 ## Read-Only Goose Replacement Statement
 
-Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review: 85%.
+Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review: 90%.
 
-85% reflects internal, scoped readiness for read-only planning/review within Tripp.g's current acceptance gates. It is not external validation, not broad Goose parity, and not evidence of edit/build or write-capable readiness.
+90% reflects internal, scoped readiness for read-only planning/review within Tripp.g's current acceptance and red-team gates. It is not external validation, not broad Goose parity, and not evidence of edit/build or write-capable readiness.
 
-Tripp.g currently supports broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes, with stable synthesis, ambiguity handling, branch rolloff, blocked-state continuity, operator-independence evidence, and scoped beta release discipline.
+Tripp.g now supports broader everyday read-only planning/review workflows across an expanded acceptance and red-team pack, including ambiguity handling, contradiction recovery, branch rolloff, long-session stress, evidence provenance discipline, blocked-state continuity, pack-level operator-independence evidence, and scoped release/readiness language within the current beta harness scope.
 
-90% remains a future gate. It requires a broadened scenario pack that includes an everyday mixed-session family, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, evidence provenance discipline, a compact contract-to-runtime trace matrix, anti-recommendation-laundering guardrails, a minimum adversarial pack, and continued release/copy discipline.
-
-This readiness estimate remains limited to read-only planning/review and does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity.
+This readiness estimate remains internal, scoped, and gate-based. It applies only to read-only planning/review and does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity.
 
 ## Capability Statement
 
@@ -54,7 +57,7 @@ Current scoped read-only planning/review can inspect repo-local files, use plann
 
 Current scoped read-only planning/review cannot edit files, apply patches, approve changes, run live write workflows, validate implementation readiness, authorize policy/config mutation, claim broad Goose parity, or serve as external validation of safety or correctness.
 
-## Evidence Required To Keep The 85% Claim
+## Evidence Required To Keep The 90% Claim
 
 - Mixed-session acceptance harness passes.
 - Multi-branch ambiguity acceptance harness passes.
@@ -66,6 +69,11 @@ Current scoped read-only planning/review cannot edit files, apply patches, appro
 - Partial-evidence synthesis harness passes.
 - Operator-independence artifact passes.
 - Operator-independence pack artifact passes.
+- Broadened everyday mixed-session family remains required.
+- Long-session stress remains required in the pack.
+- Evidence provenance tags remain active in synthesis and verifier discipline.
+- Compact contract-to-runtime trace matrix remains accurate.
+- Minimum adversarial pack passes and fails the gate on breach.
 - Cross-surface coherence holds across TASKS, Current Understanding, and Cyst.
 - Mock evidence remains clearly non-authoritative and planning-only.
 - Branch ranking stays based on usefulness, not truth or verification.
@@ -74,7 +82,7 @@ Current scoped read-only planning/review cannot edit files, apply patches, appro
 - Gate GO means read-only harness readiness only.
 - Copy guardrails prevent edit, apply, approval, commit, write, verified-target, or implementation-readiness language.
 
-## 85% Claim Invalidation
+## 90% Claim Invalidation
 
 Pull the claim back if any of these occur:
 
@@ -84,7 +92,9 @@ Pull the claim back if any of these occur:
 - Blocked outcomes disappear from session synthesis.
 - Gate GO is read as broader than read-only harness readiness.
 - Operators still need Goose to interpret ordinary mixed read-only sessions.
-- The mixed-session, multi-branch, branch-reversal, contradiction-recovery, Warden-vs-adapter, longer-session, or operator-independence harness fails or becomes flaky.
+- The mixed-session, multi-branch, branch-reversal, contradiction-recovery, Warden-vs-adapter, longer-session, provenance, traceability, adversarial, or operator-independence harness fails or becomes flaky.
+- Any adversarial attack starts laundering assumptions, policy/config guidance, score scope, or write-like shell workarounds.
+- Contract-to-runtime/verifier/UI linkage becomes stale enough that trust cannot be traced.
 
 ### Replace Goose for edit/build work
 - Keep this as a separate milestone.

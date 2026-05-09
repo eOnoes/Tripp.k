@@ -1,6 +1,6 @@
 # Read-Only 90 Percent Gate v0.1
 
-Status: future readiness gate. This document does not change the current scoped 85% read-only planning/review readiness estimate.
+Status: enforced readiness gate for the internal scoped 90% read-only planning/review claim.
 
 ## Scope
 

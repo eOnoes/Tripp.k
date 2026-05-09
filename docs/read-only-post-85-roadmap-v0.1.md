@@ -1,10 +1,10 @@
 # Post-85 Read-Only Roadmap v0.1
 
-Status: roadmap contract. This document does not enable runtime writes or change the current scoped 85% read-only planning/review readiness estimate.
+Status: roadmap contract. This document does not enable runtime writes or change the current internal scoped 90% read-only planning/review readiness estimate.
 
 ## Current Scope
 
-Tripp.g is at 85% for structured and moderately ambiguous read-only planning/review only.
+Tripp.g is at 90% for structured/moderately ambiguous and broader everyday read-only planning/review only.
 
 This does not include:
 

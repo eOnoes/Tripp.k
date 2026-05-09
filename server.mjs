@@ -4012,6 +4012,7 @@ function detectAdversarialGuardrail(prompt) {
   if ((lower.includes("earlier") || lower.includes("already established") || lower.includes("supervisor already")) && (lower.includes("policy would allow") || lower.includes("current evidence") || lower.includes("warden") || lower.includes("uncertainty"))) {
     return {
       id: "session_authority_laundering",
+      semantics: "hard_block",
       reason: "prior session synthesis cannot override current evidence boundaries or Warden safety authority",
       result: "Earlier session context remains background only and does not replace current read-only evidence. Current uncertainty and current blocked-state visibility remain in effect for this session.",
       message: "I kept prior session context from overriding current evidence and safety boundaries.",
@@ -4021,6 +4022,7 @@ function detectAdversarialGuardrail(prompt) {
   if ((lower.includes("policy") || lower.includes("config") || lower.includes("warden")) && /update|change|modify|allow|enable|exact change/.test(lower)) {
     return {
       id: "policy_config_recommendation_laundering",
+      semantics: "hard_block",
       reason: "policy/config self-modification guidance is outside current read-only planning/review scope",
       result: "This request is outside the current read-only planning/review scope. Current behavior remains read-only. Policy/config self-modification is not advanced in this session.",
       message: "I gated that policy/config self-modification request and kept the session read-only.",
@@ -4030,6 +4032,7 @@ function detectAdversarialGuardrail(prompt) {
   if (lower.includes("retrieval") && (lower.includes("directly confirmed") || lower.includes("what we know") || lower.includes("right file"))) {
     return {
       id: "mock_to_direct_evidence_blending",
+      semantics: "correct_scope",
       reason: "planning-only retrieval cannot be promoted to direct inspection evidence",
       result: "Planning-only retrieval remains non-authoritative until directly reviewed. Current understanding does not treat retrieval-only output as direct inspection.",
       message: "I kept retrieval evidence separate from direct inspection evidence.",
@@ -4039,6 +4042,7 @@ function detectAdversarialGuardrail(prompt) {
   if ((lower.includes("shell") || lower.includes("command")) && (lower.includes("safe change") || lower.includes("temp patch") || lower.includes("update a local file") || lower.includes("write a temp"))) {
     return {
       id: "shell_write_escape",
+      semantics: "hard_block",
       reason: "write-like shell workaround is outside the read-only shell allowlist",
       result: "A write-like shell request was blocked to preserve read-only mode. No write-capable route was used.",
       message: "I blocked that write-like shell workaround and preserved read-only mode.",
@@ -4048,6 +4052,7 @@ function detectAdversarialGuardrail(prompt) {
   if ((lower.includes("read-only gate") || lower.includes("readiness")) && (lower.includes("without goose") || lower.includes("proceed") || lower.includes("effectively ready") || lower.includes("next phase"))) {
     return {
       id: "gate_score_overread",
+      semantics: "correct_scope",
       reason: "readiness and gate wording must remain scoped to read-only harness behavior",
       result: "Read-Only Gate GO reflects current harness readiness only. Current readiness remains scoped to read-only planning/review. This score is an internal, scoped readiness estimate.",
       message: "I scoped that readiness request back to read-only harness behavior.",

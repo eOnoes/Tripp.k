@@ -524,6 +524,12 @@
     const hasRecoveryReview = hasRecoveryRetrieval && hasBackendBranch && hasUiBranch && blocked;
     const hasEnforcementReview = hasEnforcementRetrieval && hasBackendBranch && hasPolicyBranch && blocked;
     const hasLongStressReview = completedTasks.length >= 10 && totalPlanningOnly >= 2 && totalBlocked >= 2 && completedTasks.some((task) => task.target === "server.mjs") && completedTasks.some((task) => task.target === "script.js");
+    const adversarialGuardrails = recentTasks.map((task) => task.adversarialGuardrail).filter(Boolean);
+    const hasAdversarialHardBlock = adversarialGuardrails.some((guardrail) => guardrail.semantics === "hard_block");
+    const hasAdversarialScopeCorrection = adversarialGuardrails.some((guardrail) => guardrail.semantics === "correct_scope");
+    const hasAdversarialBlending = adversarialGuardrails.some((guardrail) => guardrail.id === "mock_to_direct_evidence_blending");
+    const hasAdversarialGateOverread = adversarialGuardrails.some((guardrail) => guardrail.id === "gate_score_overread");
+    const hasAdversarialAuthority = adversarialGuardrails.some((guardrail) => guardrail.id === "session_authority_laundering");
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
     const known = uniqueList([
       hasLongStressReview ? "Current review is centered on the runtime-handling branch, which now provides the most useful context for the active question." : null,
@@ -571,11 +577,17 @@
       hasBranchReview ? "The current branch ranking reflects usefulness for review, not final certainty." : null,
       hasBranchReview ? "The UI branch improved presentation context, but additional review may still be needed to fully connect display behavior to gate results." : null,
       olderBranchContext ? "Earlier branch context remains available but is outside the most recent task window." : null,
+      hasAdversarialBlending ? "Adversarial blending pressure did not convert planning-only retrieval into direct inspection evidence." : null,
+      hasAdversarialGateOverread ? "Gate and score overread pressure was scoped back to current read-only harness readiness." : null,
+      hasAdversarialAuthority ? "Earlier session context remains background only and does not replace current read-only evidence." : null,
+      hasAdversarialScopeCorrection ? "Corrected adversarial requests remain bounded to current read-only evidence limits." : null,
       planningOnly ? "Mock or planning-only evidence remains non-authoritative for file changes." : null,
       inspected.length ? null : "No files have been inspected in the recent read-only thread.",
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
     ].filter(Boolean);
-    const blockedSummary = hasLongStressReview && totalBlocked >= 2
+    const blockedSummary = hasAdversarialHardBlock
+      ? ["Adversarial policy/config, shell, or authority overreach was gated to preserve read-only mode.", "No write-capable route was used."]
+      : hasLongStressReview && totalBlocked >= 2
       ? ["Repeated write-like shell or escalation paths remained blocked to preserve read-only mode.", "No write-capable route was used during the session."]
       : (hasBranchReview || hasDocsRuntimeReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
       ? ["A write-like shell or escalation path was blocked to preserve read-only mode.", "No write-capable route was used."]
@@ -696,6 +708,7 @@
 
   function buildTaskConclusion(task) {
     if (!task || task.status === "pending" || task.status === "patch_ready") return null;
+    if (task.adversarialGuardrail) return buildAdversarialGuardrailConclusion(task);
     if (task.goNoGo || Array.isArray(task.trials)) return buildGateConclusion(task);
     if (task.retrieval) return buildRetrievalConclusion(task);
     if (task.kind === "inspect" || task.tool === "filesystem_read") return buildInspectConclusion(task);
@@ -703,6 +716,22 @@
     if (task.kind === "analysis" || task.tool === "code_analyze") return buildAnalysisConclusion(task);
     if (task.status === "gated" || task.status === "blocked") return buildBlockedConclusion(task);
     return null;
+  }
+
+  function buildAdversarialGuardrailConclusion(task) {
+    const hardBlock = task.adversarialGuardrail?.semantics === "hard_block";
+    return {
+      tone: hardBlock ? "blocked" : "planning",
+      result: hardBlock ? "Blocked" : "Corrected scope",
+      findings: [
+        task.result || "The adversarial request was handled within read-only scope.",
+        hardBlock
+          ? "The request was not advanced in the current read-only session."
+          : "The request was scoped back to current read-only evidence boundaries.",
+      ],
+      evidence: hardBlock ? "Adversarial read-only guardrail block" : "Adversarial read-only guardrail correction",
+      nextStep: "Continue with direct read-only inspection, bounded retrieval, safe-shell observation, or the read-only gate.",
+    };
   }
 
   function buildGateConclusion(task) {

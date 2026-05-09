@@ -1,6 +1,6 @@
 # Read-Only Evidence Provenance v0.1
 
-Status: required hardening lane before any future 90% readiness claim. This document does not change the current scoped 85% read-only planning/review readiness estimate.
+Status: required hardening lane for the internal scoped 90% read-only planning/review claim.
 
 ## Purpose
 

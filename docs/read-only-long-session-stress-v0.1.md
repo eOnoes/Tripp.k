@@ -1,6 +1,6 @@
 # Read-Only Long-Session Stress v0.1
 
-Status: 90% evidence candidate. This document does not change the current scoped 85% read-only planning/review readiness estimate.
+Status: required evidence lane for the internal scoped 90% read-only planning/review claim.
 
 ## Purpose
 

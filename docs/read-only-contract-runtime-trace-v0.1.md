@@ -1,6 +1,6 @@
 # Read-Only Contract Runtime Trace v0.1
 
-Status: lightweight traceability matrix required before any future 90% readiness claim. This document does not change the current scoped 85% read-only planning/review readiness estimate.
+Status: lightweight traceability matrix required for the internal scoped 90% read-only planning/review claim.
 
 ## Purpose
 

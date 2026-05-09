@@ -1,6 +1,6 @@
 # Read-Only Everyday Mixed Session v0.1
 
-Status: future 90% breadth proof. This document does not change the current scoped 85% read-only planning/review readiness estimate.
+Status: required 90% breadth proof for the internal scoped read-only planning/review claim.
 
 ## Purpose
 

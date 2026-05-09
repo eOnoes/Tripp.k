@@ -1,6 +1,6 @@
 # Kimi Swarm Comparison Integration v0.1
 
-Status: architecture comparison note. This document does not change runtime behavior or the current scoped 85% read-only planning/review readiness estimate.
+Status: architecture comparison note. This document does not change runtime behavior or the current internal scoped 90% read-only planning/review readiness estimate.
 
 ## Summary
 
