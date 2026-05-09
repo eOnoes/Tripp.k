@@ -290,6 +290,13 @@ try {
     appScript.includes("Inspection of server.mjs provided useful runtime implementation context for read-only review.") &&
     appScript.includes("The initial docs/config and runtime branch suggestions came from planning-only retrieval and remain non-authoritative.") &&
     appScript.includes("Current findings compare usefulness for read-only review, not final ownership or final implementation control.") &&
+    appScript.includes("Current review is centered on the runtime-handling branch, which now provides the most useful context for the active question.") &&
+    appScript.includes("Earlier UI/result-display inspection remains relevant as background context.") &&
+    appScript.includes("Some earlier and newly suggested paths have not been reviewed directly in the current session.") &&
+    appScript.includes("The current summary reflects the most useful reviewed context so far, but remains incomplete.") &&
+    appScript.includes("Repeated write-like shell or escalation paths remained blocked to preserve read-only mode.") &&
+    appScript.includes("No write-capable route was used during the session.") &&
+    appScript.includes("Inspect the next related runtime source to reduce the remaining uncertainty.") &&
     appScript.includes("Planning-only retrieval suggested additional paths that remain non-authoritative.") &&
     appScript.includes("Only part of the current question has been inspected directly.") &&
     appScript.includes("Current findings are useful for read-only review but remain incomplete.") &&
@@ -568,11 +575,18 @@ try {
     readOnly90Gate.includes("does not change the current scoped 85% read-only planning/review readiness estimate") &&
     readOnly90Gate.includes("Structured, moderately ambiguous, and broader everyday read-only planning/review workflows only.") &&
     readOnly90Gate.includes("more than three scenario families") &&
+    readOnly90Gate.includes("at least four distinct read-only scenario families") &&
     readOnly90Gate.includes("at least one broader everyday mixed session without a tightly curated branch question") &&
     readOnly90Gate.includes("at least one 8 to 12+ task read-only session") &&
     readOnly90Gate.includes("multiple blocked outcomes") &&
     readOnly90Gate.includes("pack-level artifact includes the long-session stress flow") &&
+    readOnly90Gate.includes("long-session stress is a required scenario in the broadened pack") &&
+    readOnly90Gate.includes("long-session scenario includes continuity reconstruction and branch-shift checks") &&
     readOnly90Gate.includes("Cyst remains audit/timeline truth only") &&
+    readOnly90Gate.includes("ninety_percent_requires_minimum_four_distinct_readonly_scenario_families") &&
+    readOnly90Gate.includes("ninety_percent_requires_ten_task_or_longer_stress_scenario") &&
+    readOnly90Gate.includes("ninety_percent_requires_broadened_operator_independence_pack_artifact") &&
+    readOnly90Gate.includes("long_session_stress_is_included_in_required_pack_scenarios_for_ninety_percent") &&
     readOnly90Gate.includes("ninety_percent_gate_requires_long_session_stress_pass") &&
     readOnly90Gate.includes("ninety_percent_claim_is_invalidated_by_scope_or_cross_surface_regression") &&
     longSessionStressDoc.includes("Read-Only Long-Session Stress v0.1") &&
@@ -2040,9 +2054,25 @@ try {
         },
         summary: "Longer branch-rolloff session preserved useful context and blocked read-only limits.",
       },
+      {
+        scenarioId: "long_session_stress",
+        acceptancePassed: longSessionStressPass,
+        extraChecks: {
+          continuityReconstructed: longSessionStressPass,
+          branchShiftUnderstood: longSessionStressPass,
+        },
+        tasks: {
+          inspected: [stressInspectBranchA.task, stressInspectBranchB.task, stressFollowupInspect.task, stressOlderRelatedInspect.task],
+          learned: [stressInspectBranchA.task, stressInspectBranchB.task, stressSafeShell.task],
+          uncertain: [stressRetrieval.task, stressRefinementRetrieval.task],
+          blocked: [stressBlockedShellOne.task, stressBlockedShellTwo.task],
+          nextDirection: [stressGate.task],
+        },
+        summary: "The longer read-only session remained understandable within the current beta harness scope.",
+      },
     ],
   });
-  const requiredOperatorPackScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff"];
+  const requiredOperatorPackScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "long_session_stress"];
   const operatorPackScenarioIds = operatorPackArtifact.scenarioResults.map((scenario) => scenario.scenarioId);
   const operatorPackPass =
     operatorPackArtifact.artifactType === "operator_independence_pack_check" &&
@@ -2051,12 +2081,14 @@ try {
     operatorPackArtifact.overallStatus === "pass" &&
     JSON.stringify(operatorPackArtifact.requiredScenarioIds) === JSON.stringify(requiredOperatorPackScenarioIds) &&
     JSON.stringify(operatorPackArtifact.presentScenarioIds) === JSON.stringify(requiredOperatorPackScenarioIds) &&
-    operatorPackArtifact.scenarioResults.length === 3 &&
+    operatorPackArtifact.scenarioResults.length === 4 &&
     requiredOperatorPackScenarioIds.every((scenarioId) => operatorPackScenarioIds.includes(scenarioId)) &&
     new Set(operatorPackScenarioIds).size === operatorPackScenarioIds.length &&
     operatorPackArtifact.scenarioResults.every((scenario) => operatorPackArtifact.requiredScenarioIds.includes(scenario.scenarioId)) &&
     operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === "pass") &&
     operatorPackArtifact.scenarioResults.every((scenario) => Object.values(scenario.checks).every((status) => status === "pass")) &&
+    operatorPackArtifact.scenarioResults.find((scenario) => scenario.scenarioId === "long_session_stress")?.checks?.continuityReconstructed === "pass" &&
+    operatorPackArtifact.scenarioResults.find((scenario) => scenario.scenarioId === "long_session_stress")?.checks?.branchShiftUnderstood === "pass" &&
     operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === (Object.values(scenario.checks).every((status) => status === "pass") ? "pass" : "fail")) &&
     operatorPackArtifact.overallStatus === (operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === "pass") ? "pass" : "fail") &&
     operatorPackArtifact.packSummary === "Required read-only scenario families remained understandable without sidecar interpretation." &&
@@ -2155,7 +2187,7 @@ function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acce
 }
 
 function createOperatorIndependencePackArtifact({ packId, scenarios }) {
-  const requiredScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff"];
+  const requiredScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "long_session_stress"];
   const scenarioResults = scenarios.map((scenario) => {
     const hasInspected = scenario.tasks.inspected?.every((task) => task?.status === "inspected");
     const hasLearned = scenario.tasks.learned?.every((task) => ["completed", "inspected"].includes(task?.status));
@@ -2169,6 +2201,9 @@ function createOperatorIndependencePackArtifact({ packId, scenarios }) {
       blocked: hasBlocked ? "pass" : "fail",
       nextDirection: hasNextDirection ? "pass" : "fail",
       understandableWithoutSidecar: scenario.acceptancePassed ? "pass" : "fail",
+      ...(scenario.extraChecks
+        ? Object.fromEntries(Object.entries(scenario.extraChecks).map(([key, value]) => [key, value ? "pass" : "fail"]))
+        : {}),
     };
     const status = Object.values(checks).every((value) => value === "pass") ? "pass" : "fail";
     return {

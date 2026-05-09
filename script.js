@@ -503,6 +503,8 @@
         isEnforcementBranchRetrieval(task),
     );
     const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
+    const totalPlanningOnly = completedTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
+    const totalBlocked = completedTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
     const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
     const hasBranchRetrieval = recentTasks.some((task) => isGateBranchRetrieval(task));
     const hasDocsRuntimeRetrieval = recentTasks.some((task) => isDocsRuntimeBranchRetrieval(task));
@@ -518,8 +520,11 @@
     const hasReversalReview = hasReversalRetrieval && hasBackendBranch && hasUiBranch;
     const hasRecoveryReview = hasRecoveryRetrieval && hasBackendBranch && hasUiBranch && blocked;
     const hasEnforcementReview = hasEnforcementRetrieval && hasBackendBranch && hasPolicyBranch && blocked;
+    const hasLongStressReview = completedTasks.length >= 10 && totalPlanningOnly >= 2 && totalBlocked >= 2 && completedTasks.some((task) => task.target === "server.mjs") && completedTasks.some((task) => task.target === "script.js");
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
     const known = uniqueList([
+      hasLongStressReview ? "Current review is centered on the runtime-handling branch, which now provides the most useful context for the active question." : null,
+      hasLongStressReview ? "Earlier UI/result-display inspection remains relevant as background context." : null,
       hasEnforcementReview ? "Planning-only retrieval suggested policy-denial and adapter-route handling as plausible review paths." : null,
       hasEnforcementReview ? "Inspection of the policy branch provided useful context for read-only denial behavior." : null,
       hasEnforcementReview ? "Inspection of the adapter branch provided useful context for how blocked routes are handled in the current harness." : null,
@@ -542,6 +547,9 @@
       .filter((finding) => !/blocked|failed|non-authoritative/i.test(finding)),
     ].filter(Boolean)).slice(0, 4);
     const uncertain = [
+      hasLongStressReview ? "Planning-only retrieval suggested additional paths that remain non-authoritative." : null,
+      hasLongStressReview ? "Some earlier and newly suggested paths have not been reviewed directly in the current session." : null,
+      hasLongStressReview ? "The current summary reflects the most useful reviewed context so far, but remains incomplete." : null,
       hasEnforcementReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
       hasEnforcementReview ? "The current branch ranking reflects usefulness for the blocked-behavior question, not final enforcement certainty." : null,
       hasEnforcementReview ? "Both policy and adapter behavior may contribute, even if one branch is currently more useful for review." : null,
@@ -564,7 +572,9 @@
       inspected.length ? null : "No files have been inspected in the recent read-only thread.",
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
     ].filter(Boolean);
-    const blockedSummary = (hasBranchReview || hasDocsRuntimeReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
+    const blockedSummary = hasLongStressReview && totalBlocked >= 2
+      ? ["Repeated write-like shell or escalation paths remained blocked to preserve read-only mode.", "No write-capable route was used during the session."]
+      : (hasBranchReview || hasDocsRuntimeReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
       ? ["A write-like shell or escalation path was blocked to preserve read-only mode.", "No write-capable route was used."]
       : blocked
         ? `${blocked} read-only boundary preserved`
@@ -577,7 +587,9 @@
       known: known.length ? known : ["No read-only findings yet"],
       uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
       blocked: blockedSummary,
-      next: hasDocsRuntimeReview
+      next: hasLongStressReview
+        ? "Inspect the next related runtime source to reduce the remaining uncertainty."
+        : hasDocsRuntimeReview
         ? "Continue from the currently more useful docs/config or runtime branch and inspect the next related source if more clarification is needed."
         : hasDocsRuntimePartialReview
         ? "Inspect the next related source to clarify the remaining uncertainty."

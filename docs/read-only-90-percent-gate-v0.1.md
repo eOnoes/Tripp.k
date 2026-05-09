@@ -20,6 +20,7 @@ Still out of scope:
 All of these must pass:
 
 1. Broader read-only session variety
+   - at least four distinct read-only scenario families
    - more than three scenario families
    - docs/config vs runtime
    - Warden vs adapter/tool-route
@@ -43,6 +44,8 @@ All of these must pass:
 
 4. Operator-independence breadth
    - pack-level artifact includes the long-session stress flow
+   - long-session stress is a required scenario in the broadened pack
+   - long-session scenario includes continuity reconstruction and branch-shift checks
    - no required scenario family is omitted
    - no pack pass when any scenario or required check fails
 
@@ -58,6 +61,8 @@ All of these must pass:
 Do not move to 90% if:
 
 - broader everyday session shapes still need Goose interpretation
+- fewer than four distinct read-only scenario families are covered
+- long-session stress is absent or only lightly tested
 - long-session stress causes Current Understanding to become cluttered or vague
 - partial-evidence synthesis becomes too strong or too weak
 - blocked outcomes disappear in longer sessions
@@ -79,8 +84,12 @@ A 90% claim should be invalidated if:
 ## Candidate Tests
 
 - `ninety_percent_gate_requires_broader_session_variety_pack`
+- `ninety_percent_requires_minimum_four_distinct_readonly_scenario_families`
 - `ninety_percent_gate_requires_long_session_stress_pass`
+- `ninety_percent_requires_ten_task_or_longer_stress_scenario`
+- `ninety_percent_requires_broadened_operator_independence_pack_artifact`
 - `ninety_percent_gate_requires_deeper_partial_evidence_synthesis_quality`
+- `long_session_stress_is_included_in_required_pack_scenarios_for_ninety_percent`
 - `ninety_percent_gate_requires_pack_level_operator_independence_across_all_required_scenarios`
 - `ninety_percent_gate_requires_release_and_copy_scope_discipline`
 - `ninety_percent_claim_is_invalidated_by_scope_or_cross_surface_regression`
