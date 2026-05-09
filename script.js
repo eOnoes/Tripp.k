@@ -884,7 +884,7 @@
                   <dl>
                     <div><dt>WARDEN</dt><dd>${escapeHtml(trial.wardenState || "none")}</dd></div>
                     <div><dt>ROUTE</dt><dd>${escapeHtml(trial.route || "none")}</dd></div>
-                    <div><dt>ADAPTER</dt><dd>${escapeHtml(trial.adapterStatus || "none")} · ${escapeHtml(trial.adapterInvoked ? "invoked" : "not invoked")}</dd></div>
+                    <div><dt>ADAPTER</dt><dd>${escapeHtml(trial.adapterStatus || "none")} · ${escapeHtml(formatTrialAdapterInvoked(trial.adapterInvoked))}</dd></div>
                     <div><dt>CYST</dt><dd>${escapeHtml(trial.cystEvent || "none")}</dd></div>
                   </dl>
                   <p>${escapeHtml((trial.evidence || []).join(" / ") || "no evidence")}</p>
@@ -895,6 +895,15 @@
         </div>
       </section>
     `;
+  }
+
+  function formatTrialAdapterInvoked(value) {
+    if (value && typeof value === "object") {
+      return Object.entries(value)
+        .map(([key, invoked]) => `${key}:${invoked ? "invoked" : "not invoked"}`)
+        .join(" / ");
+    }
+    return value ? "invoked" : "not invoked";
   }
 
   function renderGoNoGoSummary(goNoGo) {

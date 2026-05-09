@@ -204,6 +204,7 @@ try {
     appScript.includes("group-single") &&
     appScript.includes("event.taskId || event.traceId || event.descriptorId") &&
     appScript.includes("renderGoNoGoSummary") &&
+    appScript.includes("formatTrialAdapterInvoked") &&
     appScript.includes("goNoGo.decision") &&
     appScript.includes("write_escalation_blocked") &&
     appScript.includes("WRITE BLOCKED") &&
@@ -253,7 +254,10 @@ try {
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
     serverSource.includes("createReadOnlyGoNoGo") &&
-    serverSource.includes("expectedAdapterInvoked");
+    serverSource.includes("expectedAdapterInvoked") &&
+    serverSource.includes("normalizeReadOnlyScenarioResult") &&
+    serverSource.includes("scenarioResults") &&
+    serverSource.includes("readonly-trial-matrix-v0.1");
   console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
   if (!workspacePass) {
     failures.push({ name: "workspace" });
@@ -691,19 +695,39 @@ try {
   const tasksAfterTrial = await getJson("/api/tripp/tasks");
   const trialPass =
     trialRun.status === "pass" &&
+    trialRun.matrixVersion === "readonly-trial-matrix-v0.1" &&
+    trialRun.goCriteriaVersion === "readonly-go-criteria-v0.1" &&
+    trialRun.suiteStatus === "go" &&
     trialRun.goNoGo?.decision === "go" &&
+    trialRun.goNoGo?.goCriteriaVersion === "readonly-go-criteria-v0.1" &&
     trialRun.goNoGo?.categories?.length === 5 &&
     trialRun.goNoGo?.categories?.every((category) => category.pass === true) &&
-    trialRun.trials?.length === 5 &&
+    trialRun.trials?.length === 6 &&
     trialRun.trials?.every((trial) => trial.pass === true) &&
     trialRun.trials?.every((trial) => Array.isArray(trial.expectedCystEvents) && trial.expectedFinalState) &&
+    trialRun.scenarioResults?.length === 6 &&
+    trialRun.scenarioResults?.every(
+      (scenario) =>
+        scenario.scenarioId &&
+        scenario.status === "pass" &&
+        scenario.expected?.wardenResult &&
+        scenario.actual?.wardenResult &&
+        Array.isArray(scenario.expected?.cystEventTypes) &&
+        Array.isArray(scenario.actual?.cystEventTypes) &&
+        scenario.expected?.finalLifecycleState &&
+        scenario.actual?.finalLifecycleState &&
+        scenario.uiEvidenceLabel,
+    ) &&
+    ["readonly_retrieval_allowed", "readonly_inspect_allowed", "readonly_safe_shell_allowed", "readonly_unsafe_shell_blocked", "mock_retrieval_write_escalation_blocked"].every(
+      (scenarioId) => trialRun.scenarioResults?.some((scenario) => scenario.scenarioId === scenarioId),
+    ) &&
     trialRun.trials?.some((trial) => trial.id === "trial-blocked-shell" && trial.evidence?.includes("GIT_WRITE_BLOCKED")) &&
-    trialRun.trials?.some(
-      (trial) =>
-        trial.id === "trial-munch-retrieval" &&
-        trial.mockAuthority === "planning-only" &&
-        trial.writeApprovalEligible === false &&
-        trial.applyEligible === false,
+    trialRun.scenarioResults?.some(
+      (scenario) =>
+        scenario.scenarioId === "mock_retrieval_write_escalation_blocked" &&
+        scenario.expected?.adapterInvoked?.write === false &&
+        scenario.actual?.adapterInvoked?.write === false &&
+        scenario.actual?.cystEventTypes?.includes("write_escalation_blocked"),
     ) &&
     tasksAfterTrial.tasks?.some(
       (task) => task.id === trialRun.task?.id && task.status === "completed" && task.goNoGo?.decision === "go",
