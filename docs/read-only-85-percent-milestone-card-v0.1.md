@@ -2,9 +2,13 @@
 
 Status: future milestone card. This does not change the current 80% read-only Goose replacement estimate.
 
+This milestone defines a future gate beyond the current 80% readiness level.
+
 ## Scope
 
 Structured and moderately ambiguous read-only planning/review only.
+
+This milestone does not include edit/build replacement, live writes, approval/apply runtime behavior, or broad Goose parity.
 
 ## Required Proofs
 
@@ -52,6 +56,9 @@ Structured and moderately ambiguous read-only planning/review only.
 ## Verifier Checks
 
 - `eighty_five_percent_requires_full_session_variety_pack_pass`
+- `eighty_five_percent_card_is_future_gate_not_current_state`
+- `eighty_five_percent_card_includes_scope_statement`
+- `eighty_five_percent_card_includes_blockers_and_invalidation_conditions`
 - `eighty_five_percent_requires_partial_evidence_synthesis_quality_pass`
 - `eighty_five_percent_requires_branch_rolloff_visibility_and_compression_pass`
 - `eighty_five_percent_requires_operator_independence_artifact_across_pack`

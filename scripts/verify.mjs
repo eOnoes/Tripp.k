@@ -399,6 +399,12 @@ try {
     readinessScoreboard.includes("80%") &&
     readinessScoreboard.includes("35-45%") &&
     readinessScoreboard.includes("Read-only planning/review readiness: approximately 80% toward replacing Goose for structured and moderately ambiguous workflows.") &&
+    readinessScoreboard.includes("85% is not yet reached.") &&
+    readinessScoreboard.includes("it remains a future gate requiring stable broader proof and Goose review") &&
+    readinessScoreboard.includes("Session variety pack harness passes.") &&
+    readinessScoreboard.includes("Partial-evidence synthesis harness passes.") &&
+    readinessScoreboard.includes("Operator-independence pack artifact passes.") &&
+    readinessScoreboard.includes("does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity") &&
     readinessScoreboard.includes("Evidence Required To Keep The 80% Claim") &&
     readinessScoreboard.includes("80% Claim Invalidation") &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
@@ -520,7 +526,9 @@ try {
     partialEvidenceSynthesis.includes("partial_evidence_copy_does_not_overclaim") &&
     readOnly85MilestoneCard.includes("85% Read-Only Planning/Review Readiness Milestone Card v0.1") &&
     readOnly85MilestoneCard.includes("This does not change the current 80% read-only Goose replacement estimate") &&
+    readOnly85MilestoneCard.includes("This milestone defines a future gate beyond the current 80% readiness level.") &&
     readOnly85MilestoneCard.includes("Structured and moderately ambiguous read-only planning/review only.") &&
+    readOnly85MilestoneCard.includes("This milestone does not include edit/build replacement, live writes, approval/apply runtime behavior, or broad Goose parity.") &&
     readOnly85MilestoneCard.includes("Session variety pack passes across at least three distinct read-only scenario families.") &&
     readOnly85MilestoneCard.includes("Partial-evidence synthesis remains useful without overclaiming.") &&
     readOnly85MilestoneCard.includes("Branch rolloff preserves relevant older context while keeping current direction primary.") &&
@@ -530,6 +538,9 @@ try {
     readOnly85MilestoneCard.includes("approval/apply runtime behavior") &&
     readOnly85MilestoneCard.includes("broad Goose parity") &&
     readOnly85MilestoneCard.includes("eighty_five_percent_requires_full_session_variety_pack_pass") &&
+    readOnly85MilestoneCard.includes("eighty_five_percent_card_is_future_gate_not_current_state") &&
+    readOnly85MilestoneCard.includes("eighty_five_percent_card_includes_scope_statement") &&
+    readOnly85MilestoneCard.includes("eighty_five_percent_card_includes_blockers_and_invalidation_conditions") &&
     readOnly85MilestoneCard.includes("eighty_five_percent_requires_operator_independence_artifact_across_pack") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -595,6 +606,8 @@ try {
     readOnly85Gate.includes("single_branch_partial_evidence_stays_useful_but_incomplete") &&
     readOnly85Gate.includes("what_we_know_uses_only_directly_inspected_context_under_partial_evidence") &&
     readOnly85Gate.includes("operator_independence_pack_artifact_requires_all_scenario_families") &&
+    readOnly85Gate.includes("operator_pack_artifact_contains_required_scenario_ids_and_results") &&
+    readOnly85Gate.includes("operator_pack_artifact_overall_status_matches_scenario_level_results") &&
     readOnly85Gate.includes("operator_independence_pack_artifact_fails_if_any_required_scenario_fails") &&
     readOnly85Gate.includes("eighty_five_percent_requires_operator_independence_artifact_across_pack") &&
     readOnly85Gate.includes("Beta release discipline") &&
@@ -1879,7 +1892,7 @@ try {
         summary: "Policy and adapter session was understandable without final enforcement ownership claims.",
       },
       {
-        scenarioId: "longer_branch_rolloff",
+        scenarioId: "longer_session_branch_rolloff",
         acceptancePassed: branchRolloffAcceptancePass,
         tasks: {
           inspected: [rolloffInspectReadme.task, rolloffInspectServer.task, rolloffInspectScript.task],
@@ -1892,17 +1905,21 @@ try {
       },
     ],
   });
+  const requiredOperatorPackScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff"];
   const operatorPackScenarioIds = operatorPackArtifact.scenarioResults.map((scenario) => scenario.scenarioId);
   const operatorPackPass =
     operatorPackArtifact.artifactType === "operator_independence_pack_check" &&
     operatorPackArtifact.mode === "read_only_beta_harness" &&
     operatorPackArtifact.packId === "readonly_85_variety_pack" &&
     operatorPackArtifact.overallStatus === "pass" &&
+    JSON.stringify(operatorPackArtifact.requiredScenarioIds) === JSON.stringify(requiredOperatorPackScenarioIds) &&
+    JSON.stringify(operatorPackArtifact.presentScenarioIds) === JSON.stringify(requiredOperatorPackScenarioIds) &&
     operatorPackArtifact.scenarioResults.length === 3 &&
-    ["docs_config_vs_runtime", "warden_vs_adapter", "longer_branch_rolloff"].every((scenarioId) => operatorPackScenarioIds.includes(scenarioId)) &&
+    requiredOperatorPackScenarioIds.every((scenarioId) => operatorPackScenarioIds.includes(scenarioId)) &&
+    new Set(operatorPackScenarioIds).size === operatorPackScenarioIds.length &&
     operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === "pass") &&
     operatorPackArtifact.scenarioResults.every((scenario) => Object.values(scenario.checks).every((status) => status === "pass")) &&
-    operatorPackArtifact.packSummary === "Session variety pack was understandable without sidecar interpretation in read-only beta harness." &&
+    operatorPackArtifact.packSummary === "Required read-only scenario families remained understandable without sidecar interpretation." &&
     !/certified|validated replacement|goose no longer needed|independent reasoning confirmed|replacement certified/i.test(operatorPackArtifact.packSummary) &&
     !appScript.includes("operator_independence_pack_check") &&
     !appHtml.includes("operator_independence_pack_check");
@@ -1998,6 +2015,7 @@ function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acce
 }
 
 function createOperatorIndependencePackArtifact({ packId, scenarios }) {
+  const requiredScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff"];
   const scenarioResults = scenarios.map((scenario) => {
     const hasInspected = scenario.tasks.inspected?.every((task) => task?.status === "inspected");
     const hasLearned = scenario.tasks.learned?.every((task) => ["completed", "inspected"].includes(task?.status));
@@ -2026,8 +2044,10 @@ function createOperatorIndependencePackArtifact({ packId, scenarios }) {
     mode: "read_only_beta_harness",
     packId,
     overallStatus,
+    requiredScenarioIds,
+    presentScenarioIds: scenarioResults.map((scenario) => scenario.scenarioId),
     scenarioResults,
-    packSummary: "Session variety pack was understandable without sidecar interpretation in read-only beta harness.",
+    packSummary: "Required read-only scenario families remained understandable without sidecar interpretation.",
   };
 }
 

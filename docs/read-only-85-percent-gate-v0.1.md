@@ -69,6 +69,8 @@ Do not move to 85% if:
 - `single_branch_partial_evidence_stays_useful_but_incomplete`
 - `what_we_know_uses_only_directly_inspected_context_under_partial_evidence`
 - `operator_independence_pack_artifact_requires_all_scenario_families`
+- `operator_pack_artifact_contains_required_scenario_ids_and_results`
+- `operator_pack_artifact_overall_status_matches_scenario_level_results`
 - `operator_independence_pack_artifact_fails_if_any_required_scenario_fails`
 - `eighty_five_percent_requires_operator_independence_artifact_across_pack`
 - `beta_release_notes_remain_scoped_to_readonly_planning_review`
