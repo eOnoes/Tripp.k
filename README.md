@@ -26,6 +26,18 @@ node .\scripts\verify.mjs
 
 The verifier uses an isolated temporary runtime directory so test tasks and sessions do not appear in the local app.
 
+Run the linked Tripp bridge verifier:
+
+```powershell
+node .\scripts\verify-linked.mjs
+```
+
+Start the app linked to the local Tripp bridge:
+
+```powershell
+.\scripts\start-linked.ps1
+```
+
 ## Design Direction
 
 - Match the Tripp terminal shell first: lime header, glyph rail, terminal surface, right ops panel, and bottom command/status bars.
@@ -59,6 +71,8 @@ The verifier uses an isolated temporary runtime directory so test tasks and sess
   - `TRIPP_ENABLE_BACKEND_REPLY=true`
   - `TRIPP_BACKEND_HEALTH_PATH`, default `/health`
   - `TRIPP_RUNTIME_DIR` for overriding the local task/session store directory
+  - `GOOSED_PATH` for the packaged Goose daemon path used by `tripp-bridge.mjs`
+  - `GOOSE_AGENT_URL` for forwarding bridge replies to a live Goose agent endpoint
 - Agent role/soul/operator doctrine lives under `agents/`.
 - The machine-readable swarm manifest lives at `agents/tripp-swarm-manifest.json`.
 
@@ -85,3 +99,7 @@ Reply responses can return a simple `message`, `content`, or `text`, or a `messa
 Backend `messages` with `{ kind: "tool", tool, result }` and explicit `tasks` arrays are normalized into right-panel task cards with `origin: "backend"`.
 Tasks also receive a first-pass `agentId` from the local swarm router, so the UI can show which Tripp role owns the lane.
 Task cards include a compact swarm trace showing Tripp intent intake, supervisor delegation, and assigned agent ownership.
+
+## Local Tripp Bridge
+
+`tripp-bridge.mjs` is the local adapter shim between Tripp.g and Goose. It exposes the Tripp backend bridge contract now, reports the packaged `goosed.exe` path/version, and can forward to a live Goose agent when `GOOSE_AGENT_URL` is configured.
