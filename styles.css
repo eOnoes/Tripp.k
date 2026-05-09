@@ -1794,6 +1794,29 @@ button {
   font-style: normal;
 }
 
+.cyst-evidence-meta {
+  margin: 4px 0 0;
+  padding: 4px 5px;
+  border: 1px solid #343400;
+  background: #070a00;
+}
+
+.cyst-evidence-meta b,
+.cyst-evidence-meta span {
+  display: block;
+}
+
+.cyst-evidence-meta b {
+  color: var(--lime);
+  font-size: 8px;
+}
+
+.cyst-evidence-meta span {
+  margin-top: 2px;
+  color: #c9d870;
+  font-size: 9px;
+}
+
 .statusbar {
   display: grid;
   grid-template-columns: 1fr auto 1fr;

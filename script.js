@@ -623,6 +623,7 @@
                   <div>
                     <strong>${escapeHtml(event.eventType || "event")}</strong>
                     <small>${escapeHtml(cystCompact(event))}</small>
+                    ${renderCystEvidenceMeta(event)}
                     <em>${escapeHtml(event.cysToken || event.traceId || "no token")}</em>
                   </div>
                 </li>
@@ -653,9 +654,37 @@
   }
 
   function cystCompact(event) {
+    if (event.eventType === "retrieval_event") {
+      return [
+        event.sourceKind || event.evidenceAuthority || "evidence",
+        event.authorityLevel || "authority unknown",
+        event.decision || event.resultStatus || "recorded",
+        formatCystTime(event.timestamp),
+      ]
+        .filter(Boolean)
+        .join(" - ");
+    }
+
     return [event.tool || event.adapter || event.descriptorId || "control-plane", event.resultStatus || event.errorCode || "recorded", formatCystTime(event.timestamp)]
       .filter(Boolean)
       .join(" - ");
+  }
+
+  function renderCystEvidenceMeta(event) {
+    if (event.eventType !== "retrieval_event") return "";
+    const flags = [
+      event.degraded ? "DEGRADED" : null,
+      event.writeApprovalEligible === false ? "WRITE BLOCKED" : "WRITE ELIGIBLE",
+      event.applyEligible === false ? "APPLY BLOCKED" : "APPLY ELIGIBLE",
+    ].filter(Boolean);
+    const reason = event.reason || event.operatorWarning || "Retrieval audit event.";
+
+    return `
+      <p class="cyst-evidence-meta">
+        <b>${escapeHtml(flags.join(" / "))}</b>
+        <span>${escapeHtml(reason)}</span>
+      </p>
+    `;
   }
 
   function displayCystSummary() {

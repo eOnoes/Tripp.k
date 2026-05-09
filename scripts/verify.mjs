@@ -190,6 +190,9 @@ try {
     appHtml.includes("reviewChanges") &&
     appHtml.includes("settingsForm") &&
     appScript.includes("renderCystActivity") &&
+    appScript.includes("renderCystEvidenceMeta") &&
+    appScript.includes("WRITE BLOCKED") &&
+    appScript.includes("APPLY BLOCKED") &&
     appScript.includes("renderReviewChanges") &&
     appScript.includes("saveCompactSettings") &&
     appScript.includes("/api/tripp/cyst/events");
