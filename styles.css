@@ -615,6 +615,42 @@ button {
   white-space: pre-wrap;
 }
 
+.task-trace {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line-soft);
+}
+
+.task-trace li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.task-trace li:last-child {
+  border-bottom: 0;
+}
+
+.task-trace strong {
+  color: var(--lime);
+  font-size: 10px;
+}
+
+.task-trace span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.task-trace small {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .task button {
   height: 24px;
   background: #111111;

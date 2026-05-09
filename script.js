@@ -221,6 +221,7 @@
                     </dl>
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
+                    ${renderTrace(task.trace)}
                     ${task.permission?.reason ? `<pre>${escapeHtml(task.permission.reason)}</pre>` : ""}
                     ${task.patch ? `<pre>${escapeHtml(task.patch)}</pre>` : ""}
                   </section>`
@@ -314,6 +315,26 @@
     elements.footerMetrics.innerHTML = `TOKENS: ${escapeHtml(totalTokens())}&nbsp;&nbsp; ${escapeHtml(
       state.status.latency,
     )}&nbsp;&nbsp; ${escapeHtml(state.status.version)}`;
+  }
+
+  function renderTrace(trace) {
+    if (!Array.isArray(trace) || !trace.length) return "";
+
+    return `
+      <ol class="task-trace">
+        ${trace
+          .map(
+            (event) => `
+              <li>
+                <strong>${escapeHtml(event.actor || "tripp.supervisor")}</strong>
+                <span>${escapeHtml(event.event || "trace")}</span>
+                <small>${escapeHtml(event.detail || "")}</small>
+              </li>
+            `,
+          )
+          .join("")}
+      </ol>
+    `;
   }
 
   function setMode(mode) {

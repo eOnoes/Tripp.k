@@ -115,7 +115,9 @@ try {
   const routePass =
     routePreview.route?.agentId === "tripp.drone.three" &&
     routedReply.task?.agentId === "tripp.drone.three" &&
-    routedReply.task?.permission?.decision === "allow";
+    routedReply.task?.permission?.decision === "allow" &&
+    routedReply.task?.trace?.some((event) => event.actor === "tripp.supervisor") &&
+    routedReply.trace?.some((event) => event.actor === "tripp.drone.three");
   console.log(`${routePass ? "PASS" : "FAIL"} swarm: supervisor route preview and task assignment`);
   if (!routePass) {
     failures.push({ name: "swarm route" });

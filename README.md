@@ -83,3 +83,4 @@ Reply requests send `{ "message": "...", "mode": "CHAT|AUTO", "sessionId": "..."
 Reply responses can return a simple `message`, `content`, or `text`, or a `messages` array with `{ kind, speaker, body }` entries. Optional usage can be returned as `{ usage: { inputTokens, outputTokens } }`.
 Backend `messages` with `{ kind: "tool", tool, result }` and explicit `tasks` arrays are normalized into right-panel task cards with `origin: "backend"`.
 Tasks also receive a first-pass `agentId` from the local swarm router, so the UI can show which Tripp role owns the lane.
+Task cards include a compact swarm trace showing Tripp intent intake, supervisor delegation, and assigned agent ownership.

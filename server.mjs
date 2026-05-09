@@ -340,6 +340,7 @@ async function createReply(payload) {
       tokensOut: mode === "AUTO" ? 74 : 42,
     },
     task,
+    trace: task?.trace || [],
     messages,
     session,
   };
@@ -347,6 +348,7 @@ async function createReply(payload) {
 
 function createTask({ prompt, tool, kind, sessionId }) {
   const target = detectTargetFile(prompt) || detectKnownEditTarget(prompt, kind);
+  const routeInfo = routePrompt(prompt, tool, kind);
   const task = {
     id: `task-${Date.now()}`,
     title: summarizeTask(prompt),
@@ -356,7 +358,8 @@ function createTask({ prompt, tool, kind, sessionId }) {
     target: target?.relative || null,
     sessionId: sessionId || null,
     status: initialTaskStatus(kind, tool),
-    agentId: routePrompt(prompt, tool, kind).agentId,
+    agentId: routeInfo.agentId,
+    trace: createSwarmTrace(routeInfo, tool),
     createdAt: new Date().toISOString(),
   };
 
@@ -888,6 +891,7 @@ function mapBackendTasks(value, sessionId, prompt) {
 
 function normalizeBackendTask(value, index, sessionId, prompt) {
   const tool = value.tool || value.name || "backend_event";
+  const routeInfo = routePrompt(prompt, tool, value.kind || "backend");
   return {
     id: value.id || `backend-task-${Date.now()}-${index}`,
     title: value.title || value.summary || tool || summarizeTask(prompt),
@@ -900,10 +904,31 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
     result: value.result || value.body || value.message || value.content || "Backend event completed.",
     excerpt: value.excerpt || value.output || null,
     origin: "backend",
-    agentId: routePrompt(prompt, tool, value.kind || "backend").agentId,
+    agentId: routeInfo.agentId,
+    trace: createSwarmTrace(routeInfo, tool),
     codingMode: chooseCodingMode(prompt, value.kind || "backend", tool),
     createdAt: new Date().toISOString(),
   };
+}
+
+function createSwarmTrace(routeInfo, tool) {
+  return [
+    {
+      actor: "tripp",
+      event: "intent_received",
+      detail: "User intent accepted by the Tripp face.",
+    },
+    {
+      actor: "tripp.supervisor",
+      event: "delegated",
+      detail: `${routeInfo.reason}; tool lane ${tool || "none"}.`,
+    },
+    {
+      actor: routeInfo.agentId,
+      event: "assigned",
+      detail: `${routeInfo.label} owns ${routeInfo.toolSet}.`,
+    },
+  ];
 }
 
 function routePrompt(prompt, tool = "", kind = "") {
