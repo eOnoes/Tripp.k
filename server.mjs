@@ -12,12 +12,14 @@ const swarmManifestFile = join(root, "agents", "tripp-swarm-manifest.json");
 const runtimeDir = resolve(process.env.TRIPP_RUNTIME_DIR || join(root, ".tripp-runtime"));
 const taskStoreFile = join(runtimeDir, "tasks.json");
 const sessionStoreFile = join(runtimeDir, "sessions.json");
+const cystStoreFile = join(runtimeDir, "cyst-events.json");
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
 const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
 const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
 const backendHealthPath = process.env.TRIPP_BACKEND_HEALTH_PATH || "/health";
 const taskQueue = loadTaskQueue();
 const sessionStore = loadSessionStore();
+const cystEventStore = loadCystEventStore();
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -82,6 +84,16 @@ async function handleTrippApi(request, response, url) {
   if (request.method === "POST" && url.pathname === "/api/tripp/executor/goose-adapter") {
     const payload = await readJson(request);
     sendJson(response, gooseAdapterCall(payload?.route || {}, payload?.descriptor || payload));
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/tripp/cyst/events") {
+    sendJson(response, { events: cystEventStore.events });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/trials/read-only") {
+    sendJson(response, runReadOnlyHarnessTrials());
     return;
   }
 
@@ -225,6 +237,7 @@ function readHealth() {
     stores: {
       tasks: taskQueue.length,
       sessions: sessionStore.sessions.length,
+      cystEvents: cystEventStore.events.length,
       agents: readSwarmManifest().agents.length,
       directory: ".tripp-runtime",
     },
@@ -663,6 +676,158 @@ function readTaskLifecycleContract() {
   };
 }
 
+function runReadOnlyHarnessTrials() {
+  const startedAt = new Date().toISOString();
+  const trials = [
+    runWardenPromptBlockTrial(),
+    runAdapterReadTrial("trial-readme-read", "Developer.read", { tool: "read", path: "README.md" }),
+    runAdapterReadTrial("trial-safe-shell", "Developer.shell", { tool: "shell", command: "node --version" }),
+    runAdapterReadTrial("trial-blocked-shell", "Developer.shell", { tool: "shell", command: "git push origin main" }),
+    runMunchRetrievalTrial(),
+  ];
+  const passed = trials.every((trial) => trial.pass);
+  const task = createTrialTask(trials, passed, startedAt);
+  taskQueue.unshift(task);
+  saveTaskQueue();
+  return {
+    id: `trial-run-${Date.now()}`,
+    status: passed ? "pass" : "fail",
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    summary: passed
+      ? "Read-only harness trials passed. Warden, Router, Adapter, Cyst, and UI task projection are wired for trial mode."
+      : "Read-only harness trials found a blocking issue.",
+    trials,
+    task,
+  };
+}
+
+function runWardenPromptBlockTrial() {
+  const descriptor = {
+    id: "trial-prompt-block-deny",
+    type: "prompt_block",
+    intent: "handoff",
+    target: "tool",
+    constraints: [],
+    budget: { maxTokens: 500 },
+    allowedTools: [],
+    trace: { traceId: "trial-prompt-block-deny", source: "supervisor", ownerId: "tripp.supervisor" },
+    body: "---pb:v1---\nGoose.Prompt",
+    pinnedWorkspaceRoot: root,
+    contextSnapshotId: "trial-context",
+  };
+  const warden = wardenPrecheck(descriptor);
+  return {
+    id: "trial-prompt-block-deny",
+    title: "Prompt block denied before execution",
+    pass: warden.decision === "deny" && warden.terminalState === "DENIED_BEFORE_MUNCH",
+    expected: "WARDEN_DENIED and no adapter invocation",
+    wardenState: warden.terminalState,
+    route: null,
+    adapterStatus: "not_invoked",
+    cystEvent: null,
+    uiProjection: "TASKS card shows denied prompt-block leakage as non-executable context.",
+    evidence: warden.denialReasons,
+  };
+}
+
+function runAdapterReadTrial(id, tool, args) {
+  const descriptor = createTrialDescriptor(id, tool, args);
+  const warden = wardenPrecheck(descriptor);
+  const route = { id: `route-${id}`, destination: "goose.adapter", tool };
+  descriptor.trace.wardenDecision = warden.terminalState;
+  const adapter = warden.allowed ? gooseAdapterCall(route, descriptor) : null;
+  const expectBlocked = id.includes("blocked");
+  const pass =
+    warden.terminalState === "WARDEN_PASS" &&
+    adapter?.invoked === !expectBlocked &&
+    (expectBlocked ? adapter?.status === "blocked" : adapter?.status === "ok") &&
+    Boolean(adapter?.cystEvent?.eventType);
+  return {
+    id,
+    title: expectBlocked ? "Destructive shell blocked by adapter" : `${tool} read-only adapter call`,
+    pass,
+    expected: expectBlocked ? "WARDEN_PASS then adapter block without invocation" : "WARDEN_PASS then adapter ok with Cyst event",
+    wardenState: warden.terminalState,
+    route: route.destination,
+    adapterStatus: adapter?.status || "not_invoked",
+    adapterInvoked: adapter?.invoked || false,
+    cystEvent: adapter?.cystEvent?.cysToken || adapter?.trace?.cysToken || null,
+    uiProjection: "TASKS card can show adapter status, route, tool, and Cyst token.",
+    evidence: adapter?.error?.code ? [adapter.error.code] : [adapter?.result?.shaped?.summary].filter(Boolean),
+  };
+}
+
+function runMunchRetrievalTrial() {
+  const route = routePrompt("where is Warden policy documented", "");
+  const retrieval = createMunchRetrieval({
+    id: "trial-munch-retrieval",
+    kind: "doc_search",
+    workspace: root,
+    paths: ["contracts/policies/warden-policy-v0.3.md"],
+    query: "where is Warden policy documented",
+    intent: { task_type: "doc", reason: "read-only retrieval trial" },
+    policy: { retrieval_mode: "retrieval_first", max_results: 4, include_evidence: true },
+  });
+  const pass = route.agentId === "tripp.supervisor" && retrieval.status === "warn" && retrieval.results?.length > 0;
+  return {
+    id: "trial-munch-retrieval",
+    title: "Munch mock retrieval lane resolves without adapter invocation",
+    pass,
+    expected: "Router selects retrieval support and Munch mock returns evidence",
+    wardenState: "not_required_retrieval_only",
+    route: "munch.mock",
+    adapterStatus: "not_invoked",
+    adapterInvoked: false,
+    cystEvent: null,
+    uiProjection: "Workspace can show backend, fallback chain, confidence, warnings, and narrowed files.",
+    evidence: [retrieval.backend, retrieval.confidence, ...(retrieval.warnings || [])],
+  };
+}
+
+function createTrialDescriptor(id, targetTool, args) {
+  return {
+    id,
+    type: "task_descriptor",
+    intent: "inspect",
+    target: "tool",
+    targetTool,
+    constraints: { allowedPaths: ["README.md", "server.mjs", "scripts"] },
+    budget: { maxTokens: 500 },
+    allowedTools: ["Developer.read", "Developer.tree", "Developer.shell"],
+    trace: {
+      traceId: id,
+      source: "supervisor",
+      ownerId: "tripp.supervisor",
+      munch: { decision: "allow", budgetDecision: "allow" },
+    },
+    args,
+  };
+}
+
+function createTrialTask(trials, passed, startedAt) {
+  const task = {
+    id: `task-trials-${Date.now()}`,
+    title: "Read-only harness trials",
+    prompt: "Run read-only harness trial plan v0.1",
+    kind: "trial",
+    tool: "harness_trial",
+    target: null,
+    sessionId: null,
+    status: passed ? "completed" : "failed",
+    agentId: "tripp.inspector",
+    result: passed ? "All read-only harness trials passed." : "One or more read-only harness trials failed.",
+    trials,
+    permission: permissionDecision("harness_trial", "allow", "read-only trial runner; no mutation tools enabled"),
+    lifecycle: createTaskLifecycle("proposed", "tripp.supervisor", "read-only trial task created", null),
+    createdAt: startedAt,
+  };
+  task.lifecycle.events[0].taskId = task.id;
+  advanceTaskLifecycle(task, "routed", "tripp.supervisor", "trial routed to read-only harness lane");
+  advanceTaskLifecycle(task, passed ? "completed" : "failed", "tripp.inspector", passed ? "trial evidence passed" : "trial evidence failed");
+  return task;
+}
+
 function gooseAdapterCall(route = {}, descriptor = {}) {
   const started = Date.now();
   const tool = normalizeGooseTool(descriptor.args?.tool || route.tool || descriptor.targetTool || descriptor.tool || "");
@@ -1012,6 +1177,9 @@ function redactPathValue(key, value, log, path) {
 }
 
 function createAdapterResult({ status, tool, invoked, result = null, error = null, traceId, argsRedacted, redactionLog, cystEvent, elapsedMs }) {
+  const cysToken = cystEvent.descriptorId && cystEvent.traceId && cystEvent.ownerId ? `cyst_${cystEvent.traceId}` : null;
+  const persistedCystEvent = { ...cystEvent, cysToken };
+  recordCystEvent(persistedCystEvent);
   return {
     status,
     tool,
@@ -1025,11 +1193,11 @@ function createAdapterResult({ status, tool, invoked, result = null, error = nul
       argsRedacted,
       resultStatus: status,
       elapsedMs,
-      timestamp: cystEvent.timestamp,
-      cysToken: cystEvent.descriptorId && cystEvent.traceId && cystEvent.ownerId ? `cyst_${cystEvent.traceId}` : null,
+      timestamp: persistedCystEvent.timestamp,
+      cysToken,
     },
     redactionLog,
-    cystEvent,
+    cystEvent: persistedCystEvent,
   };
 }
 
@@ -1891,6 +2059,16 @@ function loadSessionStore() {
   }
 }
 
+function loadCystEventStore() {
+  try {
+    if (!existsSync(cystStoreFile)) return { events: [] };
+    const parsed = JSON.parse(readFileSync(cystStoreFile, "utf8"));
+    return { events: Array.isArray(parsed.events) ? parsed.events : [] };
+  } catch {
+    return { events: [] };
+  }
+}
+
 function saveTaskQueue() {
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(taskStoreFile, `${JSON.stringify({ tasks: taskQueue.slice(0, 50) }, null, 2)}\n`, "utf8");
@@ -1899,6 +2077,17 @@ function saveTaskQueue() {
 function saveSessionStore() {
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(sessionStoreFile, `${JSON.stringify({ sessions: sessionStore.sessions.slice(0, 50) }, null, 2)}\n`, "utf8");
+}
+
+function saveCystEventStore() {
+  mkdirSync(runtimeDir, { recursive: true });
+  writeFileSync(cystStoreFile, `${JSON.stringify({ events: cystEventStore.events.slice(0, 100) }, null, 2)}\n`, "utf8");
+}
+
+function recordCystEvent(event) {
+  if (!event?.descriptorId || !event?.traceId || !event?.ownerId) return;
+  cystEventStore.events.unshift(event);
+  saveCystEventStore();
 }
 
 function ensureSessionStore(bootstrap) {

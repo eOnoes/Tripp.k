@@ -450,6 +450,28 @@ try {
     failures.push({ name: "goose adapter" });
   }
 
+  const cystSnapshot = await getJson("/api/tripp/cyst/events");
+  const cystPass =
+    cystSnapshot.events?.some((event) => event.descriptorId === "verify-adapter" && event.resultStatus === "ok") &&
+    cystSnapshot.events?.some((event) => event.descriptorId === "verify-adapter" && event.errorCode === "GIT_WRITE_BLOCKED");
+  console.log(`${cystPass ? "PASS" : "FAIL"} cyst: adapter events persisted`);
+  if (!cystPass) {
+    failures.push({ name: "cyst events" });
+  }
+
+  const trialRun = await postJson("/api/tripp/trials/read-only", {});
+  const tasksAfterTrial = await getJson("/api/tripp/tasks");
+  const trialPass =
+    trialRun.status === "pass" &&
+    trialRun.trials?.length === 5 &&
+    trialRun.trials?.every((trial) => trial.pass === true) &&
+    trialRun.trials?.some((trial) => trial.id === "trial-blocked-shell" && trial.evidence?.includes("GIT_WRITE_BLOCKED")) &&
+    tasksAfterTrial.tasks?.some((task) => task.id === trialRun.task?.id && task.status === "completed");
+  console.log(`${trialPass ? "PASS" : "FAIL"} trials: read-only harness suite`);
+  if (!trialPass) {
+    failures.push({ name: "read-only trials" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }
