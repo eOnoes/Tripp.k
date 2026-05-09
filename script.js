@@ -32,6 +32,7 @@
     toolCount: document.querySelector("#toolCount"),
     taskRoot: document.querySelector("#taskRoot"),
     taskCount: document.querySelector("#taskCount"),
+    planningSummary: document.querySelector("#planningSummary"),
     runTrials: document.querySelector(".run-trials"),
     workspaceRoot: document.querySelector("#workspaceRoot"),
     filePreview: document.querySelector("#filePreview"),
@@ -353,6 +354,7 @@
 
   function renderTasks() {
     elements.taskCount.textContent = `(${state.tasks.length})`;
+    elements.planningSummary.innerHTML = renderPlanningSummary();
 
     if (!state.tasks.length) {
       elements.taskRoot.innerHTML = `<div class="empty-tasks">No supervised tasks.</div>`;
@@ -440,6 +442,70 @@
       elements.taskRoot.scrollTop = 0;
       state.snapTasksToTop = false;
     }
+  }
+
+  function renderPlanningSummary() {
+    const summary = buildPlanningSummary();
+    const rows = [
+      ["INSPECTED", summary.inspected],
+      ["LEARNED", summary.learned],
+      ["BLOCKED", summary.blocked],
+      ["NEXT", summary.next],
+    ];
+
+    return `
+      <section class="read-only-summary">
+        <header>
+          <strong>Current Understanding</strong>
+          <span>${escapeHtml(summary.countLabel)}</span>
+        </header>
+        <dl>
+          ${rows
+            .map(
+              ([label, value]) => `
+                <div>
+                  <dt>${escapeHtml(label)}</dt>
+                  <dd>${escapeHtml(value)}</dd>
+                </div>
+              `,
+            )
+            .join("")}
+        </dl>
+      </section>
+    `;
+  }
+
+  function buildPlanningSummary() {
+    const recentTasks = state.tasks.filter((task) => task.status !== "pending" && task.status !== "patch_ready").slice(0, 5);
+    const inspected = uniqueList(
+      recentTasks
+        .filter((task) => task.kind === "inspect" || task.tool === "filesystem_read")
+        .map((task) => task.target)
+        .filter(Boolean),
+    );
+    const blocked = recentTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
+    const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
+    const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
+    const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
+    const learned = conclusions
+      .flatMap((conclusion) => conclusion.findings || [])
+      .find((finding) => !/blocked|failed/i.test(finding));
+
+    return {
+      countLabel: recentTasks.length ? `${recentTasks.length} recent read-only tasks` : "No read-only tasks yet",
+      inspected: inspected.length ? inspected.slice(0, 3).join(" / ") : "No inspected files yet",
+      learned: learned || (planningOnly ? "Planning context is available but non-authoritative." : "No planning findings yet"),
+      blocked: blocked ? `${blocked} read-only boundary preserved` : "No blocked read-only tasks",
+      next: gateTask?.goNoGo?.suiteStatus === "go"
+        ? "Continue read-only planning and review."
+        : blocked
+          ? "Review blocked tasks or inspect related sources."
+          : "Inspect, compare, narrow, or run the read-only gate.",
+    };
+  }
+
+  function uniqueList(values) {
+    return [...new Set(values)];
   }
 
   function renderTaskConclusion(task) {

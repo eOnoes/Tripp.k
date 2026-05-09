@@ -217,6 +217,7 @@ try {
     appHtml.includes("cystRoot") &&
     appHtml.includes("reviewChanges") &&
     appHtml.includes("settingsForm") &&
+    appHtml.includes("planningSummary") &&
     appScript.includes("renderCystActivity") &&
     appScript.includes("renderCystEvidenceMeta") &&
     appScript.includes("latestCystTimeline") &&
@@ -231,6 +232,12 @@ try {
     appScript.includes("event.taskId || event.traceId || event.descriptorId") &&
     appScript.includes("renderTaskConclusion") &&
     appScript.includes("buildTaskConclusion") &&
+    appScript.includes("renderPlanningSummary") &&
+    appScript.includes("buildPlanningSummary") &&
+    appScript.includes("Current Understanding") &&
+    appScript.includes("recent read-only tasks") &&
+    appScript.includes("No inspected files yet") &&
+    appScript.includes("Continue read-only planning and review.") &&
     appScript.includes("What We Learned") &&
     appScript.includes("Next safe step") &&
     conclusionCopyGuardPass &&
@@ -298,6 +305,7 @@ try {
     appCss.includes(".cyst-activity li.group-middle") &&
     appCss.includes(".cyst-activity li.group-end") &&
     appCss.includes(".cyst-activity li.group-single") &&
+    appCss.includes(".read-only-summary") &&
     appCss.includes(".go-no-go") &&
     appCss.includes(".go-no-go.no_go") &&
     appCss.includes(".go-no-go small + small") &&
