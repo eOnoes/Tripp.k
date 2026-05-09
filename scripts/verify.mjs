@@ -64,7 +64,8 @@ try {
     health.capabilities?.shell === "read-only-allowlist" &&
     health.capabilities?.swarm === "manifest-local" &&
     health.capabilities?.permissions === "policy-local" &&
-    health.capabilities?.codingModes === "policy-local";
+    health.capabilities?.codingModes === "policy-local" &&
+    health.capabilities?.workspace === "repo-local-readonly";
   console.log(`${healthPass ? "PASS" : "FAIL"} health: adapter capabilities`);
   if (!healthPass) {
     failures.push({ name: "health" });
@@ -94,6 +95,19 @@ try {
   console.log(`${codingModePass ? "PASS" : "FAIL"} coding modes: policy and task style`);
   if (!codingModePass) {
     failures.push({ name: "coding modes" });
+  }
+
+  const workspaceTree = await getJson("/api/tripp/workspace/tree");
+  const workspaceFile = await getJson("/api/tripp/workspace/file?path=README.md");
+  const blockedFile = await getJson("/api/tripp/workspace/file?path=.git/config");
+  const workspacePass =
+    workspaceTree.files?.some((entry) => entry.name === "README.md") &&
+    workspaceFile.language === "markdown" &&
+    workspaceFile.content?.includes("# Tripp.g") &&
+    blockedFile.error === "Workspace path is ignored.";
+  console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
+  if (!workspacePass) {
+    failures.push({ name: "workspace" });
   }
 
   const swarm = await getJson("/api/tripp/swarm");

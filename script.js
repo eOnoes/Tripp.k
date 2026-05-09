@@ -36,6 +36,7 @@
     activeRail: "terminal",
     collapsed: false,
     tools: data.tools.map((tool, index) => ({ ...tool, id: `tool-${index}`, expanded: false })),
+    toolGroups: { online: false, offline: false },
     tasks: data.tasks || [],
     snapTasksToTop: false,
     sessions: data.sessions.map((session, index) => ({
@@ -163,28 +164,37 @@
   }
 
   function renderTools() {
-    elements.toolCount.textContent = `(${state.tools.length})`;
-    elements.toolRoot.innerHTML = state.tools
-      .map(
-        (tool) => `
-          <li class="${tool.expanded ? "expanded" : ""}">
-            <button type="button" data-tool="${escapeHtml(tool.id)}">
-              <span>+ ${escapeHtml(tool.name)}</span>
-              <i class="${tool.enabled ? "online" : ""}"></i>
-            </button>
-            <p>${escapeHtml(tool.description)}</p>
-          </li>
-        `,
-      )
-      .join("");
+    const online = state.tools.filter((tool) => tool.enabled);
+    const offline = state.tools.filter((tool) => !tool.enabled);
+    elements.toolCount.textContent = `(${online.length})`;
+    elements.toolRoot.innerHTML = [renderToolGroup("online", online, true), renderToolGroup("offline", offline, false)].join("");
 
-    elements.toolRoot.querySelectorAll("[data-tool]").forEach((button) => {
+    elements.toolRoot.querySelectorAll("[data-tool-group]").forEach((button) => {
       button.addEventListener("click", () => {
-        const tool = state.tools.find((candidate) => candidate.id === button.dataset.tool);
-        tool.expanded = !tool.expanded;
+        state.toolGroups[button.dataset.toolGroup] = !state.toolGroups[button.dataset.toolGroup];
         renderTools();
       });
     });
+  }
+
+  function renderToolGroup(group, tools, enabled) {
+    const expanded = state.toolGroups[group];
+    const light = enabled ? "online" : "offline";
+    const label = enabled ? `${tools.length} tools online` : `${tools.length} tools offline`;
+
+    return `
+      <li class="tool-group ${expanded ? "expanded" : ""}">
+        <button type="button" data-tool-group="${group}">
+          <span>${expanded ? "-" : "+"} ${escapeHtml(label)}</span>
+          <i class="${light}"></i>
+        </button>
+        ${
+          expanded
+            ? `<p>${tools.length ? tools.map((tool) => escapeHtml(tool.name)).join(" / ") : "No tools in this state."}</p>`
+            : ""
+        }
+      </li>
+    `;
   }
 
   function renderTasks() {

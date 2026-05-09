@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
 
@@ -80,6 +80,16 @@ async function handleTrippApi(request, response, url) {
 
   if (request.method === "GET" && url.pathname === "/api/tripp/swarm") {
     sendJson(response, readSwarmManifest());
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/tripp/workspace/tree") {
+    sendJson(response, readWorkspaceTree());
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/tripp/workspace/file") {
+    sendJson(response, readWorkspaceFile(url.searchParams.get("path") || ""));
     return;
   }
 
@@ -177,6 +187,7 @@ function readHealth() {
       swarm: "manifest-local",
       permissions: "policy-local",
       codingModes: "policy-local",
+      workspace: "repo-local-readonly",
     },
     contract: backendContract(),
   };
@@ -237,6 +248,124 @@ function readCodingModes() {
       },
     ],
   };
+}
+
+function readWorkspaceTree() {
+  return {
+    root: "tripp-goose-prototype",
+    path: "",
+    files: listWorkspaceChildren(root, ""),
+  };
+}
+
+function readWorkspaceFile(relativePath) {
+  const target = resolveWorkspacePath(relativePath);
+  if (!target.ok) {
+    return { error: target.error };
+  }
+
+  if (!existsSync(target.absolute) || !statSync(target.absolute).isFile()) {
+    return { error: "Workspace file not found." };
+  }
+
+  const stat = statSync(target.absolute);
+  if (stat.size > 256_000) {
+    return { error: "Workspace file is too large for inline viewing.", path: target.relative, size: stat.size };
+  }
+
+  return {
+    path: target.relative,
+    name: target.relative.split("/").at(-1),
+    language: languageForFile(target.relative),
+    size: stat.size,
+    modified: stat.mtime.toISOString(),
+    previewable: target.relative.toLowerCase().endsWith(".html"),
+    readonly: true,
+    content: readFileSync(target.absolute, "utf8"),
+  };
+}
+
+function listWorkspaceChildren(absoluteDir, relativeDir, depth = 0) {
+  if (depth > 6) return [];
+
+  return readdirSync(absoluteDir, { withFileTypes: true })
+    .filter((entry) => !shouldIgnoreWorkspaceEntry(entry.name))
+    .sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name))
+    .slice(0, 200)
+    .map((entry) => {
+      const relative = join(relativeDir, entry.name).replaceAll("\\", "/");
+      const absolute = join(absoluteDir, entry.name);
+      const stat = statSync(absolute);
+
+      if (entry.isDirectory()) {
+        return {
+          name: entry.name,
+          path: relative,
+          type: "directory",
+          children: listWorkspaceChildren(absolute, relative, depth + 1),
+        };
+      }
+
+      return {
+        name: entry.name,
+        path: relative,
+        type: "file",
+        language: languageForFile(relative),
+        size: stat.size,
+        modified: stat.mtime.toISOString(),
+        previewable: relative.toLowerCase().endsWith(".html"),
+      };
+    });
+}
+
+function resolveWorkspacePath(relativePath) {
+  const normalized = normalize(String(relativePath || "").replaceAll("\\", "/"));
+  if (!normalized || normalized === "." || normalized.startsWith("..") || normalize(normalized).includes(`..${sep}`)) {
+    return { ok: false, error: "Invalid workspace path." };
+  }
+
+  const parts = normalized.split(/[\\/]+/);
+  if (parts.some((part) => shouldIgnoreWorkspaceEntry(part))) {
+    return { ok: false, error: "Workspace path is ignored." };
+  }
+
+  const absolute = resolve(root, normalized);
+  if (absolute !== root && !absolute.startsWith(root + sep)) {
+    return { ok: false, error: "Workspace path is outside the repo." };
+  }
+
+  return { ok: true, absolute, relative: normalized.replaceAll("\\", "/") };
+}
+
+function shouldIgnoreWorkspaceEntry(name) {
+  return [
+    ".git",
+    ".tripp-runtime",
+    "node_modules",
+    "dist",
+    "build",
+    ".vite",
+    ".cache",
+    "server.out.log",
+    "server.err.log",
+  ].includes(name);
+}
+
+function languageForFile(file) {
+  const ext = extname(file).toLowerCase();
+  const languages = {
+    ".css": "css",
+    ".html": "html",
+    ".js": "javascript",
+    ".json": "json",
+    ".md": "markdown",
+    ".mjs": "javascript",
+    ".ps1": "powershell",
+    ".svg": "svg",
+    ".ts": "typescript",
+    ".tsx": "tsx",
+  };
+  return languages[ext] || "text";
 }
 
 function readSwarmManifest() {

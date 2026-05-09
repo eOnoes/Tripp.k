@@ -58,6 +58,8 @@ Start the app linked to the local Tripp bridge:
   - `GET /api/tripp/coding-modes`
   - `GET /api/tripp/backend/status`
   - `GET /api/tripp/swarm`
+  - `GET /api/tripp/workspace/tree`
+  - `GET /api/tripp/workspace/file?path=...`
   - `POST /api/tripp/swarm/route`
   - `POST /api/tripp/reply`
   - `GET /api/tripp/tasks`
@@ -76,6 +78,7 @@ Start the app linked to the local Tripp bridge:
 - Agent role/soul/operator doctrine lives under `agents/`.
 - The machine-readable swarm manifest lives at `agents/tripp-swarm-manifest.json`.
 - Runtime-contract doctrine and reports live under `docs/`.
+- Tripp core and workspace schemas live in `docs/tripp-core-schema-v0.1.md` and `docs/workspace-model-v0.1.md`.
 
 Task approval is guarded. Approving a write task prepares a patch preview; applying currently supports only the approved welcome-message patch in `tripp-terminal-data.json`.
 Patch tasks now carry a scoped `patchPlan` with exact target file, expected text, and replacement text. Apply remains guarded to approved repo-local files and refuses stale previews.
@@ -100,6 +103,15 @@ Reply responses can return a simple `message`, `content`, or `text`, or a `messa
 Backend `messages` with `{ kind: "tool", tool, result }` and explicit `tasks` arrays are normalized into right-panel task cards with `origin: "backend"`.
 Tasks also receive a first-pass `agentId` from the local swarm router, so the UI can show which Tripp role owns the lane.
 Task cards include a compact swarm trace showing Tripp intent intake, supervisor delegation, and assigned agent ownership.
+
+## Workspace API
+
+The workspace API is read-only in v0.1:
+
+- `GET /api/tripp/workspace/tree`
+- `GET /api/tripp/workspace/file?path=README.md`
+
+File access is repo-local, ignores runtime/private/generated paths, caps inline file size, and marks HTML files as previewable for the future sidebar preview.
 
 ## Local Tripp Bridge
 

@@ -355,7 +355,7 @@ button {
 .ops-panel {
   min-height: 0;
   display: grid;
-  grid-template-rows: 24px minmax(220px, 1fr) 176px 260px 190px;
+  grid-template-rows: 24px 112px minmax(230px, 1fr) 230px 190px;
   background: var(--black);
   border-left: 1px solid var(--line);
 }
@@ -470,6 +470,16 @@ button {
 
 .tools li.expanded p {
   display: block;
+}
+
+.tools li.tool-group p {
+  padding: 0 12px 10px;
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+
+.tools i.offline {
+  background: #ff2a2a;
 }
 
 .tasks {
