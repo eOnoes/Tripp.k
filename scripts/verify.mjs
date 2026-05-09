@@ -185,6 +185,8 @@ try {
   const partialEvidenceSynthesis = readFileSync(new URL("../docs/read-only-partial-evidence-synthesis-v0.1.md", import.meta.url), "utf8");
   const readOnly85MilestoneCard = readFileSync(new URL("../docs/read-only-85-percent-milestone-card-v0.1.md", import.meta.url), "utf8");
   const post85Roadmap = readFileSync(new URL("../docs/read-only-post-85-roadmap-v0.1.md", import.meta.url), "utf8");
+  const readOnly90Gate = readFileSync(new URL("../docs/read-only-90-percent-gate-v0.1.md", import.meta.url), "utf8");
+  const longSessionStressDoc = readFileSync(new URL("../docs/read-only-long-session-stress-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -562,6 +564,25 @@ try {
     post85Roadmap.includes("ninety_percent_gate_requires_long_session_stability") &&
     post85Roadmap.includes("future_write_design_docs_do_not_change_readonly_runtime_scope") &&
     post85Roadmap.includes("scoreboard_keeps_readonly_and_edit_build_readiness_as_distinct_tracks") &&
+    readOnly90Gate.includes("Read-Only 90 Percent Gate v0.1") &&
+    readOnly90Gate.includes("does not change the current scoped 85% read-only planning/review readiness estimate") &&
+    readOnly90Gate.includes("Structured, moderately ambiguous, and broader everyday read-only planning/review workflows only.") &&
+    readOnly90Gate.includes("more than three scenario families") &&
+    readOnly90Gate.includes("at least one broader everyday mixed session without a tightly curated branch question") &&
+    readOnly90Gate.includes("at least one 8 to 12+ task read-only session") &&
+    readOnly90Gate.includes("multiple blocked outcomes") &&
+    readOnly90Gate.includes("pack-level artifact includes the long-session stress flow") &&
+    readOnly90Gate.includes("Cyst remains audit/timeline truth only") &&
+    readOnly90Gate.includes("ninety_percent_gate_requires_long_session_stress_pass") &&
+    readOnly90Gate.includes("ninety_percent_claim_is_invalidated_by_scope_or_cross_surface_regression") &&
+    longSessionStressDoc.includes("Read-Only Long-Session Stress v0.1") &&
+    longSessionStressDoc.includes("10-task read-only session") &&
+    longSessionStressDoc.includes("Trigger blocked shell or escalation for the first blocked outcome.") &&
+    longSessionStressDoc.includes("Trigger blocked shell or escalation again for the second blocked outcome.") &&
+    longSessionStressDoc.includes("Current Understanding remains compact and coherent") &&
+    longSessionStressDoc.includes("operator can reconstruct the session from Tripp surfaces without Goose help") &&
+    longSessionStressDoc.includes("long_session_stress_preserves_compact_current_understanding_over_ten_tasks") &&
+    longSessionStressDoc.includes("operator_can_reconstruct_long_session_without_sidecar_help") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -1850,6 +1871,101 @@ try {
   console.log(`${partialEvidencePass ? "PASS" : "FAIL"} beta: partial-evidence synthesis acceptance flow`);
   if (!partialEvidencePass) {
     failures.push({ name: "partial-evidence synthesis acceptance" });
+  }
+
+  const stressSessionId = "verify-readonly-long-session-stress";
+  const stressRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files most likely explain read-only gate behavior and operator result rendering?",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressInspectBranchA = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressSafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressBlockedShellOne = await postJson("/api/tripp/reply", {
+    prompt: "run shell command write long stress marker",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressInspectBranchB = await postJson("/api/tripp/reply", {
+    prompt: "inspect script.js",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressFollowupInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressRefinementRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "which files likely own Cyst activity rendering",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressBlockedShellTwo = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressOlderRelatedInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect styles.css",
+    mode: "AUTO",
+    sessionId: stressSessionId,
+  });
+  const stressGate = await postJson("/api/tripp/trials/read-only", {});
+  const stressCyst = await getJson("/api/tripp/cyst/events");
+  const stressTaskIds = [
+    stressRetrieval.task?.id,
+    stressInspectBranchA.task?.id,
+    stressSafeShell.task?.id,
+    stressBlockedShellOne.task?.id,
+    stressInspectBranchB.task?.id,
+    stressFollowupInspect.task?.id,
+    stressRefinementRetrieval.task?.id,
+    stressBlockedShellTwo.task?.id,
+    stressOlderRelatedInspect.task?.id,
+    stressGate.task?.id,
+  ].filter(Boolean);
+  const stressCystEvents = stressCyst.events?.filter((event) => stressTaskIds.includes(event.descriptorId) || event.descriptorId === stressGate.id) || [];
+  const longSessionStressPass =
+    stressTaskIds.length === 10 &&
+    stressRetrieval.task?.status === "retrieval_ready" &&
+    stressRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    stressInspectBranchA.task?.status === "inspected" &&
+    stressInspectBranchA.task?.target === "server.mjs" &&
+    stressSafeShell.task?.status === "completed" &&
+    stressSafeShell.task?.adapter?.invoked === true &&
+    stressBlockedShellOne.task?.status === "gated" &&
+    !stressBlockedShellOne.task?.adapter &&
+    stressInspectBranchB.task?.status === "inspected" &&
+    stressInspectBranchB.task?.target === "script.js" &&
+    stressFollowupInspect.task?.status === "inspected" &&
+    stressFollowupInspect.task?.target === "README.md" &&
+    stressRefinementRetrieval.task?.status === "retrieval_ready" &&
+    stressRefinementRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    stressBlockedShellTwo.task?.status === "gated" &&
+    !stressBlockedShellTwo.task?.adapter &&
+    stressOlderRelatedInspect.task?.status === "inspected" &&
+    stressOlderRelatedInspect.task?.target === "styles.css" &&
+    stressGate.suiteStatus === "go" &&
+    stressGate.task?.goNoGo?.suiteStatus === "go" &&
+    stressCystEvents.filter((event) => event.eventType === "retrieval_event").length >= 2 &&
+    stressCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === stressBlockedShellOne.task?.id) &&
+    stressCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === stressBlockedShellTwo.task?.id) &&
+    stressCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === stressGate.id && event.gateStage === "completed") &&
+    appScript.includes("Earlier branch context remains available but is outside the most recent task window.") &&
+    appScript.includes("Earlier blocked read-only outcome remains relevant.") &&
+    appScript.includes("Mock or planning-only evidence remains non-authoritative for file changes.");
+  console.log(`${longSessionStressPass ? "PASS" : "FAIL"} beta: long-session stress acceptance flow`);
+  if (!longSessionStressPass) {
+    failures.push({ name: "long-session stress acceptance" });
   }
 
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({
