@@ -1692,17 +1692,23 @@ function createTask({ prompt, tool, kind, sessionId }) {
   task.lifecycle.events[0].taskId = task.id;
 
   if (kind === "inspect") {
-    task.excerpt = createFileExcerpt(target);
-    task.result = target
-      ? `Read-only excerpt prepared from ${target.relative}. No acknowledgement required.`
+    const adapter = target ? runTaskAdapterCall(task, "Developer.read", { tool: "read", path: target.relative }) : null;
+    task.adapter = createTaskAdapterEvidence(adapter);
+    task.excerpt = adapter?.result?.shaped?.content || "";
+    task.result = adapter?.status === "ok"
+      ? `Read-only excerpt prepared from ${target.relative} through goose.adapter.`
       : "Inspection blocked. No approved repo-local target file was detected.";
-    task.permission = permissionDecision(tool, target ? "allow" : "gated", "repo-local read-only inspection");
+    task.permission = permissionDecision(tool, adapter?.status === "ok" ? "allow" : "gated", adapter?.error?.code || "repo-local read-only inspection");
   }
 
   if (kind === "git" && tool === "git_status") {
-    task.excerpt = createGitStatusExcerpt();
-    task.result = "Safe git status snapshot captured. No repository mutation was performed.";
-    task.permission = permissionDecision(tool, "allow", "git status is read-only");
+    const adapter = runTaskAdapterCall(task, "Developer.shell", { tool: "shell", command: "git status" });
+    task.adapter = createTaskAdapterEvidence(adapter);
+    task.excerpt = adapter?.result?.shaped?.stdout || "";
+    task.result = adapter?.status === "ok"
+      ? "Safe git status snapshot captured through goose.adapter. No repository mutation was performed."
+      : "Git status blocked by the read-only adapter.";
+    task.permission = permissionDecision(tool, adapter?.status === "ok" ? "allow" : "gated", adapter?.error?.code || "git status is read-only");
   }
 
   if (kind === "git" && tool !== "git_status") {
@@ -1711,11 +1717,15 @@ function createTask({ prompt, tool, kind, sessionId }) {
   }
 
   if (kind === "shell") {
-    const shell = createShellSnapshot(prompt);
-    task.status = shell.ok ? "completed" : "gated";
-    task.excerpt = shell.output;
-    task.result = shell.message;
-    task.permission = permissionDecision(tool, shell.ok ? "allow" : "gated", shell.reason);
+    const command = detectSafeShellCommand(prompt);
+    const adapter = command ? runTaskAdapterCall(task, "Developer.shell", { tool: "shell", command: command.label }) : null;
+    task.adapter = createTaskAdapterEvidence(adapter);
+    task.status = adapter?.status === "ok" ? "completed" : "gated";
+    task.excerpt = adapter?.result?.shaped?.stdout || "";
+    task.result = adapter?.status === "ok"
+      ? `Safe shell command completed through goose.adapter: ${command.label}`
+      : "Shell request gated. Only read-only allowlisted commands can auto-run.";
+    task.permission = permissionDecision(tool, adapter?.status === "ok" ? "allow" : "gated", adapter?.error?.code || "command is outside the read-only shell allowlist");
   }
 
   if (kind === "analysis") {
@@ -1814,6 +1824,68 @@ function supervisorMessage(task) {
   }
 
   return "I recorded that task in TASKS.";
+}
+
+function runTaskAdapterCall(task, targetTool, args) {
+  const descriptor = createTaskAdapterDescriptor(task, targetTool, args);
+  const warden = wardenPrecheck(descriptor);
+  descriptor.trace.wardenDecision = warden.terminalState;
+  if (!warden.allowed) {
+    return {
+      status: "denied",
+      tool: targetTool,
+      invoked: false,
+      error: {
+        code: warden.denialReasons?.[0] || "WARDEN_DENIED",
+        message: warden.blocking?.[0] || "Warden denied this descriptor.",
+      },
+      warden,
+      trace: { cysToken: null },
+    };
+  }
+
+  const route = {
+    id: `route-${task.id}`,
+    destination: "goose.adapter",
+    tool: targetTool,
+  };
+  return { ...gooseAdapterCall(route, descriptor), warden, route };
+}
+
+function createTaskAdapterDescriptor(task, targetTool, args) {
+  return {
+    id: `desc-${task.id}`,
+    type: "task_descriptor",
+    intent: "inspect",
+    target: "tool",
+    targetTool,
+    constraints: { allowedPaths: ["README.md", "server.mjs", "scripts", "docs", "contracts", "agents", "tripp-terminal-data.json"] },
+    budget: { maxTokens: 1200 },
+    allowedTools: ["Developer.read", "Developer.tree", "Developer.shell"],
+    trace: {
+      traceId: `trace-${task.id}`,
+      source: "supervisor",
+      ownerId: "tripp.supervisor",
+      munch: { decision: "allow", budgetDecision: "allow", cap: 2000, capSource: "read-only-task" },
+    },
+    args,
+  };
+}
+
+function createTaskAdapterEvidence(adapter) {
+  if (!adapter) return null;
+  return {
+    status: adapter.status,
+    tool: adapter.tool,
+    invoked: adapter.invoked,
+    errorCode: adapter.error?.code || null,
+    resultType: adapter.result?.shaped?.type || null,
+    summary: adapter.result?.shaped?.summary || adapter.error?.message || "",
+    wardenState: adapter.warden?.terminalState || adapter.error?.wardenDecision || "unknown",
+    route: adapter.route?.destination || "goose.adapter",
+    cysToken: adapter.cystEvent?.cysToken || adapter.trace?.cysToken || null,
+    redactionLog: adapter.redactionLog || [],
+  };
 }
 
 function createEvidenceGate(task) {

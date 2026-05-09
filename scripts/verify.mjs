@@ -39,6 +39,28 @@ try {
     console.log(`${result.pass ? "PASS" : "FAIL"} ${result.name}: ${result.tool} -> ${result.status}`);
   }
 
+  const adapterInspectReply = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: "verify-adapter-task-session",
+  });
+  const adapterShellReply = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: "verify-adapter-task-session",
+  });
+  const adapterTaskPass =
+    adapterInspectReply.task?.adapter?.status === "ok" &&
+    adapterInspectReply.task?.adapter?.tool === "Developer.read" &&
+    adapterInspectReply.task?.adapter?.cysToken?.startsWith("cyst_") &&
+    adapterShellReply.task?.adapter?.status === "ok" &&
+    adapterShellReply.task?.adapter?.tool === "Developer.shell" &&
+    adapterShellReply.task?.adapter?.cysToken?.startsWith("cyst_");
+  console.log(`${adapterTaskPass ? "PASS" : "FAIL"} tasks: AUTO read-only uses goose adapter`);
+  if (!adapterTaskPass) {
+    failures.push({ name: "adapter-backed tasks" });
+  }
+
   const created = await postJson("/api/tripp/sessions", {});
   const sessionId = created.session?.id;
   const sessionReply = await postJson("/api/tripp/reply", {

@@ -1035,6 +1035,22 @@ button {
   background: #050700;
 }
 
+.adapter-detail {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #1d2d2d;
+  background: #050909;
+}
+
+.adapter-detail.ok {
+  border-left: 2px solid var(--lime);
+}
+
+.adapter-detail.blocked,
+.adapter-detail.denied {
+  border-left: 2px solid #ff3333;
+}
+
 .evidence-gate {
   margin-top: 8px;
   padding: 8px;
@@ -1060,7 +1076,8 @@ button {
 }
 
 .evidence-gate header,
-.trial-detail header {
+.trial-detail header,
+.adapter-detail header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1079,6 +1096,7 @@ button {
 .evidence-gate header strong,
 .trace-map-detail header strong,
 .trial-detail header strong,
+.adapter-detail header strong,
 .retrieval-detail strong {
   display: block;
   color: var(--lime);
@@ -1087,7 +1105,8 @@ button {
 }
 
 .evidence-gate header span,
-.trial-detail header span {
+.trial-detail header span,
+.adapter-detail header span {
   color: var(--lime);
   font-size: 9px;
   font-weight: 800;
@@ -1105,16 +1124,39 @@ button {
   margin: 6px 0 0;
 }
 
+.adapter-detail dl {
+  margin: 6px 0 0;
+}
+
 .trace-map-detail div {
   grid-template-columns: 38px minmax(0, 1fr);
+}
+
+.adapter-detail div {
+  grid-template-columns: 42px minmax(0, 1fr);
 }
 
 .trace-map-detail dt {
   color: var(--dim);
 }
 
+.adapter-detail dt {
+  color: var(--dim);
+}
+
 .trace-map-detail dd {
   color: var(--muted);
+}
+
+.adapter-detail dd {
+  color: var(--muted);
+}
+
+.adapter-detail p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .gate-grid {

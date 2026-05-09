@@ -368,6 +368,7 @@
                     ${renderEvidenceGate(task.evidenceGate)}
                     ${renderTraceMap(task.traceMap)}
                     ${renderTrialEvidence(task.trials)}
+                    ${renderAdapterEvidence(task.adapter)}
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
                     ${renderRetrieval(task.retrieval)}
@@ -599,6 +600,28 @@
             )
             .join("")}
         </div>
+      </section>
+    `;
+  }
+
+  function renderAdapterEvidence(adapter) {
+    if (!adapter) return "";
+
+    return `
+      <section class="adapter-detail ${escapeHtml(adapter.status || "unknown")}">
+        <header>
+          <strong>Goose Adapter</strong>
+          <span>${escapeHtml(adapter.status || "unknown")}</span>
+        </header>
+        <dl>
+          <div><dt>TOOL</dt><dd>${escapeHtml(adapter.tool || "none")}</dd></div>
+          <div><dt>WARDEN</dt><dd>${escapeHtml(adapter.wardenState || "unknown")}</dd></div>
+          <div><dt>ROUTE</dt><dd>${escapeHtml(adapter.route || "none")}</dd></div>
+          <div><dt>CALL</dt><dd>${escapeHtml(adapter.invoked ? "invoked" : "not invoked")}</dd></div>
+          <div><dt>CYST</dt><dd>${escapeHtml(adapter.cysToken || "none")}</dd></div>
+          <div><dt>TYPE</dt><dd>${escapeHtml(adapter.resultType || adapter.errorCode || "none")}</dd></div>
+        </dl>
+        <p>${escapeHtml(adapter.summary || "")}</p>
       </section>
     `;
   }
