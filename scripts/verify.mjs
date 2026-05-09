@@ -729,6 +729,7 @@ try {
     Object.keys(trialRun.suiteSummary?.incompleteScenarioFields || {}).length === 0 &&
     trialRun.suiteSummary?.malformedMixedScenarioIds?.length === 0 &&
     Object.keys(trialRun.suiteSummary?.malformedMixedScenarioFields || {}).length === 0 &&
+    trialRun.suiteSummary?.failedScenarioIds?.length === 0 &&
     trialRun.suiteSummary?.blockingReasons?.length === 0 &&
     trialRun.suiteSummary?.requiredScenarioCount === 5 &&
     trialRun.suiteSummary?.presentScenarioCount === 5 &&
@@ -763,6 +764,8 @@ try {
         scenario.scenarioId === "mock_retrieval_write_escalation_blocked" &&
         scenario.expected?.adapterInvoked?.read === true &&
         scenario.expected?.adapterInvoked?.write === false &&
+        Array.isArray(scenario.expected?.cystEventTypes) &&
+        scenario.expected?.finalLifecycleState === "read_only_maintained" &&
         scenario.actual?.adapterInvoked?.read === true &&
         scenario.actual?.adapterInvoked?.write === false &&
         scenario.actual?.cystEventTypes?.includes("write_escalation_blocked") &&

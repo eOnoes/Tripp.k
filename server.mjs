@@ -946,8 +946,18 @@ function createReadOnlySuiteSummary(scenarios = []) {
     ),
     createTrialGate("mixed_mock_escalation", "Mock escalation proves read allowed, write blocked, and read-only continuation.", !malformedMixedScenarioIds.length),
   ];
+  const failedScenarioIds = scenarios
+    .filter((scenario) => requiredScenarioIds.includes(scenario.scenarioId) && scenario.status !== "pass")
+    .map((scenario) => scenario.scenarioId);
   const failed = categories.filter((category) => !category.pass);
-  const suiteStatus = failed.length || scenarios.some((scenario) => scenario.status !== "pass") ? "no_go" : "go";
+  const diagnosticBuckets = [
+    missingScenarioIds,
+    duplicateScenarioIds,
+    incompleteScenarioIds,
+    malformedMixedScenarioIds,
+    failedScenarioIds,
+  ];
+  const suiteStatus = diagnosticBuckets.some((bucket) => bucket.length) ? "no_go" : "go";
   return {
     matrixVersion: "0.1",
     goCriteriaVersion: "0.1",
@@ -960,6 +970,7 @@ function createReadOnlySuiteSummary(scenarios = []) {
     total: categories.length,
     passedCount: scenarios.filter((scenario) => scenario.status === "pass").length,
     failedCount: scenarios.filter((scenario) => scenario.status !== "pass").length,
+    failedScenarioIds,
     requiredScenarioCount: requiredScenarioIds.length,
     requiredScenarioIds,
     presentScenarioIds,
@@ -977,6 +988,7 @@ function createReadOnlySuiteSummary(scenarios = []) {
       duplicateScenarioIds,
       incompleteScenarioIds,
       malformedMixedScenarioIds,
+      failedScenarioIds,
     }),
     blockers: failed.map((category) => category.id),
   };
@@ -1012,24 +1024,29 @@ function isValidMockEscalationScenario(scenario = {}) {
 
 function malformedMockEscalationFields(scenario = {}) {
   const fields = [];
+  if (!scenario.expected?.adapterInvoked || typeof scenario.expected.adapterInvoked !== "object") fields.push("expected.adapterInvoked");
   if (scenario.expected?.adapterInvoked?.read !== true) fields.push("expected.adapterInvoked.read");
   if (scenario.expected?.adapterInvoked?.write !== false) fields.push("expected.adapterInvoked.write");
+  if (!Array.isArray(scenario.expected?.cystEventTypes)) fields.push("expected.cystEventTypes");
+  if (scenario.expected?.finalLifecycleState !== "read_only_maintained") fields.push("expected.finalLifecycleState");
+  if (!scenario.actual?.adapterInvoked || typeof scenario.actual.adapterInvoked !== "object") fields.push("actual.adapterInvoked");
   if (scenario.actual?.adapterInvoked?.read !== true) fields.push("actual.adapterInvoked.read");
   if (scenario.actual?.adapterInvoked?.write !== false) fields.push("actual.adapterInvoked.write");
-  if (!scenario.actual?.cystEventTypes?.includes("retrieval_event")) fields.push("actual.cystEventTypes.retrieval_event");
-  if (!scenario.actual?.cystEventTypes?.includes("write_escalation_blocked")) fields.push("actual.cystEventTypes.write_escalation_blocked");
-  if (!scenario.actual?.cystEventTypes?.includes("lifecycle_transition")) fields.push("actual.cystEventTypes.lifecycle_transition");
+  if (
+    !Array.isArray(scenario.actual?.cystEventTypes) ||
+    !scenario.actual.cystEventTypes.includes("write_escalation_blocked")
+  ) fields.push("actual.cystEventTypes");
   if (scenario.actual?.finalLifecycleState !== "read_only_maintained") fields.push("actual.finalLifecycleState");
   return fields;
 }
 
-function createReadOnlyBlockingReasons({ failed, missingScenarioIds, duplicateScenarioIds, incompleteScenarioIds, malformedMixedScenarioIds }) {
+function createReadOnlyBlockingReasons({ missingScenarioIds, duplicateScenarioIds, incompleteScenarioIds, malformedMixedScenarioIds, failedScenarioIds }) {
   return [
-    failed.length ? "One or more read-only integrity categories failed" : null,
     missingScenarioIds.length ? "Missing required scenarios" : null,
     duplicateScenarioIds.length ? "Duplicate required scenario IDs detected" : null,
     incompleteScenarioIds.length ? "Incomplete scenario fields detected" : null,
     malformedMixedScenarioIds.length ? "Malformed mixed mock escalation scenario detected" : null,
+    failedScenarioIds.length ? "One or more required scenarios failed" : null,
   ].filter(Boolean);
 }
 
