@@ -63,7 +63,8 @@ try {
     health.capabilities?.sessions === "persistent-local" &&
     health.capabilities?.shell === "read-only-allowlist" &&
     health.capabilities?.swarm === "manifest-local" &&
-    health.capabilities?.permissions === "policy-local";
+    health.capabilities?.permissions === "policy-local" &&
+    health.capabilities?.codingModes === "policy-local";
   console.log(`${healthPass ? "PASS" : "FAIL"} health: adapter capabilities`);
   if (!healthPass) {
     failures.push({ name: "health" });
@@ -77,6 +78,21 @@ try {
   console.log(`${permissionPass ? "PASS" : "FAIL"} permissions: policy contract`);
   if (!permissionPass) {
     failures.push({ name: "permissions" });
+  }
+
+  const codingModes = await getJson("/api/tripp/coding-modes");
+  const clineReply = await postJson("/api/tripp/reply", {
+    prompt: "cline style edit the welcome message",
+    mode: "AUTO",
+    sessionId: "verify-coding-mode-session",
+  });
+  const codingModePass =
+    codingModes.defaultMode === "goose" &&
+    codingModes.modes?.some((mode) => mode.id === "cline") &&
+    clineReply.task?.codingMode === "cline";
+  console.log(`${codingModePass ? "PASS" : "FAIL"} coding modes: policy and task style`);
+  if (!codingModePass) {
+    failures.push({ name: "coding modes" });
   }
 
   const swarm = await getJson("/api/tripp/swarm");

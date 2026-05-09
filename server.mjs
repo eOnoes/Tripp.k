@@ -68,6 +68,11 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/coding-modes") {
+    sendJson(response, readCodingModes());
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/backend/status") {
     sendJson(response, await readBackendStatus());
     return;
@@ -171,6 +176,7 @@ function readHealth() {
       backendReply: backendUrl && backendReplyEnabled ? "enabled" : "disabled",
       swarm: "manifest-local",
       permissions: "policy-local",
+      codingModes: "policy-local",
     },
     contract: backendContract(),
   };
@@ -207,6 +213,29 @@ function readPermissionPolicy() {
         scope: "configured backend reply contract",
       },
     },
+  };
+}
+
+function readCodingModes() {
+  return {
+    defaultMode: "goose",
+    modes: [
+      {
+        id: "goose",
+        label: "Goose-style",
+        description: "General autonomous chat plus supervised tool work.",
+      },
+      {
+        id: "cline",
+        label: "Cline-style",
+        description: "Coding-heavy flow with explicit file targets, patch previews, and task breakdown.",
+      },
+      {
+        id: "augment",
+        label: "Augment-style",
+        description: "Assisted engineering flow that favors context, suggestions, and low-friction iteration.",
+      },
+    ],
   };
 }
 
@@ -370,6 +399,8 @@ function createTask({ prompt, tool, kind, sessionId }) {
   if (kind === "edit") {
     task.permission = permissionDecision(tool, "gated", "filesystem writes require patch preview and guarded apply");
   }
+
+  task.codingMode = chooseCodingMode(prompt, kind, tool);
 
   taskQueue.unshift(task);
   saveTaskQueue();
@@ -707,6 +738,17 @@ function permissionDecision(tool, decision, reason) {
   };
 }
 
+function chooseCodingMode(prompt, kind, tool) {
+  const lower = `${prompt} ${kind} ${tool}`.toLowerCase();
+  if (lower.includes("cline") || lower.includes("patch") || lower.includes("edit") || lower.includes("write")) {
+    return "cline";
+  }
+  if (lower.includes("augment") || lower.includes("suggest") || lower.includes("assist")) {
+    return "augment";
+  }
+  return "goose";
+}
+
 function describeFileRole(file) {
   if (file === "server.mjs") return "local HTTP server, Tripp adapter API, and task execution guard";
   if (file === "script.js") return "browser UI state, rendering, and Tripp runtime client";
@@ -859,6 +901,7 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
     excerpt: value.excerpt || value.output || null,
     origin: "backend",
     agentId: routePrompt(prompt, tool, value.kind || "backend").agentId,
+    codingMode: chooseCodingMode(prompt, value.kind || "backend", tool),
     createdAt: new Date().toISOString(),
   };
 }
