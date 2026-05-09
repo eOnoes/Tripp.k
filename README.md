@@ -74,3 +74,4 @@ When backend replies are enabled, Tripp.g expects:
 
 Reply requests send `{ "message": "...", "mode": "CHAT|AUTO", "sessionId": "..." }`.
 Reply responses can return a simple `message`, `content`, or `text`, or a `messages` array with `{ kind, speaker, body }` entries. Optional usage can be returned as `{ usage: { inputTokens, outputTokens } }`.
+Backend `messages` with `{ kind: "tool", tool, result }` and explicit `tasks` arrays are normalized into right-panel task cards with `origin: "backend"`.

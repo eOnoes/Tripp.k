@@ -687,6 +687,7 @@ async function tryCreateBackendReply(payload) {
 
   const body = await backendResponse.json();
   const messages = mapBackendMessages(body);
+  const tasks = mapBackendTasks(body, sessionId, prompt);
   const usage = mapBackendUsage(body);
   const session = recordSessionExchange(sessionId, prompt, messages);
 
@@ -700,6 +701,8 @@ async function tryCreateBackendReply(payload) {
       tokensIn: usage.inputTokens ?? prompt.length,
       tokensOut: usage.outputTokens ?? messages.reduce((sum, message) => sum + String(message.body || "").length, 0),
     },
+    task: tasks[0] || null,
+    tasks,
     messages,
     session,
   };
@@ -732,6 +735,46 @@ function mapBackendReply(value) {
   if (value?.content) return String(value.content);
   if (value?.text) return String(value.text);
   return "Backend reply received. Event streaming mapper is the next integration step.";
+}
+
+function mapBackendTasks(value, sessionId, prompt) {
+  const rawTasks = [
+    ...(Array.isArray(value?.tasks) ? value.tasks : []),
+    ...(Array.isArray(value?.messages)
+      ? value.messages.filter((message) => message.kind === "tool" || message.tool)
+      : []),
+  ];
+  const tasks = rawTasks.map((item, index) => normalizeBackendTask(item, index, sessionId, prompt));
+
+  [...tasks].reverse().forEach((task) => taskQueue.unshift(task));
+  if (tasks.length) saveTaskQueue();
+  return tasks;
+}
+
+function normalizeBackendTask(value, index, sessionId, prompt) {
+  const tool = value.tool || value.name || "backend_event";
+  return {
+    id: value.id || `backend-task-${Date.now()}-${index}`,
+    title: value.title || value.summary || tool || summarizeTask(prompt),
+    prompt,
+    kind: value.kind === "tool" ? "backend_tool" : value.kind || "backend",
+    tool,
+    target: value.target || null,
+    sessionId,
+    status: normalizeBackendTaskStatus(value.status || value.state),
+    result: value.result || value.body || value.message || value.content || "Backend event completed.",
+    excerpt: value.excerpt || value.output || null,
+    origin: "backend",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function normalizeBackendTaskStatus(status) {
+  const value = String(status || "completed").toLowerCase();
+  if (["completed", "pending", "gated", "dismissed", "applied"].includes(value)) return value;
+  if (["running", "queued", "started"].includes(value)) return "pending";
+  if (["blocked", "denied", "failed"].includes(value)) return "gated";
+  return "completed";
 }
 
 function mapBackendUsage(value) {

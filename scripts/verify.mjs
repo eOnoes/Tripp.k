@@ -101,9 +101,26 @@ async function verifyBackendBridge() {
       sendJson(response, {
         messages: [
           {
+            kind: "tool",
+            speaker: "tripp.backend.tool>",
+            tool: "filesystem_read",
+            result: "backend tool event captured",
+            status: "completed",
+          },
+          {
             kind: "agent",
             speaker: "tripp.backend>",
             body: `bridge received: ${payload.message}`,
+          },
+        ],
+        tasks: [
+          {
+            id: "fake-backend-task",
+            title: "Backend supplied task",
+            kind: "backend_tool",
+            tool: "filesystem_read",
+            status: "completed",
+            result: "Backend task event normalized.",
           },
         ],
         usage: {
@@ -141,11 +158,14 @@ async function verifyBackendBridge() {
     bridgeUrl,
   );
   const bootstrap = await getJson("/api/tripp/bootstrap", bridgeUrl);
+  const taskSnapshot = await getJson("/api/tripp/tasks", bridgeUrl);
   const persisted = bootstrap.sessions.find((session) => session.id === created.session.id);
   const pass =
     status.reachable === true &&
     reply.status?.model === "tripp-adapter/backend" &&
-    reply.messages?.[0]?.body === "bridge received: backend contract smoke" &&
+    reply.messages?.some((message) => message.body === "bridge received: backend contract smoke") &&
+    reply.tasks?.some((task) => task.origin === "backend" && task.tool === "filesystem_read") &&
+    taskSnapshot.tasks?.some((task) => task.origin === "backend" && task.tool === "filesystem_read") &&
     persisted?.transcript?.some((message) => message.body === "bridge received: backend contract smoke");
   console.log(`${pass ? "PASS" : "FAIL"} backend bridge: health -> reply -> persisted transcript`);
   return pass;

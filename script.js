@@ -210,6 +210,7 @@
                     <dl>
                       <div><dt>ID</dt><dd>${escapeHtml(task.id)}</dd></div>
                       <div><dt>KIND</dt><dd>${escapeHtml(task.kind || "task")}</dd></div>
+                      <div><dt>SOURCE</dt><dd>${escapeHtml(task.origin || "local")}</dd></div>
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
                       <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
@@ -221,12 +222,12 @@
                 : ""
             }
             ${
-              task.status === "pending"
+              task.status === "pending" && task.origin !== "backend"
                 ? `<div>
                     <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Approve</button>
                     <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
                   </div>`
-                : task.status === "patch_ready"
+                : task.status === "patch_ready" && task.origin !== "backend"
                   ? `<div>
                       <button type="button" data-task-action="apply" data-task="${escapeHtml(task.id)}">Apply</button>
                       <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
@@ -369,7 +370,9 @@
       pushMessage({ ...message, time: now() });
     });
 
-    if (reply.task) {
+    if (Array.isArray(reply.tasks)) {
+      reply.tasks.forEach((task) => upsertTask(task));
+    } else if (reply.task) {
       upsertTask(reply.task);
     }
 
