@@ -15,6 +15,7 @@ All of these must pass:
    - allowed and blocked read-only outcomes stay understandable together
    - mock evidence remains planning-only across varied prompts
    - docs/config vs runtime implementation acceptance lane passes
+   - operator-independence pack artifact covers all required variety-pack scenario families
 
 2. Branch rolloff proof
    - older branch context can age out of the immediate task window without disappearing from the session story
@@ -46,6 +47,7 @@ Do not move to 85% if:
 - release language implies edit/build or write-capable readiness
 - release language implies approval/apply capability or broad Goose replacement
 - operator-independence artifact fails or becomes certification-sounding
+- operator-independence pack artifact passes while any required scenario family fails
 - Cyst becomes an interpretation surface instead of audit truth
 
 ## Branch Rolloff Policy
@@ -66,5 +68,8 @@ Do not move to 85% if:
 - `partial_evidence_synthesis_preserves_uncertainty`
 - `single_branch_partial_evidence_stays_useful_but_incomplete`
 - `what_we_know_uses_only_directly_inspected_context_under_partial_evidence`
+- `operator_independence_pack_artifact_requires_all_scenario_families`
+- `operator_independence_pack_artifact_fails_if_any_required_scenario_fails`
+- `eighty_five_percent_requires_operator_independence_artifact_across_pack`
 - `beta_release_notes_remain_scoped_to_readonly_planning_review`
 - `future_write_docs_do_not_affect_current_runtime_claims`

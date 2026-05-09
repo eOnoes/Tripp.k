@@ -183,6 +183,7 @@ try {
   const betaReleaseNotes = readFileSync(new URL("../docs/read-only-beta-release-v0.1.md", import.meta.url), "utf8");
   const sessionVarietyPack = readFileSync(new URL("../docs/read-only-session-variety-pack-v0.1.md", import.meta.url), "utf8");
   const partialEvidenceSynthesis = readFileSync(new URL("../docs/read-only-partial-evidence-synthesis-v0.1.md", import.meta.url), "utf8");
+  const readOnly85MilestoneCard = readFileSync(new URL("../docs/read-only-85-percent-milestone-card-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -517,6 +518,19 @@ try {
     partialEvidenceSynthesis.includes("single_branch_partial_evidence_stays_useful_but_incomplete") &&
     partialEvidenceSynthesis.includes("what_we_know_uses_only_directly_inspected_context_under_partial_evidence") &&
     partialEvidenceSynthesis.includes("partial_evidence_copy_does_not_overclaim") &&
+    readOnly85MilestoneCard.includes("85% Read-Only Planning/Review Readiness Milestone Card v0.1") &&
+    readOnly85MilestoneCard.includes("This does not change the current 80% read-only Goose replacement estimate") &&
+    readOnly85MilestoneCard.includes("Structured and moderately ambiguous read-only planning/review only.") &&
+    readOnly85MilestoneCard.includes("Session variety pack passes across at least three distinct read-only scenario families.") &&
+    readOnly85MilestoneCard.includes("Partial-evidence synthesis remains useful without overclaiming.") &&
+    readOnly85MilestoneCard.includes("Branch rolloff preserves relevant older context while keeping current direction primary.") &&
+    readOnly85MilestoneCard.includes("Operator-independence pack artifact passes across the full variety pack.") &&
+    readOnly85MilestoneCard.includes("edit/build replacement") &&
+    readOnly85MilestoneCard.includes("live writes") &&
+    readOnly85MilestoneCard.includes("approval/apply runtime behavior") &&
+    readOnly85MilestoneCard.includes("broad Goose parity") &&
+    readOnly85MilestoneCard.includes("eighty_five_percent_requires_full_session_variety_pack_pass") &&
+    readOnly85MilestoneCard.includes("eighty_five_percent_requires_operator_independence_artifact_across_pack") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
@@ -570,14 +584,19 @@ try {
     readOnly85Gate.includes("Required Proof Before 85%") &&
     readOnly85Gate.includes("Broader read-only session variety") &&
     readOnly85Gate.includes("docs/config vs runtime implementation acceptance lane passes") &&
+    readOnly85Gate.includes("operator-independence pack artifact covers all required variety-pack scenario families") &&
     readOnly85Gate.includes("Branch rolloff proof") &&
     readOnly85Gate.includes("older blocked read-only outcomes remain visible longer than ordinary findings") &&
     readOnly85Gate.includes("runtime acceptance lane passes") &&
     readOnly85Gate.includes("Synthesis quality under partial evidence") &&
     readOnly85Gate.includes("partial evidence synthesis contract passes") &&
     readOnly85Gate.includes("single-branch evidence is treated as enough to settle a multi-branch question") &&
+    readOnly85Gate.includes("operator-independence pack artifact passes while any required scenario family fails") &&
     readOnly85Gate.includes("single_branch_partial_evidence_stays_useful_but_incomplete") &&
     readOnly85Gate.includes("what_we_know_uses_only_directly_inspected_context_under_partial_evidence") &&
+    readOnly85Gate.includes("operator_independence_pack_artifact_requires_all_scenario_families") &&
+    readOnly85Gate.includes("operator_independence_pack_artifact_fails_if_any_required_scenario_fails") &&
+    readOnly85Gate.includes("eighty_five_percent_requires_operator_independence_artifact_across_pack") &&
     readOnly85Gate.includes("Beta release discipline") &&
     readOnly85Gate.includes("beta label does not imply edit/build replacement, approval/apply capability, or broad Goose parity") &&
     readOnly85Gate.includes("release language implies approval/apply capability or broad Goose replacement") &&
@@ -1832,6 +1851,66 @@ try {
     failures.push({ name: "operator independence artifact" });
   }
 
+  const operatorPackArtifact = createOperatorIndependencePackArtifact({
+    packId: "readonly_85_variety_pack",
+    scenarios: [
+      {
+        scenarioId: "docs_config_vs_runtime",
+        acceptancePassed: docsRuntimeVarietyPass,
+        tasks: {
+          inspected: [varietyDocsInspect.task, varietyRuntimeInspect.task],
+          learned: [varietyDocsInspect.task, varietyRuntimeInspect.task, varietySafeShell.task],
+          uncertain: [varietyRetrieval.task],
+          blocked: [varietyBlockedShell.task],
+          nextDirection: [varietyGate.task],
+        },
+        summary: "Docs/config and runtime session was understandable as read-only planning evidence.",
+      },
+      {
+        scenarioId: "warden_vs_adapter",
+        acceptancePassed: wardenAdapterAmbiguityPass,
+        tasks: {
+          inspected: [enforcementPolicyInspect.task, enforcementAdapterInspect.task],
+          learned: [enforcementPolicyInspect.task, enforcementAdapterInspect.task, enforcementSafeShell.task],
+          uncertain: [enforcementRetrieval.task],
+          blocked: [enforcementBlockedShell.task],
+          nextDirection: [enforcementGate.task],
+        },
+        summary: "Policy and adapter session was understandable without final enforcement ownership claims.",
+      },
+      {
+        scenarioId: "longer_branch_rolloff",
+        acceptancePassed: branchRolloffAcceptancePass,
+        tasks: {
+          inspected: [rolloffInspectReadme.task, rolloffInspectServer.task, rolloffInspectScript.task],
+          learned: [rolloffAnalysis.task, rolloffSafeShell.task, rolloffGitStatus.task],
+          uncertain: [rolloffRetrieval.task],
+          blocked: [rolloffBlockedShell.task],
+          nextDirection: [rolloffGate.task],
+        },
+        summary: "Longer branch-rolloff session preserved useful context and blocked read-only limits.",
+      },
+    ],
+  });
+  const operatorPackScenarioIds = operatorPackArtifact.scenarioResults.map((scenario) => scenario.scenarioId);
+  const operatorPackPass =
+    operatorPackArtifact.artifactType === "operator_independence_pack_check" &&
+    operatorPackArtifact.mode === "read_only_beta_harness" &&
+    operatorPackArtifact.packId === "readonly_85_variety_pack" &&
+    operatorPackArtifact.overallStatus === "pass" &&
+    operatorPackArtifact.scenarioResults.length === 3 &&
+    ["docs_config_vs_runtime", "warden_vs_adapter", "longer_branch_rolloff"].every((scenarioId) => operatorPackScenarioIds.includes(scenarioId)) &&
+    operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === "pass") &&
+    operatorPackArtifact.scenarioResults.every((scenario) => Object.values(scenario.checks).every((status) => status === "pass")) &&
+    operatorPackArtifact.packSummary === "Session variety pack was understandable without sidecar interpretation in read-only beta harness." &&
+    !/certified|validated replacement|goose no longer needed|independent reasoning confirmed|replacement certified/i.test(operatorPackArtifact.packSummary) &&
+    !appScript.includes("operator_independence_pack_check") &&
+    !appHtml.includes("operator_independence_pack_check");
+  console.log(`${operatorPackPass ? "PASS" : "FAIL"} beta: operator independence pack artifact`);
+  if (!operatorPackPass) {
+    failures.push({ name: "operator independence pack artifact" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }
@@ -1915,6 +1994,40 @@ function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acce
     checks,
     overallStatus,
     summary: "Session was understandable without sidecar interpretation in read-only beta harness.",
+  };
+}
+
+function createOperatorIndependencePackArtifact({ packId, scenarios }) {
+  const scenarioResults = scenarios.map((scenario) => {
+    const hasInspected = scenario.tasks.inspected?.every((task) => task?.status === "inspected");
+    const hasLearned = scenario.tasks.learned?.every((task) => ["completed", "inspected"].includes(task?.status));
+    const hasUncertain = scenario.tasks.uncertain?.every((task) => task?.retrieval?.authorityLevel === "planning-only");
+    const hasBlocked = scenario.tasks.blocked?.every((task) => task?.status === "gated" && !task?.adapter);
+    const hasNextDirection = scenario.tasks.nextDirection?.every((task) => task?.goNoGo?.suiteStatus === "go" || task?.status === "completed");
+    const checks = {
+      inspected: hasInspected ? "pass" : "fail",
+      learned: hasLearned ? "pass" : "fail",
+      uncertain: hasUncertain ? "pass" : "fail",
+      blocked: hasBlocked ? "pass" : "fail",
+      nextDirection: hasNextDirection ? "pass" : "fail",
+      understandableWithoutSidecar: scenario.acceptancePassed ? "pass" : "fail",
+    };
+    const status = Object.values(checks).every((value) => value === "pass") ? "pass" : "fail";
+    return {
+      scenarioId: scenario.scenarioId,
+      status,
+      checks,
+      summary: scenario.summary,
+    };
+  });
+  const overallStatus = scenarioResults.every((scenario) => scenario.status === "pass") ? "pass" : "fail";
+  return {
+    artifactType: "operator_independence_pack_check",
+    mode: "read_only_beta_harness",
+    packId,
+    overallStatus,
+    scenarioResults,
+    packSummary: "Session variety pack was understandable without sidecar interpretation in read-only beta harness.",
   };
 }
 
