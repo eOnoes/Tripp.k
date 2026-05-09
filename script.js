@@ -506,9 +506,9 @@
     const hasEnforcementReview = hasEnforcementRetrieval && hasBackendBranch && hasPolicyBranch && blocked;
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
     const known = uniqueList([
-      hasEnforcementReview ? "Planning-only retrieval suggested policy denial and adapter/tool-route refusal as plausible review paths." : null,
+      hasEnforcementReview ? "Planning-only retrieval suggested policy-denial and adapter-route handling as plausible review paths." : null,
       hasEnforcementReview ? "Inspection of the policy branch provided useful context for read-only denial behavior." : null,
-      hasEnforcementReview ? "Inspection of the adapter branch provided useful context for how blocked tool routes are handled in the current harness." : null,
+      hasEnforcementReview ? "Inspection of the adapter branch provided useful context for how blocked routes are handled in the current harness." : null,
       hasRecoveryReview ? "Earlier inspection of the UI branch provided useful presentation context for blocked outcomes." : null,
       hasRecoveryReview ? "Later inspection of the runtime-handling branch provided more useful context for how blocked outcomes are handled in the current harness." : null,
       hasReversalReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
@@ -540,7 +540,7 @@
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
     ].filter(Boolean);
     const blockedSummary = (hasBranchReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
-      ? ["A write-like shell or escalation path was blocked.", "No write-capable route was used."]
+      ? ["A write-like shell or escalation path was blocked to preserve read-only mode.", "No write-capable route was used."]
       : blocked
         ? `${blocked} read-only boundary preserved`
         : "No blocked read-only tasks";

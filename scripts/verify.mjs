@@ -290,12 +290,13 @@ try {
     appScript.includes("The current interpretation changed after additional inspection and remains scoped to read-only review.") &&
     appScript.includes("Presentation behavior may still depend on additional related files beyond the current runtime path.") &&
     appScript.includes("Continue from the runtime-handling branch and inspect the next related source if more clarification is needed.") &&
-    appScript.includes("Planning-only retrieval suggested policy denial and adapter/tool-route refusal as plausible review paths.") &&
+    appScript.includes("Planning-only retrieval suggested policy-denial and adapter-route handling as plausible review paths.") &&
     appScript.includes("Inspection of the policy branch provided useful context for read-only denial behavior.") &&
-    appScript.includes("Inspection of the adapter branch provided useful context for how blocked tool routes are handled in the current harness.") &&
+    appScript.includes("Inspection of the adapter branch provided useful context for how blocked routes are handled in the current harness.") &&
     appScript.includes("The current branch ranking reflects usefulness for the blocked-behavior question, not final enforcement certainty.") &&
     appScript.includes("Both policy and adapter behavior may contribute, even if one branch is currently more useful for review.") &&
     appScript.includes("Continue from the currently more useful enforcement branch and inspect the next related source if more clarification is needed.") &&
+    appScript.includes("A write-like shell or escalation path was blocked to preserve read-only mode.") &&
     appScript.includes("This file provides backend/runtime context for read-only review.") &&
     appScript.includes("This file provides UI/result-display context for read-only review.") &&
     continuityCopyGuardPass &&
