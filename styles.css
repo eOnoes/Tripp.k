@@ -127,7 +127,7 @@ button {
 }
 
 .terminal-app.ops-expanded .shell {
-  grid-template-columns: 36px minmax(320px, 40vw) minmax(560px, 60vw);
+  grid-template-columns: 36px minmax(320px, 2fr) minmax(560px, 3fr);
 }
 
 .command-rail {
