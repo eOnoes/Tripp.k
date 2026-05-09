@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
@@ -152,7 +153,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
     tool,
     target: target?.relative || null,
     sessionId: sessionId || null,
-    status: kind === "inspect" ? "inspected" : "pending",
+    status: initialTaskStatus(kind, tool),
     createdAt: new Date().toISOString(),
   };
 
@@ -161,6 +162,11 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.result = target
       ? `Read-only excerpt prepared from ${target.relative}. No acknowledgement required.`
       : "Inspection blocked. No approved repo-local target file was detected.";
+  }
+
+  if (kind === "git" && tool === "git_status") {
+    task.excerpt = createGitStatusExcerpt();
+    task.result = "Safe git status snapshot captured. No repository mutation was performed.";
   }
 
   taskQueue.unshift(task);
@@ -179,7 +185,9 @@ function supervisorMessage(task) {
   }
 
   if (task.kind === "git") {
-    return "I staged that git request for review. Command execution will stay gated.";
+    return task.tool === "git_status"
+      ? "I checked git status and put the read-only snapshot in TASKS."
+      : "I staged that git request for review. Mutating git actions stay gated.";
   }
 
   return "I staged that analysis task for review in TASKS.";
@@ -226,6 +234,12 @@ function summarizeTask(prompt) {
   return cleaned.length > 46 ? `${cleaned.slice(0, 43)}...` : cleaned;
 }
 
+function initialTaskStatus(kind, tool) {
+  if (kind === "inspect") return "inspected";
+  if (kind === "git" && tool === "git_status") return "completed";
+  return "pending";
+}
+
 function createPatchPreview(task) {
   if (task.tool !== "filesystem_write") {
     return `# ${task.tool}\n\nNo file mutation preview is available for this tool yet.`;
@@ -245,6 +259,20 @@ function createFileExcerpt(target) {
 
   const text = readFileSync(target.absolute, "utf8");
   return text.split(/\r?\n/).slice(0, 28).join("\n");
+}
+
+function createGitStatusExcerpt() {
+  try {
+    const output = execFileSync("git", ["status", "--short", "--branch"], {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim();
+
+    return output || "## main\nworking tree clean";
+  } catch (error) {
+    return `git status unavailable: ${error.message}`;
+  }
 }
 
 function applyTaskPatch(task) {
@@ -362,6 +390,7 @@ function normalizeBackendUrl(value) {
 
 function chooseTool(prompt) {
   const lower = prompt.toLowerCase();
+  if (lower.includes("git") && lower.includes("commit")) return "git_commit";
   if (lower.includes("git")) return "git_status";
   if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
   if (lower.includes("file") || lower.includes("read") || lower.includes("inspect") || lower.includes("show")) {

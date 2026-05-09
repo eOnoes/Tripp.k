@@ -506,6 +506,10 @@ button {
   border-left: 2px solid var(--green);
 }
 
+.task.completed {
+  border-left: 2px solid var(--green);
+}
+
 .task.patch_ready {
   border-left: 2px solid var(--green);
 }
