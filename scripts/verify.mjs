@@ -261,9 +261,12 @@ try {
     serverSource.includes("isCompleteReadOnlyScenario") &&
     serverSource.includes("missingReadOnlyScenarioFields") &&
     serverSource.includes("isValidMockEscalationScenario") &&
+    serverSource.includes("malformedMockEscalationFields") &&
+    serverSource.includes("createReadOnlyBlockingReasons") &&
     serverSource.includes("duplicateScenarioIds") &&
     serverSource.includes("duplicateScenarioCounts") &&
     serverSource.includes("malformedMixedScenarioIds") &&
+    serverSource.includes("malformedMixedScenarioFields") &&
     serverSource.includes("expectedAdapterInvoked") &&
     serverSource.includes("normalizeReadOnlyScenarioResult") &&
     serverSource.includes("scenarioResults") &&
@@ -725,6 +728,7 @@ try {
     trialRun.suiteSummary?.incompleteScenarioIds?.length === 0 &&
     Object.keys(trialRun.suiteSummary?.incompleteScenarioFields || {}).length === 0 &&
     trialRun.suiteSummary?.malformedMixedScenarioIds?.length === 0 &&
+    Object.keys(trialRun.suiteSummary?.malformedMixedScenarioFields || {}).length === 0 &&
     trialRun.suiteSummary?.blockingReasons?.length === 0 &&
     trialRun.suiteSummary?.requiredScenarioCount === 5 &&
     trialRun.suiteSummary?.presentScenarioCount === 5 &&

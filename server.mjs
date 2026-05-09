@@ -909,6 +909,9 @@ function createReadOnlySuiteSummary(scenarios = []) {
     .filter((scenario) => !isCompleteReadOnlyScenario(scenario))
     .map((scenario) => scenario.scenarioId || scenario.legacyTrialId || "unknown");
   const mixedScenario = scenarios.find((scenario) => scenario.scenarioId === "mock_retrieval_write_escalation_blocked");
+  const malformedMixedScenarioFields = mixedScenario
+    ? Object.fromEntries([[mixedScenario.scenarioId, malformedMockEscalationFields(mixedScenario)]].filter(([, fields]) => fields.length))
+    : {};
   const malformedMixedScenarioIds = mixedScenario && !isValidMockEscalationScenario(mixedScenario)
     ? [mixedScenario.scenarioId]
     : [];
@@ -967,13 +970,14 @@ function createReadOnlySuiteSummary(scenarios = []) {
     incompleteScenarioIds,
     incompleteScenarioFields,
     malformedMixedScenarioIds,
-    blockingReasons: [
-      ...failed.map((category) => category.id),
-      ...missingScenarioIds.map((scenarioId) => `missing:${scenarioId}`),
-      ...duplicateScenarioIds.map((scenarioId) => `duplicate:${scenarioId}`),
-      ...incompleteScenarioIds.map((scenarioId) => `incomplete:${scenarioId}`),
-      ...malformedMixedScenarioIds.map((scenarioId) => `malformed:${scenarioId}`),
-    ],
+    malformedMixedScenarioFields,
+    blockingReasons: createReadOnlyBlockingReasons({
+      failed,
+      missingScenarioIds,
+      duplicateScenarioIds,
+      incompleteScenarioIds,
+      malformedMixedScenarioIds,
+    }),
     blockers: failed.map((category) => category.id),
   };
 }
@@ -1003,16 +1007,30 @@ function missingReadOnlyScenarioFields(scenario = {}) {
 }
 
 function isValidMockEscalationScenario(scenario = {}) {
-  return Boolean(
-    scenario.expected?.adapterInvoked?.read === true &&
-      scenario.expected?.adapterInvoked?.write === false &&
-      scenario.actual?.adapterInvoked?.read === true &&
-      scenario.actual?.adapterInvoked?.write === false &&
-      scenario.actual?.cystEventTypes?.includes("retrieval_event") &&
-      scenario.actual?.cystEventTypes?.includes("write_escalation_blocked") &&
-      scenario.actual?.cystEventTypes?.includes("lifecycle_transition") &&
-      scenario.actual?.finalLifecycleState === "read_only_maintained",
-  );
+  return malformedMockEscalationFields(scenario).length === 0;
+}
+
+function malformedMockEscalationFields(scenario = {}) {
+  const fields = [];
+  if (scenario.expected?.adapterInvoked?.read !== true) fields.push("expected.adapterInvoked.read");
+  if (scenario.expected?.adapterInvoked?.write !== false) fields.push("expected.adapterInvoked.write");
+  if (scenario.actual?.adapterInvoked?.read !== true) fields.push("actual.adapterInvoked.read");
+  if (scenario.actual?.adapterInvoked?.write !== false) fields.push("actual.adapterInvoked.write");
+  if (!scenario.actual?.cystEventTypes?.includes("retrieval_event")) fields.push("actual.cystEventTypes.retrieval_event");
+  if (!scenario.actual?.cystEventTypes?.includes("write_escalation_blocked")) fields.push("actual.cystEventTypes.write_escalation_blocked");
+  if (!scenario.actual?.cystEventTypes?.includes("lifecycle_transition")) fields.push("actual.cystEventTypes.lifecycle_transition");
+  if (scenario.actual?.finalLifecycleState !== "read_only_maintained") fields.push("actual.finalLifecycleState");
+  return fields;
+}
+
+function createReadOnlyBlockingReasons({ failed, missingScenarioIds, duplicateScenarioIds, incompleteScenarioIds, malformedMixedScenarioIds }) {
+  return [
+    failed.length ? "One or more read-only integrity categories failed" : null,
+    missingScenarioIds.length ? "Missing required scenarios" : null,
+    duplicateScenarioIds.length ? "Duplicate required scenario IDs detected" : null,
+    incompleteScenarioIds.length ? "Incomplete scenario fields detected" : null,
+    malformedMixedScenarioIds.length ? "Malformed mixed mock escalation scenario detected" : null,
+  ].filter(Boolean);
 }
 
 function createTrialGate(id, label, pass) {
