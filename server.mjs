@@ -68,6 +68,12 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/tripp/warden/precheck") {
+    const payload = await readJson(request);
+    sendJson(response, wardenPrecheck(payload?.descriptor || payload));
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/task-lifecycle") {
     sendJson(response, readTaskLifecycleContract());
     return;
@@ -642,6 +648,68 @@ function readTaskLifecycleContract() {
     rollbackRequiredFrom: ["approved", "running", "completed", "failed"],
     auditFields: ["taskId", "descriptorStatus", "state", "previousState", "actor", "reason", "timestamp", "rollback"],
   };
+}
+
+function wardenPrecheck(descriptor = {}) {
+  const policy = readPermissionPolicy();
+  const type = String(descriptor.type || "");
+  const tool = String(descriptor.tool || descriptor.targetTool || "");
+  const intent = String(descriptor.intent || "");
+  const missing = policy.requiredDescriptorFields.filter((field) => !(field in descriptor));
+  const blocking = [];
+  const warnings = [];
+
+  if (!type) blocking.push("descriptor type missing");
+  else if (policy.blockedDescriptorTypes.includes(type)) blocking.push(`descriptor type blocked: ${type}`);
+  else if (!policy.allowedDescriptorTypes.includes(type)) blocking.push(`descriptor type not allowed: ${type}`);
+
+  if (tool && policy.blockedTools.includes(tool)) blocking.push(`tool blocked: ${tool}`);
+  if (intent && policy.blockedIntents.includes(intent)) blocking.push(`intent blocked: ${intent}`);
+  if (missing.length) blocking.push(`missing required fields: ${missing.join(", ")}`);
+
+  if (type === "prompt_block") {
+    const validation = validatePromptBlock(descriptor);
+    blocking.push("prompt_block is context-only and cannot execute");
+    if (!validation.valid) warnings.push(...validation.warnings);
+  }
+
+  const modeTransition = descriptor.modeTransition || null;
+  if (modeTransition) {
+    const modeResult = validateModeTransition(modeTransition, policy);
+    if (!modeResult.allowed) blocking.push(modeResult.reason);
+    if (modeResult.requiresConfirmation && !modeTransition.confirmed) {
+      blocking.push("mode transition requires operator confirmation");
+    }
+  }
+
+  return {
+    type: "warden_precheck",
+    allowed: blocking.length === 0,
+    decision: blocking.length ? "deny" : "allow",
+    descriptorType: type || "unknown",
+    policyVersion: policy.version,
+    missing,
+    blocking,
+    warnings,
+    executionAllowed: blocking.length === 0,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+function validateModeTransition(modeTransition, policy) {
+  const from = String(modeTransition.from || "").toUpperCase();
+  const to = String(modeTransition.to || "").toUpperCase();
+  const rule = policy.modeTransitionPolicy[from];
+
+  if (!rule) {
+    return { allowed: false, requiresConfirmation: false, reason: `unknown mode transition source: ${from || "missing"}` };
+  }
+
+  if (!rule.allowed.includes(to)) {
+    return { allowed: false, requiresConfirmation: false, reason: `mode transition blocked: ${from} -> ${to}` };
+  }
+
+  return { allowed: true, requiresConfirmation: Boolean(rule.requiresConfirmation), reason: "mode transition allowed" };
 }
 
 function readCodingModes() {

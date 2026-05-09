@@ -581,6 +581,9 @@
 
   function renderEvidenceGate(gate) {
     if (!gate) return "";
+    const satisfied = gate.satisfied || [];
+    const missing = gate.missing || [];
+    const next = gate.next || [];
 
     return `
       <section class="evidence-gate ${escapeHtml(gate.status || "blocked")}">
@@ -589,12 +592,22 @@
           <span>${escapeHtml(gate.status || "blocked")}</span>
         </header>
         <p>${escapeHtml(gate.summary || "")}</p>
-        <dl>
-          <div><dt>OK</dt><dd>${escapeHtml((gate.satisfied || []).join(" / ") || "none")}</dd></div>
-          <div><dt>MISS</dt><dd>${escapeHtml((gate.missing || []).join(" / ") || "none")}</dd></div>
-          <div><dt>NEXT</dt><dd>${escapeHtml((gate.next || []).join(" / ") || "none")}</dd></div>
-        </dl>
+        <div class="gate-grid">
+          ${renderGateColumn("OK", satisfied, "ok")}
+          ${renderGateColumn("MISS", missing, "miss")}
+          ${renderGateColumn("NEXT", next, "next")}
+        </div>
       </section>
+    `;
+  }
+
+  function renderGateColumn(label, values, tone) {
+    const items = Array.isArray(values) && values.length ? values : ["none"];
+    return `
+      <article class="gate-column ${tone}">
+        <strong>${escapeHtml(label)}</strong>
+        ${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+      </article>
     `;
   }
 

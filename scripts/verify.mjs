@@ -282,6 +282,55 @@ try {
     failures.push({ name: "prompt block validation" });
   }
 
+  const deniedPromptBlock = await postJson("/api/tripp/warden/precheck", {
+    descriptor: {
+      type: "prompt_block",
+      intent: "handoff",
+      target: "goose",
+      constraints: [],
+      budget: { maxTokens: 500 },
+      allowedTools: [],
+      trace: { traceId: "verify-pb-deny" },
+      body: promptBlock.body,
+      pinnedWorkspaceRoot: promptBlock.pinnedWorkspaceRoot,
+      contextSnapshotId: promptBlock.contextSnapshotId,
+    },
+  });
+  const deniedTool = await postJson("/api/tripp/warden/precheck", {
+    descriptor: {
+      type: "task_descriptor",
+      intent: "unscoped_write",
+      target: "workspace",
+      targetTool: "Developer.write",
+      constraints: [],
+      budget: { maxTokens: 500 },
+      allowedTools: ["Developer.write"],
+      trace: { traceId: "verify-tool-deny" },
+    },
+  });
+  const allowedDescriptor = await postJson("/api/tripp/warden/precheck", {
+    descriptor: {
+      type: "task_descriptor",
+      intent: "inspect",
+      target: "README.md",
+      targetTool: "Developer.read",
+      constraints: ["readonly"],
+      budget: { maxTokens: 500 },
+      allowedTools: ["Developer.read"],
+      trace: { traceId: "verify-allow" },
+    },
+  });
+  const wardenPass =
+    deniedPromptBlock.decision === "deny" &&
+    deniedPromptBlock.blocking?.some((item) => item.includes("prompt_block")) &&
+    deniedTool.decision === "deny" &&
+    deniedTool.blocking?.some((item) => item.includes("Developer.write")) &&
+    allowedDescriptor.decision === "allow";
+  console.log(`${wardenPass ? "PASS" : "FAIL"} warden: descriptor precheck`);
+  if (!wardenPass) {
+    failures.push({ name: "warden precheck" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }

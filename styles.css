@@ -1067,36 +1067,71 @@ button {
   text-transform: uppercase;
 }
 
-.evidence-gate dl {
-  margin: 6px 0 0;
-}
-
 .trace-map-detail dl {
   margin: 6px 0 0;
-}
-
-.evidence-gate div {
-  grid-template-columns: 38px minmax(0, 1fr);
 }
 
 .trace-map-detail div {
   grid-template-columns: 38px minmax(0, 1fr);
 }
 
-.evidence-gate dt {
-  color: var(--dim);
-}
-
 .trace-map-detail dt {
   color: var(--dim);
 }
 
-.evidence-gate dd {
+.trace-map-detail dd {
   color: var(--muted);
 }
 
-.trace-map-detail dd {
+.gate-grid {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 8px !important;
+}
+
+.gate-column {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 4px 7px;
+  margin: 0;
+  padding: 7px;
+  background: #070707;
+  border: 1px solid var(--line-soft);
+}
+
+.gate-column strong {
+  grid-row: 1 / span 20;
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.gate-column span {
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
+  padding: 2px 5px;
+  overflow-wrap: anywhere;
+  background: #111111;
+  border: 1px solid var(--line);
   color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.gate-column.ok span {
+  border-color: #1f5f1f;
+  color: #b7ff9f;
+}
+
+.gate-column.miss span {
+  border-color: #3d3000;
+  color: var(--lime);
+}
+
+.gate-column.next span {
+  color: var(--text);
 }
 
 .trace-map-badges {
