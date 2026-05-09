@@ -65,7 +65,8 @@ try {
     health.capabilities?.swarm === "manifest-local" &&
     health.capabilities?.permissions === "policy-local" &&
     health.capabilities?.codingModes === "policy-local" &&
-    health.capabilities?.workspace === "repo-local-readonly";
+    health.capabilities?.workspace === "repo-local-readonly" &&
+    health.capabilities?.munch === "mock-contract";
   console.log(`${healthPass ? "PASS" : "FAIL"} health: adapter capabilities`);
   if (!healthPass) {
     failures.push({ name: "health" });
@@ -108,6 +109,42 @@ try {
   console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
   if (!workspacePass) {
     failures.push({ name: "workspace" });
+  }
+
+  const munchHealth = await getJson("/api/tripp/munch/health");
+  const munchRetrieve = await postJson("/api/tripp/munch/retrieve", {
+    id: "verify-munch-retrieval",
+    kind: "code_search",
+    workspace: "verify-workspace",
+    paths: ["server.mjs"],
+    query: "where is Munch health exposed",
+    intent: { task_type: "code", reason: "verify contract shape" },
+    policy: {
+      retrieval_mode: "retrieval_first",
+      max_results: 4,
+      allow_full_read: false,
+      compress_output: true,
+      include_evidence: true,
+      dedupe_key: "verify-munch",
+    },
+  });
+  const munchMap = await postJson("/api/tripp/munch/context-map", {
+    id: "verify-munch-map",
+    root_question: "where is Munch health exposed",
+    workspace: "verify-workspace",
+    scope_paths: ["server.mjs"],
+  });
+  const munchPass =
+    munchHealth.bridge_name === "TripCore.Munch.g" &&
+    munchHealth.status === "degraded" &&
+    munchRetrieve.status === "warn" &&
+    munchRetrieve.capability === "code_search" &&
+    munchRetrieve.fallback_chain?.includes("native-tripp-tools") &&
+    munchMap.status === "warn" &&
+    munchMap.nodes?.some((node) => node.path === "server.mjs");
+  console.log(`${munchPass ? "PASS" : "FAIL"} munch: health, retrieval, and context-map stubs`);
+  if (!munchPass) {
+    failures.push({ name: "munch" });
   }
 
   const swarm = await getJson("/api/tripp/swarm");

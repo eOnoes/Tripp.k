@@ -58,6 +58,7 @@
     })),
     status: { ...data.status },
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
+    munch: data.munch || null,
     swarm: data.swarm || { agents: [] },
     workspace: { tree: [], selectedFile: null, file: null, loading: false, error: "" },
     busy: false,
@@ -416,6 +417,7 @@
     const rows = [
       ["CONNECTION", `<i></i>${escapeHtml(state.status.connection)}`],
       ["RUNTIME", escapeHtml(displayRuntime(state.status.model))],
+      ["MUNCH", escapeHtml(displayMunchStatus(state.munch))],
       ["SESSIONS", escapeHtml(displayCapability(state.runtime.capabilities?.sessions))],
       ["SWARM", `${escapeHtml(state.swarm.agents?.length || 0)} agents`],
       ["SHELL", escapeHtml(displayCapability(state.runtime.capabilities?.shell))],
@@ -628,7 +630,7 @@
 
     try {
       const result = await runtime.workspaceTree();
-      state.workspace.tree = result.children || [];
+      state.workspace.tree = result.files || result.children || [];
       state.workspace.error = result.error || "";
     } catch (error) {
       state.workspace.error = "Workspace API unavailable.";
@@ -735,10 +737,16 @@
       "guarded-single-patch": "Guarded Patch",
       "read-only-allowlist": "Read-only Allowlist",
       "status-only": "Status Only",
+      "mock-contract": "Mock Contract",
       disabled: "Disabled",
       enabled: "Enabled",
     };
     return labels[value] || value || "Unknown";
+  }
+
+  function displayMunchStatus(munch) {
+    if (!munch) return "Not Loaded";
+    return `${munch.status || "unknown"} / ${munch.mode || "unknown"}`;
   }
 
   function totalTokens() {
@@ -904,6 +912,13 @@ async function loadStaticData() {
         latency: "679ms",
         mode: "CHAT",
         version: "v1.0.0",
+      },
+      munch: {
+        bridge_name: "TripCore.Munch.g",
+        status: "unavailable",
+        mode: "passive_assist",
+        summary: ["Static fallback has no Munch bridge."],
+        warnings: ["api unavailable"],
       },
       swarm: {
         version: "0.0.0",

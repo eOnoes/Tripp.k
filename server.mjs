@@ -78,6 +78,23 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/munch/health") {
+    sendJson(response, readMunchHealth());
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/munch/retrieve") {
+    const payload = await readJson(request);
+    sendJson(response, createMunchRetrieval(payload));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/munch/context-map") {
+    const payload = await readJson(request);
+    sendJson(response, createMunchContextMap(payload));
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/swarm") {
     sendJson(response, readSwarmManifest());
     return;
@@ -143,6 +160,7 @@ function readBootstrap() {
     ...bootstrap,
     sessions,
     swarm,
+    munch: readMunchHealth(),
     status: {
       ...bootstrap.status,
       connection: backendUrl ? "BRIDGE READY" : bootstrap.status.connection,
@@ -188,9 +206,151 @@ function readHealth() {
       permissions: "policy-local",
       codingModes: "policy-local",
       workspace: "repo-local-readonly",
+      munch: "mock-contract",
     },
     contract: backendContract(),
+    munch: readMunchHealth(),
   };
+}
+
+function readMunchHealth() {
+  const checkedAt = new Date().toISOString();
+  return {
+    bridge_name: "TripCore.Munch.g",
+    status: "degraded",
+    mode: "passive_assist",
+    checked_at: checkedAt,
+    backends: {
+      "tripcore-jmri": {
+        status: "unavailable",
+        required: true,
+        capabilities: ["search_code", "search_docs", "search_data", "map_context"],
+        last_check: checkedAt,
+        details: ["real Munch backend is not wired in this prototype"],
+      },
+      jcodemunch: {
+        status: "unavailable",
+        required: true,
+        capabilities: ["search_code"],
+        last_check: checkedAt,
+        details: ["real Munch backend is not wired in this prototype"],
+      },
+      jdocmunch: {
+        status: "unavailable",
+        required: true,
+        capabilities: ["search_docs"],
+        last_check: checkedAt,
+        details: ["real Munch backend is not wired in this prototype"],
+      },
+      jdatamunch: {
+        status: "optional_missing",
+        required: false,
+        capabilities: ["search_data"],
+        last_check: checkedAt,
+        details: ["optional backend not required for baseline Tripp.g operation"],
+      },
+    },
+    summary: [
+      "Munch contract stubs are available",
+      "Real retrieval backend is not connected yet",
+      "Use native Tripp.g reads until TripCore.Munch.g runtime is configured",
+    ],
+    warnings: ["passive mock mode only"],
+    recommended_action: "continue_native_tripp_tools",
+  };
+}
+
+function createMunchRetrieval(payload = {}) {
+  const id = payload.id || `rr_${Date.now()}`;
+  const kind = normalizeMunchKind(payload.kind);
+  const query = String(payload.query || "").trim();
+  const paths = Array.isArray(payload.paths) ? payload.paths.map(String).slice(0, 12) : [];
+  const warning = query ? "real Munch backend not connected; returning contract-shaped planning response" : "query missing";
+
+  return {
+    id,
+    status: query ? "warn" : "fail",
+    backend: "tripp-munch-mock",
+    capability: kind,
+    summary: query
+      ? [`Munch retrieval lane reserved for: ${query}`, "Supervisor should use native reads until real backend health is healthy"]
+      : ["No retrieval query supplied"],
+    results: paths.map((path) => ({
+      path,
+      symbol: null,
+      section: null,
+      reason: "caller supplied path scope",
+      confidence: "low",
+    })),
+    evidence: [
+      {
+        type: "backend_note",
+        source: "Tripp.g mock Munch adapter",
+        note: "Schema-compatible stub; no TripCore.Munch backend call was made",
+      },
+    ],
+    warnings: [warning],
+    fallback_chain: ["tripp-munch-mock", "native-tripp-tools"],
+    confidence: "low",
+    next_steps: ["Wire TripCore.Munch.g runtime", "Retry retrieval with backend health confirmed"],
+    meta: {
+      truncated: false,
+      deduped: Boolean(payload.policy?.dedupe_key),
+      elapsed_ms: 0,
+    },
+  };
+}
+
+function createMunchContextMap(payload = {}) {
+  const id = payload.id || `cm_${Date.now()}`;
+  const rootQuestion = String(payload.root_question || payload.query || "").trim();
+  const scopePaths = Array.isArray(payload.scope_paths || payload.paths)
+    ? (payload.scope_paths || payload.paths).map(String).slice(0, 12)
+    : [];
+
+  return {
+    id,
+    root_question: rootQuestion,
+    workspace: payload.workspace || root,
+    scope_paths: scopePaths,
+    status: rootQuestion ? "warn" : "fail",
+    backend: "tripp-munch-mock",
+    summary: rootQuestion
+      ? [`Context map requested for: ${rootQuestion}`, "Real relationship mapping awaits TripCore.Munch.g wiring"]
+      : ["No root question supplied"],
+    nodes: scopePaths.map((path, index) => ({
+      id: `mock_node_${index + 1}`,
+      type: "file",
+      label: path.split(/[\\/]/).at(-1) || path,
+      path,
+      symbol: null,
+      role: "unknown",
+      confidence: "low",
+    })),
+    edges: [],
+    evidence: [
+      {
+        type: "backend_note",
+        source: "Tripp.g mock Munch adapter",
+        note: "Schema-compatible stub; no TripCore.Munch backend call was made",
+      },
+    ],
+    confidence: "low",
+    warnings: ["passive mock mode only"],
+    next_steps: ["Confirm Munch bridge health", "Run map_context through TripCore.Munch.g"],
+    meta: {
+      truncated: false,
+      fallback_chain: ["tripp-munch-mock", "native-tripp-tools"],
+      elapsed_ms: 0,
+    },
+  };
+}
+
+function normalizeMunchKind(kind) {
+  const value = String(kind || "code_search");
+  return ["code_search", "doc_search", "data_search", "context_map", "compress_result"].includes(value)
+    ? value
+    : "code_search";
 }
 
 function readPermissionPolicy() {
