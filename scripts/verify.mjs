@@ -143,11 +143,16 @@ try {
   const workspaceTree = await getJson("/api/tripp/workspace/tree");
   const workspaceFile = await getJson("/api/tripp/workspace/file?path=README.md");
   const blockedFile = await getJson("/api/tripp/workspace/file?path=.git/config");
+  const appHtml = await getText("/");
+  const appScript = await getText("/script.js");
   const workspacePass =
     workspaceTree.files?.some((entry) => entry.name === "README.md") &&
     workspaceFile.language === "markdown" &&
     workspaceFile.content?.includes("# Tripp.g") &&
-    blockedFile.error === "Workspace path is ignored.";
+    blockedFile.error === "Workspace path is ignored." &&
+    appHtml.includes("cystRoot") &&
+    appScript.includes("renderCystActivity") &&
+    appScript.includes("/api/tripp/cyst/events");
   console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
   if (!workspacePass) {
     failures.push({ name: "workspace" });
@@ -629,6 +634,16 @@ async function getJson(path, url = baseUrl) {
   }
 
   return response.json();
+}
+
+async function getText(path, url = baseUrl) {
+  const response = await fetch(`${url}${path}`);
+
+  if (!response.ok) {
+    throw new Error(`${path} failed with ${response.status}`);
+  }
+
+  return response.text();
 }
 
 function listen(serverToStart, serverPort) {

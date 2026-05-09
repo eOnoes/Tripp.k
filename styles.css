@@ -1492,6 +1492,106 @@ button {
   color: var(--black);
 }
 
+.cyst-activity {
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+
+.cyst-activity section {
+  padding: 9px 12px 12px;
+}
+
+.cyst-activity header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.cyst-activity header strong {
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.cyst-activity header span,
+.cyst-activity p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.cyst-activity ol {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cyst-activity li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 7px;
+  padding: 7px;
+  background: #050505;
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid var(--line);
+}
+
+.cyst-activity li.ok {
+  border-left-color: var(--lime);
+}
+
+.cyst-activity li.blocked,
+.cyst-activity li.warn {
+  border-left-color: #c8ff00;
+}
+
+.cyst-activity li.denied,
+.cyst-activity li.error {
+  border-left-color: #ff3333;
+}
+
+.cyst-activity li > span {
+  color: var(--lime);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.cyst-activity li.denied > span,
+.cyst-activity li.error > span {
+  color: #ff3333;
+}
+
+.cyst-activity li div {
+  min-width: 0;
+}
+
+.cyst-activity li strong,
+.cyst-activity li small,
+.cyst-activity li em {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cyst-activity li strong {
+  color: var(--text);
+  font-size: 10px;
+}
+
+.cyst-activity li small,
+.cyst-activity li em {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+}
+
 .statusbar {
   display: grid;
   grid-template-columns: 1fr auto 1fr;

@@ -32,6 +32,7 @@
     newSession: document.querySelector(".new-session"),
     newSessionIcon: document.querySelector(".new-session-icon"),
     statusRoot: document.querySelector("#statusRoot"),
+    cystRoot: document.querySelector("#cystRoot"),
     footerConnection: document.querySelector("#footerConnection"),
     footerMode: document.querySelector("#footerMode"),
     footerMetrics: document.querySelector("#footerMetrics"),
@@ -61,6 +62,7 @@
     status: { ...data.status },
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
     munch: data.munch || null,
+    cystEvents: [],
     swarm: data.swarm || { agents: [] },
     workspace: { tree: [], selectedFile: null, file: null, loading: false, error: "" },
     busy: false,
@@ -73,6 +75,7 @@
 
   bindEvents();
   render();
+  loadCystEvents();
 
   function bindEvents() {
     elements.modeButtons.forEach((button) => {
@@ -526,10 +529,13 @@
   }
 
   function renderStatus() {
+    const latestCritical = state.cystEvents.find((event) => isCriticalCystEvent(event));
     const rows = [
       ["CONNECTION", `<i></i>${escapeHtml(state.status.connection)}`],
       ["RUNTIME", escapeHtml(displayRuntime(state.status.model))],
       ["MUNCH", escapeHtml(displayMunchStatus(state.munch))],
+      ["CYST", escapeHtml(displayCystSummary())],
+      ["LATEST", escapeHtml(formatCystLatest(latestCritical))],
       ["SESSIONS", escapeHtml(displayCapability(state.runtime.capabilities?.sessions))],
       ["SWARM", `${escapeHtml(state.swarm.agents?.length || 0)} agents`],
       ["SHELL", escapeHtml(displayCapability(state.runtime.capabilities?.shell))],
@@ -543,12 +549,93 @@
     elements.statusRoot.innerHTML = rows
       .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`)
       .join("");
+    renderCystActivity();
 
     elements.footerConnection.textContent = state.status.connection;
     elements.footerMode.textContent = `TRIPPMODE::${state.mode}`;
     elements.footerMetrics.innerHTML = `TOKENS: ${escapeHtml(totalTokens())}&nbsp;&nbsp; ${escapeHtml(
       state.status.latency,
     )}&nbsp;&nbsp; ${escapeHtml(state.status.version)}`;
+  }
+
+  function renderCystActivity() {
+    const events = state.cystEvents.slice(0, 8);
+    if (!events.length) {
+      elements.cystRoot.innerHTML = `<section><header><strong>CYST ACTIVITY</strong><span>empty</span></header><p>No audit events recorded.</p></section>`;
+      return;
+    }
+
+    elements.cystRoot.innerHTML = `
+      <section>
+        <header>
+          <strong>CYST ACTIVITY</strong>
+          <span>${escapeHtml(`${events.length}/${state.cystEvents.length}`)}</span>
+        </header>
+        <ol>
+          ${events
+            .map(
+              (event) => `
+                <li class="${escapeHtml(cystTone(event))}" title="Audit event - not an action item.">
+                  <span>${escapeHtml(cystGlyph(event))}</span>
+                  <div>
+                    <strong>${escapeHtml(event.eventType || "event")}</strong>
+                    <small>${escapeHtml(cystCompact(event))}</small>
+                    <em>${escapeHtml(event.cysToken || event.traceId || "no token")}</em>
+                  </div>
+                </li>
+              `,
+            )
+            .join("")}
+        </ol>
+      </section>
+    `;
+  }
+
+  function cystTone(event) {
+    const status = String(event.resultStatus || event.status || "").toLowerCase();
+    const error = String(event.errorCode || "").toLowerCase();
+    if (status === "ok") return "ok";
+    if (status === "blocked" || error.includes("blocked")) return "blocked";
+    if (status === "denied" || event.eventType === "warden_denial") return "denied";
+    if (status === "error" || error) return "error";
+    return "warn";
+  }
+
+  function cystGlyph(event) {
+    const tone = cystTone(event);
+    if (tone === "ok") return "✓";
+    if (tone === "blocked") return "!";
+    if (tone === "denied" || tone === "error") return "x";
+    return "?";
+  }
+
+  function cystCompact(event) {
+    return [event.tool || event.adapter || event.descriptorId || "control-plane", event.resultStatus || event.errorCode || "recorded", formatCystTime(event.timestamp)]
+      .filter(Boolean)
+      .join(" - ");
+  }
+
+  function displayCystSummary() {
+    if (!state.cystEvents.length) return "No Events";
+    const critical = state.cystEvents.filter((event) => isCriticalCystEvent(event)).length;
+    return `${state.cystEvents.length} events / ${critical} critical`;
+  }
+
+  function formatCystLatest(event) {
+    if (!event) return "No Critical";
+    return `${event.eventType || "event"} ${event.errorCode || event.resultStatus || ""}`.trim();
+  }
+
+  function isCriticalCystEvent(event) {
+    const tone = cystTone(event);
+    return tone === "blocked" || tone === "denied" || tone === "error";
+  }
+
+  function formatCystTime(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
 
   function renderTrace(trace) {
@@ -854,6 +941,7 @@
     renderTasks();
     renderStatus();
     renderMessages();
+    loadCystEvents();
   }
 
   async function updateTask(taskId, action) {
@@ -868,6 +956,7 @@
       });
       renderTasks();
       renderMessages();
+      loadCystEvents();
     }
   }
 
@@ -887,6 +976,7 @@
       renderTasks();
       renderMessages();
       renderStatus();
+      loadCystEvents();
     } catch (error) {
       state.messages.push({
         speaker: "trial>",
@@ -897,6 +987,16 @@
       renderMessages();
     } finally {
       state.busy = false;
+    }
+  }
+
+  async function loadCystEvents() {
+    try {
+      const result = await runtime.cystEvents();
+      state.cystEvents = Array.isArray(result.events) ? result.events : [];
+      renderStatus();
+    } catch (error) {
+      console.warn("Cyst event feed unavailable.", error);
     }
   }
 
@@ -1190,6 +1290,10 @@ function createTrippRuntime() {
 
     async workspaceFile(path) {
       return fetchJson(`./api/tripp/workspace/file?path=${encodeURIComponent(path)}`);
+    },
+
+    async cystEvents() {
+      return fetchJson("./api/tripp/cyst/events");
     },
 
     async runReadOnlyTrials() {
