@@ -180,6 +180,7 @@ try {
   const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
   const readinessScoreboard = readFileSync(new URL("../docs/tripp-readiness-scoreboard-v0.1.md", import.meta.url), "utf8");
   const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
+  const betaReleaseNotes = readFileSync(new URL("../docs/read-only-beta-release-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -419,6 +420,30 @@ try {
     betaRegressionHarness.includes("checks.understandableWithoutSidecar") &&
     betaRegressionHarness.includes("The artifact must not render in normal product UI, Current Understanding, or Cyst.") &&
     betaRegressionHarness.includes("operator independence artifact") &&
+    betaRegressionHarness.includes("Release Discipline") &&
+    betaRegressionHarness.includes("docs/read-only-beta-release-v0.1.md") &&
+    betaRegressionHarness.includes("no live writes") &&
+    betaRegressionHarness.includes("no approval/apply capability") &&
+    betaRegressionHarness.includes("no edit/build replacement claim") &&
+    betaRegressionHarness.includes("scoped beta release artifact checks") &&
+    betaReleaseNotes.includes("Read-Only Beta Release Notes v0.1") &&
+    betaReleaseNotes.includes("scoped beta release artifact") &&
+    betaReleaseNotes.includes("This beta covers structured and moderately ambiguous read-only planning/review workflows.") &&
+    betaReleaseNotes.includes("Current behavior is read-only.") &&
+    betaReleaseNotes.includes("No runtime mutation path is enabled.") &&
+    betaReleaseNotes.includes("No approval/apply capability exists in this beta.") &&
+    betaReleaseNotes.includes("Gate GO means read-only harness readiness only.") &&
+    betaReleaseNotes.includes("Gate GO does not imply write readiness, edit readiness, approval readiness, or implementation readiness.") &&
+    betaReleaseNotes.includes("Mock or planning-only evidence is non-authoritative and cannot authorize file changes.") &&
+    betaReleaseNotes.includes("Cyst: review audit truth and event ordering only; Cyst is not the conclusion surface.") &&
+    betaReleaseNotes.includes("operator-independence artifact is acceptance evidence") &&
+    betaReleaseNotes.includes("This beta does not include live writes, edit/build replacement, approval/apply capability, or general reasoning parity with Goose.") &&
+    betaReleaseNotes.includes("beta_release_notes_include_readonly_only_scope") &&
+    betaReleaseNotes.includes("beta_known_limitations_include_no_live_writes_and_no_edit_build_replacement") &&
+    betaReleaseNotes.includes("beta_docs_state_mock_evidence_is_non_authoritative") &&
+    betaReleaseNotes.includes("beta_gate_go_does_not_imply_write_readiness") &&
+    betaReleaseNotes.includes("beta_operator_usage_note_keeps_cyst_as_audit_truth") &&
+    betaReleaseNotes.includes("beta_wording_does_not_imply_general_goose_replacement") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
@@ -476,6 +501,8 @@ try {
     readOnly85Gate.includes("runtime acceptance lane passes") &&
     readOnly85Gate.includes("Synthesis quality under partial evidence") &&
     readOnly85Gate.includes("Beta release discipline") &&
+    readOnly85Gate.includes("beta label does not imply edit/build replacement, approval/apply capability, or broad Goose parity") &&
+    readOnly85Gate.includes("release language implies approval/apply capability or broad Goose replacement") &&
     readOnly85Gate.includes("Branch Rolloff Policy") &&
     readOnly85Gate.includes("branch_rolloff_keeps_older_blocked_readonly_outcomes_visible") &&
     serverSource.includes("cystSequence") &&

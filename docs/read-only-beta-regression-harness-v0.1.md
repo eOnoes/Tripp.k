@@ -108,6 +108,21 @@ The artifact must not render in normal product UI, Current Understanding, or Cys
 - Gate GO means read-only harness readiness only.
 - Safe shell success means an allowlisted read-only command completed, not broad shell capability.
 
+## Release Discipline
+
+The scoped beta label requires the release artifact in `docs/read-only-beta-release-v0.1.md`.
+
+Required release facts:
+
+- current behavior is read-only
+- no live writes
+- no approval/apply capability
+- no edit/build replacement claim
+- mock evidence is non-authoritative
+- Gate GO means read-only harness readiness only
+- Cyst remains audit truth, not interpretation
+- operator-independence artifact is acceptance evidence, not normal product UI or certification
+
 ## Beta Blockers
 
 Block or pull back the beta claim if any of these occur:
@@ -131,6 +146,7 @@ Block or pull back the beta claim if any of these occur:
 - `longer read-only repeatability acceptance flow`
 - `branch rolloff read-only acceptance flow`
 - `operator independence artifact`
+- scoped beta release artifact checks
 - Cyst lifecycle and gate event checks
 - read-only wording guardrails
 - scoreboard claim checks

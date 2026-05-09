@@ -31,6 +31,7 @@ All of these must pass:
    - known limitations remain visible
    - read-only-only scope is explicit
    - future write design does not affect current runtime claims
+   - beta label does not imply edit/build replacement, approval/apply capability, or broad Goose parity
 
 ## 85% Blockers
 
@@ -40,6 +41,7 @@ Do not move to 85% if:
 - older branch context is erased instead of summarized or aged down
 - Current Understanding overcompresses partial evidence into a settled answer
 - release language implies edit/build or write-capable readiness
+- release language implies approval/apply capability or broad Goose replacement
 - operator-independence artifact fails or becomes certification-sounding
 - Cyst becomes an interpretation surface instead of audit truth
 
