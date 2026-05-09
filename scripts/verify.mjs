@@ -207,10 +207,11 @@ try {
     !/nextStep:\s*["'`][^"'`]*(?:edit|apply|write|patch|approve|commit)/i.test(conclusionSource);
   const continuitySource = extractFunctionRange(appScript, "renderPlanningSummary", "renderTaskConclusion");
   const continuityCopyGuardPass =
-    continuitySource.includes("Recently inspected") &&
-    continuitySource.includes("What we learned") &&
+    continuitySource.includes("What we know") &&
+    continuitySource.includes("What remains uncertain") &&
     continuitySource.includes("Blocked in read-only mode") &&
     continuitySource.includes("Next read-only direction") &&
+    continuitySource.includes("non-authoritative for file changes") &&
     conclusionForbiddenTerms.every((term) => !continuitySource.toLowerCase().includes(term)) &&
     !/next:\s*[^,]+(?:edit|apply|write|patch|approve|commit)/i.test(continuitySource);
   const gateTaskSource = extractFunctionRange(appScript, "formatGateVerdict", "renderAdapterEvidence");
@@ -220,6 +221,7 @@ try {
     gateTaskSource.includes("Read-only gate failed one or more required checks") &&
     gateCystSource.includes("READ-ONLY GATE") &&
     continuitySource.includes("Blocked in read-only mode") &&
+    continuitySource.includes("What remains uncertain") &&
     conclusionSource.includes("non-authoritative for file changes") &&
     [conclusionSource, continuitySource, gateTaskSource, gateCystSource].every((source) =>
       conclusionForbiddenTerms.every((term) => !source.toLowerCase().includes(term)),
@@ -258,9 +260,9 @@ try {
     appScript.includes("buildPlanningSummary") &&
     appScript.includes("Current Understanding") &&
     appScript.includes("recent read-only tasks") &&
-    appScript.includes("No inspected files yet") &&
-    appScript.includes("Recently inspected") &&
-    appScript.includes("What we learned") &&
+    appScript.includes("No read-only findings yet") &&
+    appScript.includes("What we know") &&
+    appScript.includes("What remains uncertain") &&
     appScript.includes("Blocked in read-only mode") &&
     appScript.includes("Next read-only direction") &&
     continuityCopyGuardPass &&

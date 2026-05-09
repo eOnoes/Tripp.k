@@ -447,8 +447,8 @@
   function renderPlanningSummary() {
     const summary = buildPlanningSummary();
     const rows = [
-      ["Recently inspected", summary.inspected],
-      ["What we learned", summary.learned],
+      ["What we know", summary.known],
+      ["What remains uncertain", summary.uncertain],
       ["Blocked in read-only mode", summary.blocked],
       ["Next read-only direction", summary.next],
     ];
@@ -494,14 +494,22 @@
     const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
     const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
-    const learned = uniqueList(conclusions
+    const known = uniqueList([
+      ...inspected.slice(0, 3).map((file) => `${file} was inspected for read-only review.`),
+      ...conclusions
       .flatMap((conclusion) => conclusion.findings || [])
-      .filter((finding) => !/blocked|failed/i.test(finding))).slice(0, 4);
+      .filter((finding) => !/blocked|failed|non-authoritative/i.test(finding)),
+    ]).slice(0, 4);
+    const uncertain = [
+      planningOnly ? "Mock or planning-only evidence remains non-authoritative for file changes." : null,
+      inspected.length ? null : "No files have been inspected in the recent read-only thread.",
+      gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
+    ].filter(Boolean);
 
     return {
       countLabel: recentTasks.length ? `${recentTasks.length} recent read-only tasks` : "No read-only tasks yet",
-      inspected: inspected.length ? inspected.slice(0, 3).join(" / ") : "No inspected files yet",
-      learned: learned.length ? learned : [planningOnly ? "Planning context is available but non-authoritative." : "No planning findings yet"],
+      known: known.length ? known : ["No read-only findings yet"],
+      uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
       blocked: blocked ? `${blocked} read-only boundary preserved` : "No blocked read-only tasks",
       next: gateTask?.goNoGo?.suiteStatus === "go"
         ? "Continue read-only planning and review."
