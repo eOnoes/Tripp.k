@@ -203,6 +203,14 @@ try {
     appScript.includes("group-end") &&
     appScript.includes("group-single") &&
     appScript.includes("event.taskId || event.traceId || event.descriptorId") &&
+    appScript.includes("renderTaskConclusion") &&
+    appScript.includes("buildTaskConclusion") &&
+    appScript.includes("What We Learned") &&
+    appScript.includes("Next safe step") &&
+    appScript.includes("Read-only inspection") &&
+    appScript.includes("Mock evidence - planning only") &&
+    appScript.includes("Safe shell output") &&
+    appScript.includes("Read-only policy block") &&
     appScript.includes("renderGoNoGoSummary") &&
     appScript.includes("formatGateDiagnosticLine") &&
     appScript.includes("renderGateBlockingReasons") &&

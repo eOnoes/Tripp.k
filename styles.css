@@ -1237,6 +1237,76 @@ button {
   background: #050700;
 }
 
+.task-conclusion {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #263400;
+  border-left: 2px solid var(--lime);
+  background: #050805;
+}
+
+.task-conclusion.blocked {
+  border-color: #5f1f1f;
+  border-left-color: #ff3333;
+  background: #0a0505;
+}
+
+.task-conclusion.planning {
+  border-color: #45451a;
+  border-left-color: #d8d86a;
+  background: #0a0a03;
+}
+
+.task-conclusion header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.task-conclusion strong {
+  color: var(--lime);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.task-conclusion header span {
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.task-conclusion.blocked header span {
+  color: #ff9999;
+}
+
+.task-conclusion.planning header span {
+  color: #d8d86a;
+}
+
+.task-conclusion ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 14px;
+}
+
+.task-conclusion li,
+.task-conclusion p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.task-conclusion p b {
+  color: var(--text);
+  text-transform: uppercase;
+}
+
 .adapter-detail {
   margin-top: 8px;
   padding: 8px;

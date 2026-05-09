@@ -372,6 +372,7 @@
             ${
               task.expanded
                 ? `<section class="task-detail">
+                    ${renderTaskConclusion(task)}
                     <dl>
                       <div><dt>ID</dt><dd>${escapeHtml(task.id)}</dd></div>
                       <div><dt>KIND</dt><dd>${escapeHtml(task.kind || "task")}</dd></div>
@@ -439,6 +440,109 @@
       elements.taskRoot.scrollTop = 0;
       state.snapTasksToTop = false;
     }
+  }
+
+  function renderTaskConclusion(task) {
+    const conclusion = buildTaskConclusion(task);
+    if (!conclusion) return "";
+
+    return `
+      <section class="task-conclusion ${escapeHtml(conclusion.tone || "readonly")}">
+        <header>
+          <strong>What We Learned</strong>
+          <span>${escapeHtml(conclusion.result)}</span>
+        </header>
+        <ul>
+          ${conclusion.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
+        </ul>
+        <p><b>Evidence</b> ${escapeHtml(conclusion.evidence)}</p>
+        <p><b>Next safe step</b> ${escapeHtml(conclusion.nextStep)}</p>
+      </section>
+    `;
+  }
+
+  function buildTaskConclusion(task) {
+    if (!task || task.status === "pending" || task.status === "patch_ready") return null;
+    if (task.goNoGo || Array.isArray(task.trials)) return buildGateConclusion(task);
+    if (task.retrieval) return buildRetrievalConclusion(task);
+    if (task.kind === "inspect" || task.tool === "filesystem_read") return buildInspectConclusion(task);
+    if (task.kind === "shell" || task.tool === "shell_execute") return buildShellConclusion(task);
+    if (task.kind === "analysis" || task.tool === "code_analyze") return buildAnalysisConclusion(task);
+    if (task.status === "gated" || task.status === "blocked") return buildBlockedConclusion(task);
+    return null;
+  }
+
+  function buildGateConclusion(task) {
+    const verdict = formatGateVerdict(task.goNoGo || {});
+    return {
+      tone: verdict === "GO" ? "ok" : "blocked",
+      result: verdict,
+      findings: [formatGateSummary(task.goNoGo || {}), formatGatePassCount(task.goNoGo || {})],
+      evidence: "Formal read-only gate result",
+      nextStep: verdict === "GO" ? "Continue read-only planning with the gate result in view." : "Review blocking reasons before continuing.",
+    };
+  }
+
+  function buildRetrievalConclusion(task) {
+    const sourceKind = task.retrieval?.sourceKind || task.retrieval?.evidenceAuthority || "mock";
+    const authority = task.retrieval?.authorityLevel || "planning-only";
+    return {
+      tone: "planning",
+      result: "Planning only",
+      findings: [
+        "Retrieval identified likely planning context.",
+        `${sourceKind === "mock" ? "Mock" : sourceKind} evidence is ${authority} and cannot authorize edits.`,
+      ],
+      evidence: sourceKind === "mock" ? "Mock evidence - planning only" : `${sourceKind} evidence - ${authority}`,
+      nextStep: "Inspect related files or continue narrowing before any edit-capable work.",
+    };
+  }
+
+  function buildInspectConclusion(task) {
+    return {
+      tone: "readonly",
+      result: "Read-only inspection",
+      findings: [
+        `Inspected ${task.target || "the requested file"} without mutation.`,
+        task.excerpt ? "A read-only excerpt is available on this card." : "No file changes were made.",
+      ],
+      evidence: "Read-only inspection",
+      nextStep: "Inspect a related file or use the finding to continue planning.",
+    };
+  }
+
+  function buildShellConclusion(task) {
+    const invoked = task.adapter?.invoked === true;
+    const blocked = task.status === "gated" || task.adapter?.status === "blocked" || task.adapter?.invoked === false;
+    return {
+      tone: blocked ? "blocked" : "readonly",
+      result: blocked ? "Blocked" : "Safe shell",
+      findings: blocked
+        ? ["Shell request stayed blocked before write-capable invocation.", "Read-only mode remained intact."]
+        : ["Allowed shell command completed through the adapter.", "No write-capable route was used."],
+      evidence: invoked ? "Safe shell output" : "Read-only policy block",
+      nextStep: blocked ? "Use an allowlisted read-only command or inspect a file instead." : "Use the output to continue read-only review.",
+    };
+  }
+
+  function buildAnalysisConclusion(task) {
+    return {
+      tone: "readonly",
+      result: "Read-only analysis",
+      findings: ["Analysis completed from repo-local context.", "No mutation path was used."],
+      evidence: "Read-only planning summary",
+      nextStep: "Inspect supporting files or run the read-only gate if readiness needs proof.",
+    };
+  }
+
+  function buildBlockedConclusion(task) {
+    return {
+      tone: "blocked",
+      result: "Blocked",
+      findings: ["The request did not reach a write-capable action.", task.permission?.reason || "Read-only policy kept the task gated."],
+      evidence: "Read-only gate or permission block",
+      nextStep: "Rephrase as inspection, retrieval, or safe-shell work.",
+    };
   }
 
   function renderWorkspace() {
