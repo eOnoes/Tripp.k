@@ -725,6 +725,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
   }
 
   task.codingMode = chooseCodingMode(prompt, kind, tool);
+  task.evidenceGate = createEvidenceGate(task);
 
   taskQueue.unshift(task);
   saveTaskQueue();
@@ -769,6 +770,73 @@ function supervisorMessage(task) {
   }
 
   return "I recorded that task in TASKS.";
+}
+
+function createEvidenceGate(task) {
+  const lane = task.routingDecision?.lane || "native";
+  const missing = [];
+  const satisfied = [];
+
+  if (lane === "native") {
+    if (task.permission?.decision) satisfied.push(`permission:${task.permission.decision}`);
+    else missing.push("permission decision");
+
+    if (task.target || task.tool === "shell_execute" || task.tool?.startsWith("git_")) {
+      satisfied.push(task.target ? `target:${task.target}` : `tool:${task.tool}`);
+    } else if (task.kind === "edit") {
+      missing.push("explicit target file");
+    }
+
+    return {
+      status: missing.length ? "blocked" : "ready",
+      lane,
+      summary: missing.length ? "Native action needs more exact evidence." : "Native lane has enough local evidence for current state.",
+      satisfied,
+      missing,
+      next: missing.length ? ["narrow target or request retrieval first"] : ["continue with guarded native flow"],
+    };
+  }
+
+  if (lane === "munch") {
+    if (task.retrieval?.backend) satisfied.push(`backend:${task.retrieval.backend}`);
+    else missing.push("retrieval backend");
+
+    if (task.retrieval?.fallback_chain?.length) satisfied.push(`fallback:${task.retrieval.fallback_chain.join("->")}`);
+    else missing.push("fallback chain");
+
+    if (task.retrieval?.confidence && task.retrieval.confidence !== "low") satisfied.push(`confidence:${task.retrieval.confidence}`);
+    else missing.push("confidence >= medium");
+
+    if (task.retrieval?.results?.length) satisfied.push("narrowed results");
+    else missing.push("narrowed result path/symbol/section");
+
+    if (task.retrieval?.evidence?.length) satisfied.push("provenance evidence");
+    else missing.push("evidence provenance");
+
+    return {
+      status: missing.length ? "blocked" : "ready",
+      lane,
+      summary: missing.length
+        ? "Retrieval evidence is not strong enough for edits yet."
+        : "Retrieval evidence is sufficient to escalate to exact native reads.",
+      satisfied,
+      missing,
+      next: missing.length
+        ? ["wire real Munch backend", "retry retrieval with scoped query", "read exact targets only after confidence improves"]
+        : ["read exact target files natively", "prepare guarded edit plan if requested"],
+    };
+  }
+
+  missing.push("native runtime observation");
+  missing.push("supporting Munch context map");
+  return {
+    status: "blocked",
+    lane,
+    summary: "Hybrid investigations need live runtime evidence and supporting retrieval before action.",
+    satisfied: task.excerpt ? ["runtime excerpt captured"] : [],
+    missing,
+    next: ["collect native runtime/process evidence", "run Munch context-map for supporting docs/config"],
+  };
 }
 
 function createSupervisorRoutingDecision(prompt, tool, kind, target) {
@@ -1372,8 +1440,7 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
           },
         })
       : null;
-
-  return {
+  const task = {
     id: value.id || `backend-task-${Date.now()}-${index}`,
     title: value.title || value.summary || tool || summarizeTask(prompt),
     prompt,
@@ -1392,6 +1459,9 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
     codingMode: chooseCodingMode(prompt, value.kind || "backend", tool),
     createdAt: new Date().toISOString(),
   };
+  task.evidenceGate = createEvidenceGate(task);
+
+  return task;
 }
 
 function createSwarmTrace(routeInfo, tool) {

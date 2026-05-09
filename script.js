@@ -262,6 +262,7 @@
                       <div><dt>PATCH</dt><dd>${escapeHtml(task.patchPlan?.file || "none")}</dd></div>
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
                     </dl>
+                    ${renderEvidenceGate(task.evidenceGate)}
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
                     ${renderRetrieval(task.retrieval)}
@@ -472,6 +473,25 @@
         <strong>${escapeHtml(retrieval.backend || "munch")} · ${escapeHtml(retrieval.confidence || "low")}</strong>
         <p>${escapeHtml((retrieval.summary || []).join(" "))}</p>
         <small>${escapeHtml((retrieval.fallback_chain || []).join(" -> "))}</small>
+      </section>
+    `;
+  }
+
+  function renderEvidenceGate(gate) {
+    if (!gate) return "";
+
+    return `
+      <section class="evidence-gate ${escapeHtml(gate.status || "blocked")}">
+        <header>
+          <strong>Evidence Gate</strong>
+          <span>${escapeHtml(gate.status || "blocked")}</span>
+        </header>
+        <p>${escapeHtml(gate.summary || "")}</p>
+        <dl>
+          <div><dt>OK</dt><dd>${escapeHtml((gate.satisfied || []).join(" / ") || "none")}</dd></div>
+          <div><dt>MISS</dt><dd>${escapeHtml((gate.missing || []).join(" / ") || "none")}</dd></div>
+          <div><dt>NEXT</dt><dd>${escapeHtml((gate.next || []).join(" / ") || "none")}</dd></div>
+        </dl>
       </section>
     `;
   }

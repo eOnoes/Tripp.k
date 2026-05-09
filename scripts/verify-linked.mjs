@@ -56,7 +56,8 @@ try {
         (task) =>
           task.origin === "backend" &&
           task.routingDecision?.lane === "munch" &&
-          task.retrieval?.backend === "tripp-munch-mock",
+          task.retrieval?.backend === "tripp-munch-mock" &&
+          task.evidenceGate?.status === "blocked",
       ),
     ],
     ["session persisted", reply.session?.transcript?.some((message) => message.speaker === "tripp.bridge>")],

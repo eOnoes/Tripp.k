@@ -165,10 +165,14 @@ try {
   const routingPass =
     discoveryReply.task?.routingDecision?.lane === "munch" &&
     discoveryReply.task?.retrieval?.backend === "tripp-munch-mock" &&
+    discoveryReply.task?.evidenceGate?.status === "blocked" &&
+    discoveryReply.task?.evidenceGate?.missing?.includes("confidence >= medium") &&
     editReply.task?.routingDecision?.lane === "native" &&
+    editReply.task?.evidenceGate?.status === "ready" &&
     editReply.task?.permission?.decision === "gated" &&
     runtimeReply.task?.routingDecision?.lane === "hybrid" &&
-    runtimeReply.task?.routingDecision?.retrievalKind === "context_map";
+    runtimeReply.task?.routingDecision?.retrievalKind === "context_map" &&
+    runtimeReply.task?.evidenceGate?.status === "blocked";
   console.log(`${routingPass ? "PASS" : "FAIL"} supervisor: native, munch, and hybrid routing decisions`);
   if (!routingPass) {
     failures.push({ name: "supervisor routing" });
