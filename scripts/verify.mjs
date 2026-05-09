@@ -187,6 +187,7 @@ try {
   const post85Roadmap = readFileSync(new URL("../docs/read-only-post-85-roadmap-v0.1.md", import.meta.url), "utf8");
   const readOnly90Gate = readFileSync(new URL("../docs/read-only-90-percent-gate-v0.1.md", import.meta.url), "utf8");
   const longSessionStressDoc = readFileSync(new URL("../docs/read-only-long-session-stress-v0.1.md", import.meta.url), "utf8");
+  const everydayMixedSessionDoc = readFileSync(new URL("../docs/read-only-everyday-mixed-session-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -411,7 +412,7 @@ try {
     readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review: 85%.") &&
     readinessScoreboard.includes("broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes") &&
     readinessScoreboard.includes("90% remains a future gate.") &&
-    readinessScoreboard.includes("broadened scenario pack, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, and continued release/copy discipline") &&
+    readinessScoreboard.includes("broadened scenario pack that includes an everyday mixed-session family, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, and continued release/copy discipline") &&
     readinessScoreboard.includes("Session variety pack harness passes.") &&
     readinessScoreboard.includes("Partial-evidence synthesis harness passes.") &&
     readinessScoreboard.includes("Operator-independence pack artifact passes.") &&
@@ -577,20 +578,24 @@ try {
     readOnly90Gate.includes("Structured, moderately ambiguous, and broader everyday read-only planning/review workflows only.") &&
     readOnly90Gate.includes("more than three scenario families") &&
     readOnly90Gate.includes("at least four distinct read-only scenario families") &&
+    readOnly90Gate.includes("one broader everyday mixed-session family") &&
     readOnly90Gate.includes("at least one broader everyday mixed session without a tightly curated branch question") &&
     readOnly90Gate.includes("at least one 8 to 12+ task read-only session") &&
     readOnly90Gate.includes("multiple blocked outcomes") &&
     readOnly90Gate.includes("pack-level artifact includes the long-session stress flow") &&
-    readOnly90Gate.includes("required scenario IDs include docs/config vs runtime, Warden vs adapter/tool-route, longer-session branch rolloff, contradiction recovery, and long-session stress") &&
+    readOnly90Gate.includes("required scenario IDs include docs/config vs runtime, Warden vs adapter/tool-route, longer-session branch rolloff, contradiction recovery, long-session stress, and everyday mixed session") &&
     readOnly90Gate.includes("long-session stress is a required scenario in the broadened pack") &&
     readOnly90Gate.includes("every required scenario ID appears exactly once") &&
     readOnly90Gate.includes("duplicate required scenario IDs are rejected") &&
     readOnly90Gate.includes("long-session scenario includes continuity reconstruction and branch-shift checks") &&
     readOnly90Gate.includes("pack summary uses understandability wording, not certification or replacement language") &&
+    readOnly90Gate.includes("per-scenario summaries pass copy-safety checks") &&
+    readOnly90Gate.includes("expected evidence classes are present for each required scenario") &&
     readOnly90Gate.includes("Cyst remains audit/timeline truth only") &&
     readOnly90Gate.includes("ninety_percent_requires_minimum_four_distinct_readonly_scenario_families") &&
     readOnly90Gate.includes("ninety_percent_requires_ten_task_or_longer_stress_scenario") &&
     readOnly90Gate.includes("ninety_percent_requires_broadened_operator_independence_pack_artifact") &&
+    readOnly90Gate.includes("everyday_mixed_session_is_required_for_ninety_percent_breadth") &&
     readOnly90Gate.includes("long_session_stress_is_included_in_required_pack_scenarios_for_ninety_percent") &&
     readOnly90Gate.includes("ninety_pack_artifact_requires_all_required_scenario_ids_exactly_once") &&
     readOnly90Gate.includes("ninety_pack_artifact_rejects_duplicate_required_scenario_ids") &&
@@ -598,11 +603,14 @@ try {
     readOnly90Gate.includes("long_session_stress_requires_continuity_reconstructed_and_branch_shift_understood_checks") &&
     readOnly90Gate.includes("ninety_pack_artifact_fails_if_any_required_scenario_or_check_fails") &&
     readOnly90Gate.includes("ninety_pack_artifact_pack_summary_uses_understandability_not_certification_language") &&
+    readOnly90Gate.includes("ninety_pack_artifact_requires_per_scenario_summary_copy_safety") &&
+    readOnly90Gate.includes("ninety_pack_artifact_requires_expected_evidence_classes_per_scenario") &&
     readOnly90Gate.includes("ninety_pack_artifact_is_beta_harness_output_only") &&
     readOnly90Gate.includes("ninety_percent_gate_requires_long_session_stress_pass") &&
     readOnly90Gate.includes("ninety_percent_claim_is_invalidated_by_scope_or_cross_surface_regression") &&
     readOnly90Gate.includes("ninety_score_is_blocked_until_broadened_pack_exceeds_eighty_five_scope") &&
     readOnly90Gate.includes("ninety_score_requires_long_session_stress_in_required_pack") &&
+    readOnly90Gate.includes("ninety_score_requires_everyday_mixed_session_in_required_pack") &&
     readOnly90Gate.includes("ninety_score_requires_partial_evidence_quality_across_broadened_pack") &&
     readOnly90Gate.includes("ninety_score_requires_operator_independence_across_all_required_ninety_pack_families") &&
     readOnly90Gate.includes("ninety_scoreboard_copy_remains_scoped_to_readonly_planning_review_only") &&
@@ -615,6 +623,15 @@ try {
     longSessionStressDoc.includes("operator can reconstruct the session from Tripp surfaces without Goose help") &&
     longSessionStressDoc.includes("long_session_stress_preserves_compact_current_understanding_over_ten_tasks") &&
     longSessionStressDoc.includes("operator_can_reconstruct_long_session_without_sidecar_help") &&
+    everydayMixedSessionDoc.includes("Read-Only Everyday Mixed Session v0.1") &&
+    everydayMixedSessionDoc.includes("without an explicit branch label") &&
+    everydayMixedSessionDoc.includes("Planning-only retrieval that remains non-authoritative") &&
+    everydayMixedSessionDoc.includes("At least two direct inspections") &&
+    everydayMixedSessionDoc.includes("One allowlisted safe-shell control") &&
+    everydayMixedSessionDoc.includes("One blocked write-like shell or escalation outcome") &&
+    everydayMixedSessionDoc.includes("Read-Only Gate review scoped to harness readiness only") &&
+    everydayMixedSessionDoc.includes("everyday_mixed_session_is_required_for_ninety_percent_breadth") &&
+    everydayMixedSessionDoc.includes("everyday_mixed_session_includes_inspect_safe_shell_blocked_and_gate_evidence") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -2000,6 +2017,79 @@ try {
     failures.push({ name: "long-session stress acceptance" });
   }
 
+  const everydaySessionId = "verify-readonly-everyday-mixed";
+  const everydayRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files should I inspect to understand the current read-only beta review posture from docs, operator surfaces, and guardrails?",
+    mode: "AUTO",
+    sessionId: everydaySessionId,
+  });
+  const everydayInspectReadme = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: everydaySessionId,
+  });
+  const everydaySafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: everydaySessionId,
+  });
+  const everydayInspectServer = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: everydaySessionId,
+  });
+  const everydayBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: everydaySessionId,
+  });
+  const everydayInspectScript = await postJson("/api/tripp/reply", {
+    prompt: "inspect script.js",
+    mode: "AUTO",
+    sessionId: everydaySessionId,
+  });
+  const everydayGate = await postJson("/api/tripp/trials/read-only", {});
+  const everydayCyst = await getJson("/api/tripp/cyst/events");
+  const everydayTaskIds = [
+    everydayRetrieval.task?.id,
+    everydayInspectReadme.task?.id,
+    everydaySafeShell.task?.id,
+    everydayInspectServer.task?.id,
+    everydayBlockedShell.task?.id,
+    everydayInspectScript.task?.id,
+    everydayGate.task?.id,
+  ].filter(Boolean);
+  const everydayCystEvents = everydayCyst.events?.filter((event) => everydayTaskIds.includes(event.descriptorId) || event.descriptorId === everydayGate.id) || [];
+  const everydayMixedSessionPass =
+    everydayRetrieval.task?.status === "retrieval_ready" &&
+    everydayRetrieval.task?.retrieval?.sourceKind === "mock" &&
+    everydayRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    everydayRetrieval.task?.retrieval?.writeApprovalEligible === false &&
+    everydayInspectReadme.task?.status === "inspected" &&
+    everydayInspectReadme.task?.target === "README.md" &&
+    everydaySafeShell.task?.status === "completed" &&
+    everydaySafeShell.task?.adapter?.invoked === true &&
+    everydayInspectServer.task?.status === "inspected" &&
+    everydayInspectServer.task?.target === "server.mjs" &&
+    everydayBlockedShell.task?.status === "gated" &&
+    !everydayBlockedShell.task?.adapter &&
+    everydayBlockedShell.task?.permission?.decision === "gated" &&
+    everydayInspectScript.task?.status === "inspected" &&
+    everydayInspectScript.task?.target === "script.js" &&
+    everydayGate.suiteStatus === "go" &&
+    everydayGate.task?.goNoGo?.suiteStatus === "go" &&
+    everydayCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === everydayRetrieval.task?.id) &&
+    everydayCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === everydayInspectReadme.task?.id) &&
+    everydayCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === everydaySafeShell.task?.id) &&
+    everydayCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === everydayInspectServer.task?.id) &&
+    everydayCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === everydayBlockedShell.task?.id) &&
+    everydayCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === everydayInspectScript.task?.id) &&
+    everydayCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === everydayGate.id && event.gateStage === "completed");
+  console.log(`${everydayMixedSessionPass ? "PASS" : "FAIL"} beta: everyday mixed-session acceptance flow`);
+  if (!everydayMixedSessionPass) {
+    failures.push({ name: "everyday mixed-session acceptance" });
+  }
+
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({
     sessionId: longSessionId,
     scenarioId: "longer_readonly_repeatability",
@@ -2058,7 +2148,7 @@ try {
           blocked: [enforcementBlockedShell.task],
           nextDirection: [enforcementGate.task],
         },
-        summary: "Policy and adapter session was understandable without final enforcement ownership claims.",
+        summary: "Policy and adapter session remained understandable as scoped enforcement-layer review.",
       },
       {
         scenarioId: "longer_session_branch_rolloff",
@@ -2100,9 +2190,21 @@ try {
         },
         summary: "The longer read-only session remained understandable within the current beta harness scope.",
       },
+      {
+        scenarioId: "everyday_mixed_session",
+        acceptancePassed: everydayMixedSessionPass,
+        tasks: {
+          inspected: [everydayInspectReadme.task, everydayInspectServer.task, everydayInspectScript.task],
+          learned: [everydayInspectReadme.task, everydaySafeShell.task, everydayInspectServer.task, everydayInspectScript.task],
+          uncertain: [everydayRetrieval.task],
+          blocked: [everydayBlockedShell.task],
+          nextDirection: [everydayGate.task],
+        },
+        summary: "Everyday mixed session remained understandable as ordinary read-only planning review.",
+      },
     ],
   });
-  const requiredOperatorPackScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "contradiction_recovery", "long_session_stress"];
+  const requiredOperatorPackScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "contradiction_recovery", "long_session_stress", "everyday_mixed_session"];
   const operatorPackScenarioIds = operatorPackArtifact.scenarioResults.map((scenario) => scenario.scenarioId);
   const operatorPackPass =
     operatorPackArtifact.artifactType === "operator_independence_pack_check" &&
@@ -2113,12 +2215,19 @@ try {
     JSON.stringify(operatorPackArtifact.presentScenarioIds) === JSON.stringify(requiredOperatorPackScenarioIds) &&
     Array.isArray(operatorPackArtifact.duplicateScenarioIds) &&
     operatorPackArtifact.duplicateScenarioIds.length === 0 &&
-    operatorPackArtifact.scenarioResults.length === 5 &&
+    operatorPackArtifact.scenarioResults.length === 6 &&
     requiredOperatorPackScenarioIds.every((scenarioId) => operatorPackScenarioIds.includes(scenarioId)) &&
     new Set(operatorPackScenarioIds).size === operatorPackScenarioIds.length &&
     operatorPackArtifact.scenarioResults.every((scenario) => operatorPackArtifact.requiredScenarioIds.includes(scenario.scenarioId)) &&
     operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === "pass") &&
     operatorPackArtifact.scenarioResults.every((scenario) => Object.values(scenario.checks).every((status) => status === "pass")) &&
+    operatorPackArtifact.scenarioResults.every((scenario) => scenario.checks.summaryCopySafe === "pass") &&
+    operatorPackArtifact.scenarioResults.every((scenario) => scenario.checks.evidenceSourceComplete === "pass") &&
+    operatorPackArtifact.scenarioResults.every((scenario) => scenario.evidenceClasses?.inspect === true) &&
+    operatorPackArtifact.scenarioResults.every((scenario) => scenario.evidenceClasses?.retrieval === true) &&
+    operatorPackArtifact.scenarioResults.every((scenario) => scenario.evidenceClasses?.blocked === true) &&
+    operatorPackArtifact.scenarioResults.every((scenario) => scenario.evidenceClasses?.gate === true) &&
+    operatorPackArtifact.scenarioResults.find((scenario) => scenario.scenarioId === "everyday_mixed_session")?.evidenceClasses?.safeShell === true &&
     operatorPackArtifact.scenarioResults.find((scenario) => scenario.scenarioId === "long_session_stress")?.checks?.continuityReconstructed === "pass" &&
     operatorPackArtifact.scenarioResults.find((scenario) => scenario.scenarioId === "long_session_stress")?.checks?.branchShiftUnderstood === "pass" &&
     operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === (Object.values(scenario.checks).every((status) => status === "pass") ? "pass" : "fail")) &&
@@ -2219,19 +2328,31 @@ function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acce
 }
 
 function createOperatorIndependencePackArtifact({ packId, scenarios }) {
-  const requiredScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "contradiction_recovery", "long_session_stress"];
+  const requiredScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "contradiction_recovery", "long_session_stress", "everyday_mixed_session"];
+  const unsafeSummaryPattern = /\b(?:verified|confirmed|resolved|final|ready|certified|certification|autonomous|validated replacement|goose no longer needed|independent agent|self-sufficient reviewer|write-capable|edit-ready|apply-ready|patch-ready)\b/i;
   const scenarioResults = scenarios.map((scenario) => {
     const hasInspected = scenario.tasks.inspected?.every((task) => task?.status === "inspected");
     const hasLearned = scenario.tasks.learned?.every((task) => ["completed", "inspected"].includes(task?.status));
     const hasUncertain = scenario.tasks.uncertain?.every((task) => task?.retrieval?.authorityLevel === "planning-only");
     const hasBlocked = scenario.tasks.blocked?.every((task) => task?.status === "gated" && !task?.adapter);
     const hasNextDirection = scenario.tasks.nextDirection?.every((task) => task?.goNoGo?.suiteStatus === "go" || task?.status === "completed");
+    const evidenceClasses = {
+      inspect: Boolean(scenario.tasks.inspected?.some((task) => task?.status === "inspected")),
+      retrieval: Boolean(scenario.tasks.uncertain?.some((task) => task?.retrieval?.authorityLevel === "planning-only")),
+      blocked: Boolean(scenario.tasks.blocked?.some((task) => task?.status === "gated" && !task?.adapter)),
+      gate: Boolean(scenario.tasks.nextDirection?.some((task) => task?.goNoGo?.suiteStatus === "go")),
+      safeShell: Boolean(scenario.tasks.learned?.some((task) => task?.status === "completed" && task?.adapter?.invoked === true)),
+    };
+    const summaryCopySafe = !unsafeSummaryPattern.test(scenario.summary || "");
+    const evidenceSourceComplete = evidenceClasses.inspect && evidenceClasses.retrieval && evidenceClasses.blocked && evidenceClasses.gate;
     const checks = {
       inspected: hasInspected ? "pass" : "fail",
       learned: hasLearned ? "pass" : "fail",
       uncertain: hasUncertain ? "pass" : "fail",
       blocked: hasBlocked ? "pass" : "fail",
       nextDirection: hasNextDirection ? "pass" : "fail",
+      summaryCopySafe: summaryCopySafe ? "pass" : "fail",
+      evidenceSourceComplete: evidenceSourceComplete ? "pass" : "fail",
       understandableWithoutSidecar: scenario.acceptancePassed ? "pass" : "fail",
       ...(scenario.extraChecks
         ? Object.fromEntries(Object.entries(scenario.extraChecks).map(([key, value]) => [key, value ? "pass" : "fail"]))
@@ -2242,6 +2363,7 @@ function createOperatorIndependencePackArtifact({ packId, scenarios }) {
       scenarioId: scenario.scenarioId,
       status,
       checks,
+      evidenceClasses,
       summary: scenario.summary,
     };
   });
