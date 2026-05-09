@@ -42,6 +42,7 @@ The verifier uses an isolated temporary runtime directory so test tasks and sess
 - Tripp adapter routes for bootstrap and prompt replies:
   - `GET /api/tripp/bootstrap`
   - `GET /api/tripp/health`
+  - `GET /api/tripp/backend/status`
   - `POST /api/tripp/reply`
   - `GET /api/tripp/tasks`
   - `POST /api/tripp/tasks/:taskId/approve`
@@ -52,6 +53,7 @@ The verifier uses an isolated temporary runtime directory so test tasks and sess
   - `TRIPP_BACKEND_URL`
   - `TRIPP_BACKEND_SECRET` or `GOOSE_SERVER__SECRET_KEY`
   - `TRIPP_ENABLE_BACKEND_REPLY=true`
+  - `TRIPP_BACKEND_HEALTH_PATH`, default `/health`
   - `TRIPP_RUNTIME_DIR` for overriding the local task/session store directory
 - Agent role/soul/operator doctrine lives under `agents/`.
 
@@ -62,3 +64,13 @@ Shell tasks auto-run only a small read-only allowlist such as `node --version`, 
 Analysis tasks are read-only, auto-complete for approved repo-local files, and show a short excerpt plus lightweight findings in the task detail.
 Task and session history are persisted locally under `.tripp-runtime/`, which is ignored by Git.
 The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.
+
+## Backend Bridge Contract
+
+When backend replies are enabled, Tripp.g expects:
+
+- `GET /health` or the configured `TRIPP_BACKEND_HEALTH_PATH`
+- `POST /sessions/:sessionId/reply`
+
+Reply requests send `{ "message": "...", "mode": "CHAT|AUTO", "sessionId": "..." }`.
+Reply responses can return a simple `message`, `content`, or `text`, or a `messages` array with `{ kind, speaker, body }` entries. Optional usage can be returned as `{ usage: { inputTokens, outputTokens } }`.

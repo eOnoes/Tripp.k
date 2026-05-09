@@ -1,11 +1,14 @@
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const port = 4199;
 const baseUrl = `http://127.0.0.1:${port}`;
 const runtimeDir = mkdtempSync(join(tmpdir(), "tripp-runtime-verify-"));
+const extraRuntimeDirs = [];
+const extraServers = [];
 const server = spawn(process.execPath, ["server.mjs"], {
   cwd: new URL("..", import.meta.url),
   env: { ...process.env, PORT: String(port), TRIPP_RUNTIME_DIR: runtimeDir },
@@ -64,19 +67,95 @@ try {
     failures.push({ name: "health" });
   }
 
+  const bridgePass = await verifyBackendBridge();
+  if (!bridgePass) {
+    failures.push({ name: "backend bridge" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }
 } finally {
   server.kill();
+  extraServers.forEach((candidate) => candidate.kill?.());
+  extraServers.forEach((candidate) => candidate.close?.());
   rmSync(runtimeDir, { recursive: true, force: true });
+  extraRuntimeDirs.forEach((dir) => rmSync(dir, { recursive: true, force: true }));
 }
 
-async function waitForServer() {
+async function verifyBackendBridge() {
+  const backendPort = 4298;
+  const bridgePort = 4299;
+  const bridgeUrl = `http://127.0.0.1:${bridgePort}`;
+  const bridgeRuntimeDir = mkdtempSync(join(tmpdir(), "tripp-runtime-bridge-"));
+  extraRuntimeDirs.push(bridgeRuntimeDir);
+
+  const fakeBackend = createServer(async (request, response) => {
+    if (request.method === "GET" && request.url === "/health") {
+      sendJson(response, { ok: true, name: "fake-goose-bridge" });
+      return;
+    }
+
+    if (request.method === "POST" && request.url?.startsWith("/sessions/")) {
+      const payload = await readRequestJson(request);
+      sendJson(response, {
+        messages: [
+          {
+            kind: "agent",
+            speaker: "tripp.backend>",
+            body: `bridge received: ${payload.message}`,
+          },
+        ],
+        usage: {
+          inputTokens: String(payload.message || "").length,
+          outputTokens: 17,
+        },
+      });
+      return;
+    }
+
+    sendJson(response, { error: "not found" }, 404);
+  });
+  await listen(fakeBackend, backendPort);
+  extraServers.push(fakeBackend);
+
+  const bridgeServer = spawn(process.execPath, ["server.mjs"], {
+    cwd: new URL("..", import.meta.url),
+    env: {
+      ...process.env,
+      PORT: String(bridgePort),
+      TRIPP_RUNTIME_DIR: bridgeRuntimeDir,
+      TRIPP_BACKEND_URL: `http://127.0.0.1:${backendPort}`,
+      TRIPP_ENABLE_BACKEND_REPLY: "true",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  extraServers.push(bridgeServer);
+
+  await waitForServer(bridgeUrl);
+  const status = await getJson("/api/tripp/backend/status", bridgeUrl);
+  const created = await postJson("/api/tripp/sessions", {}, bridgeUrl);
+  const reply = await postJson(
+    "/api/tripp/reply",
+    { prompt: "backend contract smoke", mode: "CHAT", sessionId: created.session.id },
+    bridgeUrl,
+  );
+  const bootstrap = await getJson("/api/tripp/bootstrap", bridgeUrl);
+  const persisted = bootstrap.sessions.find((session) => session.id === created.session.id);
+  const pass =
+    status.reachable === true &&
+    reply.status?.model === "tripp-adapter/backend" &&
+    reply.messages?.[0]?.body === "bridge received: backend contract smoke" &&
+    persisted?.transcript?.some((message) => message.body === "bridge received: backend contract smoke");
+  console.log(`${pass ? "PASS" : "FAIL"} backend bridge: health -> reply -> persisted transcript`);
+  return pass;
+}
+
+async function waitForServer(url = baseUrl) {
   const started = Date.now();
   while (Date.now() - started < 8000) {
     try {
-      const response = await fetch(`${baseUrl}/api/tripp/bootstrap`);
+      const response = await fetch(`${url}/api/tripp/bootstrap`);
       if (response.ok) return;
     } catch {
       await sleep(100);
@@ -86,8 +165,8 @@ async function waitForServer() {
   throw new Error("Timed out waiting for verification server.");
 }
 
-async function postJson(path, body) {
-  const response = await fetch(`${baseUrl}${path}`, {
+async function postJson(path, body, url = baseUrl) {
+  const response = await fetch(`${url}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -100,14 +179,42 @@ async function postJson(path, body) {
   return response.json();
 }
 
-async function getJson(path) {
-  const response = await fetch(`${baseUrl}${path}`);
+async function getJson(path, url = baseUrl) {
+  const response = await fetch(`${url}${path}`);
 
   if (!response.ok) {
     throw new Error(`${path} failed with ${response.status}`);
   }
 
   return response.json();
+}
+
+function listen(serverToStart, serverPort) {
+  return new Promise((resolve) => {
+    serverToStart.listen(serverPort, "127.0.0.1", resolve);
+  });
+}
+
+function sendJson(response, value, status = 200) {
+  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  response.end(JSON.stringify(value));
+}
+
+function readRequestJson(request) {
+  return new Promise((resolveJson) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      try {
+        resolveJson(body ? JSON.parse(body) : {});
+      } catch {
+        resolveJson({});
+      }
+    });
+  });
 }
 
 function sleep(ms) {

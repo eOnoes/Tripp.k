@@ -14,6 +14,7 @@ const sessionStoreFile = join(runtimeDir, "sessions.json");
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
 const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
 const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
+const backendHealthPath = process.env.TRIPP_BACKEND_HEALTH_PATH || "/health";
 const taskQueue = loadTaskQueue();
 const sessionStore = loadSessionStore();
 
@@ -58,6 +59,11 @@ async function handleTrippApi(request, response, url) {
 
   if (request.method === "GET" && url.pathname === "/api/tripp/health") {
     sendJson(response, readHealth());
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/tripp/backend/status") {
+    sendJson(response, await readBackendStatus());
     return;
   }
 
@@ -127,6 +133,7 @@ function readHealth() {
     backend: {
       configured: Boolean(backendUrl),
       replyEnabled: backendReplyEnabled,
+      healthPath: backendHealthPath,
     },
     stores: {
       tasks: taskQueue.length,
@@ -142,6 +149,47 @@ function readHealth() {
       shell: "read-only-allowlist",
       git: "status-only",
       backendReply: backendUrl && backendReplyEnabled ? "enabled" : "disabled",
+    },
+    contract: backendContract(),
+  };
+}
+
+async function readBackendStatus() {
+  if (!backendUrl) {
+    return {
+      configured: false,
+      reachable: false,
+      replyEnabled: false,
+      contract: backendContract(),
+    };
+  }
+
+  const started = Date.now();
+  const response = await backendFetch(backendHealthPath);
+  return {
+    configured: true,
+    reachable: response.ok,
+    status: response.status || 0,
+    latency: `${Date.now() - started}ms`,
+    replyEnabled: backendReplyEnabled,
+    contract: backendContract(),
+  };
+}
+
+function backendContract() {
+  return {
+    health: `GET ${backendHealthPath}`,
+    reply: "POST /sessions/:sessionId/reply",
+    replyRequest: {
+      message: "string",
+      mode: "CHAT | AUTO",
+      sessionId: "string",
+    },
+    replyResponse: {
+      message: "string",
+      content: "string",
+      messages: [{ kind: "agent|tool|system", speaker: "string", body: "string" }],
+      usage: { inputTokens: "number", outputTokens: "number" },
     },
   };
 }
@@ -622,19 +670,25 @@ function applyTaskPatch(task) {
 
 async function tryCreateBackendReply(payload) {
   const sessionId = String(payload?.sessionId || "");
-  if (!sessionId || sessionId.startsWith("session-")) {
+  const prompt = String(payload?.prompt || "").trim();
+  if (!sessionId || !prompt) {
     return null;
   }
 
   const started = Date.now();
   const backendResponse = await backendFetch(`/sessions/${encodeURIComponent(sessionId)}/reply`, {
     method: "POST",
-    body: JSON.stringify({ message: payload.prompt, mode: payload.mode }),
+    body: JSON.stringify({ message: prompt, mode: payload.mode, sessionId }),
   });
 
   if (!backendResponse.ok) {
     return null;
   }
+
+  const body = await backendResponse.json();
+  const messages = mapBackendMessages(body);
+  const usage = mapBackendUsage(body);
+  const session = recordSessionExchange(sessionId, prompt, messages);
 
   return {
     id: `backend-reply-${Date.now()}`,
@@ -643,24 +697,48 @@ async function tryCreateBackendReply(payload) {
       connection: "CONNECTED",
       model: "tripp-adapter/backend",
       latency: `${Date.now() - started}ms`,
-      tokensIn: String(payload?.prompt || "").length,
-      tokensOut: 0,
+      tokensIn: usage.inputTokens ?? prompt.length,
+      tokensOut: usage.outputTokens ?? messages.reduce((sum, message) => sum + String(message.body || "").length, 0),
     },
-    messages: [
-      {
-        kind: "agent",
-        speaker: "tripp>",
-        body: mapBackendReply(await backendResponse.json()),
-      },
-    ],
+    messages,
+    session,
   };
+}
+
+function mapBackendMessages(value) {
+  if (Array.isArray(value?.messages)) {
+    return value.messages.map((message) => ({
+      kind: message.kind || "agent",
+      speaker: message.speaker || "tripp>",
+      body: mapBackendReply(message),
+      tool: message.tool,
+      result: message.result,
+    }));
+  }
+
+  return [
+    {
+      kind: "agent",
+      speaker: "tripp>",
+      body: mapBackendReply(value),
+    },
+  ];
 }
 
 function mapBackendReply(value) {
   if (typeof value === "string") return value;
+  if (value?.body) return String(value.body);
   if (value?.message) return String(value.message);
   if (value?.content) return String(value.content);
+  if (value?.text) return String(value.text);
   return "Backend reply received. Event streaming mapper is the next integration step.";
+}
+
+function mapBackendUsage(value) {
+  return {
+    inputTokens: Number(value?.usage?.inputTokens ?? value?.usage?.tokensIn ?? value?.tokensIn) || null,
+    outputTokens: Number(value?.usage?.outputTokens ?? value?.usage?.tokensOut ?? value?.tokensOut) || null,
+  };
 }
 
 async function backendFetch(path, options = {}) {
@@ -671,6 +749,7 @@ async function backendFetch(path, options = {}) {
   try {
     return await fetch(`${backendUrl}${path}`, {
       ...options,
+      signal: options.signal || AbortSignal.timeout(5000),
       headers: {
         "Content-Type": "application/json",
         ...backendAuthHeaders(),
