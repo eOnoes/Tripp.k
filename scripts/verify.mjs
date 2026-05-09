@@ -389,24 +389,29 @@ try {
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
-    futureWriteContract.includes("Not active in current read-only harness.") &&
-    futureWriteContract.includes("Design-only contract; no runtime mutation path is enabled.") &&
+    futureWriteContract.includes("This contract is design-only and is not active in the current read-only harness.") &&
+    futureWriteContract.includes("No runtime mutation path is enabled by this document.") &&
+    futureWriteContract.includes("Current behavior remains read-only.") &&
+    futureWriteContract.includes("This document does not change runtime permissions or enable writes.") &&
     futureWriteContract.includes("Warden remains default-deny for every mutation-capable path.") &&
     futureWriteContract.includes("Mock or planning-only evidence can never authorize file changes.") &&
-    futureWriteContract.includes("Mock or planning-only evidence is never sufficient for write approval and can never unlock apply.") &&
+    futureWriteContract.includes("Mock or planning-only evidence is never sufficient for write approval or apply authorization.") &&
     futureWriteContract.includes("Future Review / Approve / Apply Split") &&
+    futureWriteContract.includes("Review, approve, and apply are separate future stages and are not currently enabled.") &&
     futureWriteContract.includes("review does not authorize writes.") &&
     futureWriteContract.includes("approve does not execute writes.") &&
     futureWriteContract.includes("apply cannot proceed from mock or planning-only evidence.") &&
     futureWriteContract.includes("approval is bound to a preview fingerprint") &&
     futureWriteContract.includes("stale approval blocks apply") &&
     futureWriteContract.includes("write_intent_received") &&
+    futureWriteContract.includes("write_authorization_denied") &&
     futureWriteContract.includes("patch_preview_generated") &&
     futureWriteContract.includes("approval_recorded") &&
     futureWriteContract.includes("stale_check_performed") &&
     futureWriteContract.includes("apply_requested") &&
     futureWriteContract.includes("apply_succeeded") &&
     futureWriteContract.includes("apply_failed") &&
+    futureWriteContract.includes("These are future placeholders only. They are not currently emitted as runtime mutation events.") &&
     futureWriteContract.includes("Explicitly Out Of Scope Now") &&
     futureWriteContract.includes("live file mutation") &&
     readOnly80Gate.includes("Read-Only 80 Percent Gate v0.1") &&
@@ -414,8 +419,12 @@ try {
     readOnly80Gate.includes("Required Proof Before 80%") &&
     readOnly80Gate.includes("Branch reversal proof") &&
     readOnly80Gate.includes("Repeated ambiguity proof") &&
+    readOnly80Gate.includes("Contradiction and safe recovery proof") &&
+    readOnly80Gate.includes("new read-only evidence can reduce confidence in an earlier synthesis without calling it wrong") &&
     readOnly80Gate.includes("Longer-session repeatability") &&
     readOnly80Gate.includes("Operator-independence proof") &&
+    readOnly80Gate.includes("contradiction recovery is missing or only documented without acceptance proof") &&
+    readOnly80Gate.includes("contradiction_recovery_updates_synthesis_without_calling_earlier_context_wrong") &&
     readOnly80Gate.includes("Still Out Of Scope At 80%") &&
     readOnly80Gate.includes("edit/build replacement") &&
     readOnly80Gate.includes("live file mutation") &&

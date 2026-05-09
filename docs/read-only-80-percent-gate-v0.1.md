@@ -21,12 +21,18 @@ All of these must pass:
    - branch ranking stays based on usefulness for review
    - the next read-only direction remains clear
 
-3. Longer-session repeatability
+3. Contradiction and safe recovery proof
+   - new read-only evidence can reduce confidence in an earlier synthesis without calling it wrong
+   - Current Understanding shows what changed in interpretation
+   - earlier useful context remains visible
+   - recovery language stays scoped to current review usefulness, not final truth
+
+4. Longer-session repeatability
    - repeated 8-10 task read-only sessions remain coherent
    - older but relevant blocked outcomes do not vanish from the story
    - Current Understanding does not overcompress uncertainty
 
-4. Operator-independence proof
+5. Operator-independence proof
    - a reviewer can answer what was inspected, learned, uncertain, blocked, and next without Goose narration
    - TASKS, Current Understanding, and Cyst remain confidence-coherent
 
@@ -35,6 +41,7 @@ All of these must pass:
 Do not move to 80% if:
 
 - branch reversal is a single fragile happy path
+- contradiction recovery is missing or only documented without acceptance proof
 - weaker or downgraded branches disappear while still relevant
 - mock evidence sounds authoritative after follow-up inspection
 - safe shell success implies broad shell capability
@@ -54,6 +61,8 @@ Do not move to 80% if:
 ## Candidate Future Tests
 
 - `second_ambiguity_shape_passes_without_overclaim`
+- `contradiction_recovery_updates_synthesis_without_calling_earlier_context_wrong`
+- `current_understanding_shows_what_changed_without_final_truth_language`
 - `branch_reversal_remains_stable_across_repeat_runs`
 - `long_session_keeps_relevant_blocked_outcomes_visible`
 - `current_understanding_does_not_overcompress_uncertainty`

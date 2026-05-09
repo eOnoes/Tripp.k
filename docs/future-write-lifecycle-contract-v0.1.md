@@ -2,7 +2,7 @@
 
 Status: design-only contract. This document must not enable live mutation paths.
 
-Not active in current read-only harness. Design-only contract; no runtime mutation path is enabled.
+This contract is design-only and is not active in the current read-only harness. No runtime mutation path is enabled by this document. Current behavior remains read-only. This document does not change runtime permissions or enable writes.
 
 ## Purpose
 
@@ -13,9 +13,9 @@ This contract describes the future write lifecycle so the read-only prototype ca
 - Warden remains default-deny for every mutation-capable path.
 - No write-capable adapter route may be invoked without explicit future approval/apply gates.
 - Mock or planning-only evidence can never authorize file changes.
-- Mock or planning-only evidence is never sufficient for write approval and can never unlock apply.
+- Mock or planning-only evidence is never sufficient for write approval or apply authorization.
 - Approval and apply are separate states.
-- Review, approve, and apply are separate future lifecycle steps.
+- Review, approve, and apply are separate future stages and are not currently enabled.
 - A previewed patch is not an applied patch.
 - Stale approval must block apply.
 - Cyst records write lifecycle audit truth; TASKS presents operator interpretation.
@@ -89,6 +89,7 @@ Any failed condition must produce an apply-blocked or write-escalation-blocked e
 Candidate event types:
 
 - `write_intent_received`
+- `write_authorization_denied`
 - `patch_plan_created`
 - `patch_preview_generated`
 - `approval_recorded`
@@ -100,6 +101,8 @@ Candidate event types:
 - `apply_blocked`
 - `apply_succeeded`
 - `apply_failed`
+
+These are future placeholders only. They are not currently emitted as runtime mutation events.
 
 Required event fields:
 
