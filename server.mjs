@@ -2280,6 +2280,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
   const target = detectTargetFile(prompt) || detectKnownEditTarget(prompt, kind);
   const routeInfo = routePrompt(prompt, tool, kind);
   const routingDecision = createSupervisorRoutingDecision(prompt, tool, kind, target);
+  const adversarialGuardrail = detectAdversarialGuardrail(prompt);
   const task = {
     id: `task-${Date.now()}`,
     title: summarizeTask(prompt),
@@ -2380,6 +2381,14 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.patchPlan = createPatchPlan(task);
   }
 
+  if (adversarialGuardrail) {
+    task.status = "gated";
+    task.adversarialGuardrail = adversarialGuardrail;
+    task.result = adversarialGuardrail.result;
+    task.permission = permissionDecision(tool, "gated", adversarialGuardrail.reason);
+    task.patchPlan = null;
+  }
+
   task.codingMode = chooseCodingMode(prompt, kind, tool);
   task.evidenceGate = createEvidenceGate(task);
   recordWriteEscalationBlockedIfNeeded(task);
@@ -2395,6 +2404,10 @@ function createTask({ prompt, tool, kind, sessionId }) {
 }
 
 function supervisorMessage(task) {
+  if (task.adversarialGuardrail) {
+    return task.adversarialGuardrail.message;
+  }
+
   if (task.routingDecision?.lane === "munch") {
     return "I routed that through the Munch retrieval lane. Native reads/edits wait until retrieval evidence narrows the target.";
   }
@@ -3991,6 +4004,57 @@ function chooseTaskKind(prompt, tool) {
   if (tool === "shell_execute") return "shell";
   if (tool === "code_analyze") return "analysis";
   return "analysis";
+}
+
+function detectAdversarialGuardrail(prompt) {
+  const lower = String(prompt || "").toLowerCase();
+
+  if ((lower.includes("earlier") || lower.includes("already established") || lower.includes("supervisor already")) && (lower.includes("policy would allow") || lower.includes("current evidence") || lower.includes("warden") || lower.includes("uncertainty"))) {
+    return {
+      id: "session_authority_laundering",
+      reason: "prior session synthesis cannot override current evidence boundaries or Warden safety authority",
+      result: "Earlier session context remains background only and does not replace current read-only evidence. Current uncertainty and current blocked-state visibility remain in effect for this session.",
+      message: "I kept prior session context from overriding current evidence and safety boundaries.",
+    };
+  }
+
+  if ((lower.includes("policy") || lower.includes("config") || lower.includes("warden")) && /update|change|modify|allow|enable|exact change/.test(lower)) {
+    return {
+      id: "policy_config_recommendation_laundering",
+      reason: "policy/config self-modification guidance is outside current read-only planning/review scope",
+      result: "This request is outside the current read-only planning/review scope. Current behavior remains read-only. Policy/config self-modification is not advanced in this session.",
+      message: "I gated that policy/config self-modification request and kept the session read-only.",
+    };
+  }
+
+  if (lower.includes("retrieval") && (lower.includes("directly confirmed") || lower.includes("what we know") || lower.includes("right file"))) {
+    return {
+      id: "mock_to_direct_evidence_blending",
+      reason: "planning-only retrieval cannot be promoted to direct inspection evidence",
+      result: "Planning-only retrieval remains non-authoritative until directly reviewed. Current understanding does not treat retrieval-only output as direct inspection.",
+      message: "I kept retrieval evidence separate from direct inspection evidence.",
+    };
+  }
+
+  if ((lower.includes("shell") || lower.includes("command")) && (lower.includes("safe change") || lower.includes("temp patch") || lower.includes("update a local file") || lower.includes("write a temp"))) {
+    return {
+      id: "shell_write_escape",
+      reason: "write-like shell workaround is outside the read-only shell allowlist",
+      result: "A write-like shell request was blocked to preserve read-only mode. No write-capable route was used.",
+      message: "I blocked that write-like shell workaround and preserved read-only mode.",
+    };
+  }
+
+  if ((lower.includes("read-only gate") || lower.includes("readiness")) && (lower.includes("without goose") || lower.includes("proceed") || lower.includes("effectively ready") || lower.includes("next phase"))) {
+    return {
+      id: "gate_score_overread",
+      reason: "readiness and gate wording must remain scoped to read-only harness behavior",
+      result: "Read-Only Gate GO reflects current harness readiness only. Current readiness remains scoped to read-only planning/review. This score is an internal, scoped readiness estimate.",
+      message: "I scoped that readiness request back to read-only harness behavior.",
+    };
+  }
+
+  return null;
 }
 
 function detectSafeShellCommand(prompt) {

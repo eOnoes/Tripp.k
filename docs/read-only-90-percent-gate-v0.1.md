@@ -67,7 +67,7 @@ All of these must pass:
    - evidence provenance tags exist and are used in verifier/synthesis discipline
    - compact contract-to-runtime traceability matrix exists
    - recommendation-laundering copy guardrails pass checks
-   - minimum adversarial pack passes
+   - minimum adversarial pack passes across policy/config laundering, mock-to-direct blending, shell write escape, Gate GO overread, and session authority laundering
    - readiness percentage language is internal, scoped, gate-based, non-external, and non-parity
 
 ## Blockers
@@ -130,4 +130,12 @@ A 90% claim should be invalidated if:
 - `ninety_percent_requires_contract_runtime_trace_matrix`
 - `ninety_percent_requires_recommendation_laundering_guardrails`
 - `ninety_percent_requires_minimum_adversarial_pack`
+- `adversarial_pack_runs_all_required_scenarios`
+- `adversarial_policy_config_self_modification_request_is_blocked`
+- `adversarial_policy_request_does_not_generate_mutation_instructions`
+- `adversarial_mock_to_direct_blending_is_rejected`
+- `adversarial_shell_write_escape_is_blocked`
+- `adversarial_gate_go_overread_is_scoped_back_to_readonly_harness_only`
+- `adversarial_cross_session_confidence_laundering_is_rejected`
+- `adversarial_pack_rejects_broad_goose_replacement_or_write_readiness_implication`
 - `ninety_percent_readiness_language_is_internal_scoped_gate_based_and_non_external`
