@@ -847,6 +847,30 @@ button {
   grid-template-rows: 36px minmax(0, 1fr);
 }
 
+.tasks h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.run-trials {
+  height: 18px;
+  padding: 0 7px;
+  background: #050505;
+  border: 1px solid #263400;
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.run-trials:hover {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: var(--black);
+}
+
 #taskRoot {
   min-height: 0;
   overflow: auto;
@@ -1004,6 +1028,13 @@ button {
   background: #070a00;
 }
 
+.trial-detail {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #263400;
+  background: #050700;
+}
+
 .evidence-gate {
   margin-top: 8px;
   padding: 8px;
@@ -1028,7 +1059,8 @@ button {
   background: #0b0b02;
 }
 
-.evidence-gate header {
+.evidence-gate header,
+.trial-detail header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1046,6 +1078,7 @@ button {
 
 .evidence-gate header strong,
 .trace-map-detail header strong,
+.trial-detail header strong,
 .retrieval-detail strong {
   display: block;
   color: var(--lime);
@@ -1053,7 +1086,8 @@ button {
   text-transform: uppercase;
 }
 
-.evidence-gate header span {
+.evidence-gate header span,
+.trial-detail header span {
   color: var(--lime);
   font-size: 9px;
   font-weight: 800;
@@ -1088,6 +1122,45 @@ button {
   grid-template-columns: 1fr;
   gap: 6px;
   margin-top: 8px !important;
+}
+
+.trial-list {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin: 0 !important;
+}
+
+.trial-list article {
+  padding: 7px;
+  background: #080808;
+  border: 1px solid var(--line-soft);
+}
+
+.trial-list article.pass {
+  border-left: 2px solid var(--lime);
+}
+
+.trial-list article.fail {
+  border-left: 2px solid #ff3333;
+}
+
+.trial-list b {
+  display: block;
+  color: var(--text);
+  font-size: 10px;
+}
+
+.trial-list small,
+.trial-list p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.trial-list dl {
+  margin: 6px 0 0;
 }
 
 .gate-column {

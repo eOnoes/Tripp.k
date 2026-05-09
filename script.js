@@ -24,6 +24,7 @@
     toolCount: document.querySelector("#toolCount"),
     taskRoot: document.querySelector("#taskRoot"),
     taskCount: document.querySelector("#taskCount"),
+    runTrials: document.querySelector(".run-trials"),
     workspaceRoot: document.querySelector("#workspaceRoot"),
     filePreview: document.querySelector("#filePreview"),
     workspaceRefresh: document.querySelector(".workspace-refresh"),
@@ -97,6 +98,7 @@
 
     elements.newSession.addEventListener("click", createSession);
     elements.newSessionIcon.addEventListener("click", createSession);
+    elements.runTrials.addEventListener("click", runReadOnlyTrials);
     elements.workspaceRefresh.addEventListener("click", () => loadWorkspaceTree({ force: true }));
     elements.returnChat.addEventListener("click", scrollToCurrentChat);
     elements.feed.addEventListener("scroll", updateChatFollowState);
@@ -365,6 +367,7 @@
                     </dl>
                     ${renderEvidenceGate(task.evidenceGate)}
                     ${renderTraceMap(task.traceMap)}
+                    ${renderTrialEvidence(task.trials)}
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
                     ${renderRetrieval(task.retrieval)}
@@ -564,6 +567,39 @@
           )
           .join("")}
       </ol>
+    `;
+  }
+
+  function renderTrialEvidence(trials) {
+    if (!Array.isArray(trials) || !trials.length) return "";
+
+    const passCount = trials.filter((trial) => trial.pass).length;
+    return `
+      <section class="trial-detail">
+        <header>
+          <strong>Read-Only Trials</strong>
+          <span>${escapeHtml(`${passCount}/${trials.length}`)}</span>
+        </header>
+        <div class="trial-list">
+          ${trials
+            .map(
+              (trial) => `
+                <article class="${trial.pass ? "pass" : "fail"}">
+                  <b>${escapeHtml(trial.title || trial.id)}</b>
+                  <small>${escapeHtml(trial.expected || "")}</small>
+                  <dl>
+                    <div><dt>WARDEN</dt><dd>${escapeHtml(trial.wardenState || "none")}</dd></div>
+                    <div><dt>ROUTE</dt><dd>${escapeHtml(trial.route || "none")}</dd></div>
+                    <div><dt>ADAPTER</dt><dd>${escapeHtml(trial.adapterStatus || "none")} · ${escapeHtml(trial.adapterInvoked ? "invoked" : "not invoked")}</dd></div>
+                    <div><dt>CYST</dt><dd>${escapeHtml(trial.cystEvent || "none")}</dd></div>
+                  </dl>
+                  <p>${escapeHtml((trial.evidence || []).join(" / ") || "no evidence")}</p>
+                </article>
+              `,
+            )
+            .join("")}
+        </div>
+      </section>
     `;
   }
 
@@ -809,6 +845,35 @@
       });
       renderTasks();
       renderMessages();
+    }
+  }
+
+  async function runReadOnlyTrials() {
+    if (state.busy) return;
+    state.busy = true;
+    try {
+      const result = await runtime.runReadOnlyTrials();
+      if (result.task) upsertTask({ ...result.task, expanded: true });
+      state.messages.push({
+        speaker: "trial>",
+        time: now(),
+        body: `${result.status === "pass" ? "Read-only harness trials passed" : "Read-only harness trials failed"}: ${result.trials?.filter((trial) => trial.pass).length || 0}/${result.trials?.length || 0}`,
+        kind: "system",
+      });
+      focusPanel("tasks");
+      renderTasks();
+      renderMessages();
+      renderStatus();
+    } catch (error) {
+      state.messages.push({
+        speaker: "trial>",
+        time: now(),
+        body: "Read-only harness trial endpoint is unavailable.",
+        kind: "system",
+      });
+      renderMessages();
+    } finally {
+      state.busy = false;
     }
   }
 
@@ -1102,6 +1167,14 @@ function createTrippRuntime() {
 
     async workspaceFile(path) {
       return fetchJson(`./api/tripp/workspace/file?path=${encodeURIComponent(path)}`);
+    },
+
+    async runReadOnlyTrials() {
+      return fetchJson("./api/tripp/trials/read-only", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
     },
   };
 }
