@@ -498,8 +498,12 @@ button {
   border-left: 2px solid var(--lime);
 }
 
-.task.approved {
+.task.patch_ready {
   border-left: 2px solid var(--green);
+}
+
+.task.apply_blocked {
+  border-left: 2px solid #888888;
 }
 
 .task.dismissed {
@@ -511,6 +515,7 @@ button {
   display: flex;
   gap: 10px;
   justify-content: space-between;
+  cursor: pointer;
 }
 
 .task strong {
@@ -542,6 +547,50 @@ button {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-top: 8px;
+}
+
+.task-detail {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.task-detail dl {
+  margin: 0;
+}
+
+.task-detail div {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0 0 5px;
+}
+
+.task-detail dt {
+  color: var(--dim);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.task-detail dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.task-detail pre {
+  max-height: 150px;
+  margin: 8px 0 0;
+  overflow: auto;
+  padding: 8px;
+  background: #050505;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .task button {

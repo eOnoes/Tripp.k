@@ -164,8 +164,15 @@ function updateTask(taskId, action) {
   }
 
   if (action === "approve") {
-    task.status = "approved";
-    task.result = "Approved in UI. Real execution remains disabled until the filesystem bridge is implemented.";
+    task.status = "patch_ready";
+    task.patch = createPatchPreview(task);
+    task.result = "Patch preview prepared. Real execution remains disabled until the filesystem bridge is implemented.";
+    return { task };
+  }
+
+  if (action === "apply") {
+    task.status = "apply_blocked";
+    task.result = "Apply is gated. Filesystem mutation is not enabled yet.";
     return { task };
   }
 
@@ -182,6 +189,20 @@ function summarizeTask(prompt) {
   const cleaned = prompt.replace(/\s+/g, " ").trim();
   if (!cleaned) return "Untitled task";
   return cleaned.length > 46 ? `${cleaned.slice(0, 43)}...` : cleaned;
+}
+
+function createPatchPreview(task) {
+  if (task.tool !== "filesystem_write") {
+    return `# ${task.tool}\n\nNo file mutation preview is available for this tool yet.`;
+  }
+
+  return [
+    "--- a/tripp-terminal-data.json",
+    "+++ b/tripp-terminal-data.json",
+    "@@",
+    '-      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
+    '+      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
+  ].join("\n");
 }
 
 async function tryCreateBackendReply(payload) {

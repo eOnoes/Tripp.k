@@ -44,3 +44,4 @@ http://127.0.0.1:4177/
 - Agent role/soul/operator doctrine lives under `agents/`.
 
 Task approval is currently UI/state only. Real filesystem writes remain disabled until the supervised execution bridge is implemented.
+Approving a write task prepares a patch preview; applying remains blocked until filesystem mutation is explicitly wired.

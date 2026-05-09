@@ -191,24 +191,50 @@
     elements.taskRoot.innerHTML = state.tasks
       .map(
         (task) => `
-          <article class="task ${escapeHtml(task.status)}">
-            <header>
+          <article class="task ${escapeHtml(task.status)} ${task.expanded ? "expanded" : ""}">
+            <header data-task-toggle="${escapeHtml(task.id)}">
               <strong>${escapeHtml(task.title)}</strong>
               <span>${escapeHtml(task.status)}</span>
             </header>
             <p>${escapeHtml(task.tool)}</p>
+            ${
+              task.expanded
+                ? `<section class="task-detail">
+                    <dl>
+                      <div><dt>ID</dt><dd>${escapeHtml(task.id)}</dd></div>
+                      <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
+                      <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
+                    </dl>
+                    ${task.patch ? `<pre>${escapeHtml(task.patch)}</pre>` : ""}
+                  </section>`
+                : ""
+            }
             ${
               task.status === "pending"
                 ? `<div>
                     <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Approve</button>
                     <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
                   </div>`
+                : task.status === "patch_ready"
+                  ? `<div>
+                      <button type="button" data-task-action="apply" data-task="${escapeHtml(task.id)}">Apply</button>
+                      <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
+                    </div>
+                    <small>${escapeHtml(task.result || "Patch preview ready.")}</small>`
                 : `<small>${escapeHtml(task.result || "Task state updated.")}</small>`
             }
           </article>
         `,
       )
       .join("");
+
+    elements.taskRoot.querySelectorAll("[data-task-toggle]").forEach((header) => {
+      header.addEventListener("click", () => {
+        const task = state.tasks.find((candidate) => candidate.id === header.dataset.taskToggle);
+        task.expanded = !task.expanded;
+        renderTasks();
+      });
+    });
 
     elements.taskRoot.querySelectorAll("[data-task-action]").forEach((button) => {
       button.addEventListener("click", () => updateTask(button.dataset.task, button.dataset.taskAction));
@@ -341,11 +367,23 @@
         kind: "system",
         speaker: "task>",
         time: now(),
-        body: `${result.task.id} ${result.task.status}. ${result.task.result || ""}`.trim(),
+        body: taskMessage(result.task),
       });
       renderTasks();
       renderMessages();
     }
+  }
+
+  function taskMessage(task) {
+    if (task.status === "patch_ready") {
+      return `${task.id} patch preview ready. Review the task card before applying.`;
+    }
+
+    if (task.status === "apply_blocked") {
+      return `${task.id} apply blocked. Filesystem mutation is still gated.`;
+    }
+
+    return `${task.id} ${task.status}. ${task.result || ""}`.trim();
   }
 
   function upsertTask(task) {
