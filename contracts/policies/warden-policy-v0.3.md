@@ -1,13 +1,16 @@
-# Warden Policy v0.2
+# Warden Policy v0.3
 
 ## Purpose
 
 Warden is the policy gate before any descriptor can become execution. It blocks prompt blocks, unsafe descriptor types, unsafe tools, and mode transitions that lack explicit confirmation.
 
+Warden is fail-closed. Unknown shape means denied before Munch.
+
 ## Descriptor Rules
 
 ```yaml
 requiredDescriptorFields:
+  - id
   - type
   - intent
   - target
@@ -19,8 +22,14 @@ blockedDescriptorTypes:
   - prompt_block
 allowedDescriptorTypes:
   - task_descriptor
-  - trace_descriptor
-  - runtime_contract_descriptor
+approvedTraceSources:
+  - gateway
+  - harness
+  - supervisor
+allowedTargets:
+  - model
+  - tool
+  - data
 ```
 
 ## Blocked Tools
@@ -34,6 +43,15 @@ blockedTools:
   - git_commit
 ```
 
+## Blocked Response Flags
+
+```yaml
+blockedResponseFlags:
+  - policyViolation
+  - unsafeToolCall
+  - sandboxEscape
+```
+
 ## Blocked Intents
 
 ```yaml
@@ -43,6 +61,24 @@ blockedIntents:
   - destructive_shell
   - silent_workspace_mutation
 ```
+
+## Path Sandbox Rules
+
+```yaml
+workspaceRoot:
+  required_when_files_present: true
+  must_be_absolute: true
+forbiddenPaths:
+  - node_modules/
+  - .git/
+  - dist/
+  - build/
+  - coverage/
+  - generated/
+  - vendor/
+```
+
+Warden denies path traversal before Router or Executor see the descriptor.
 
 ## Mode Transition Policy
 
@@ -78,10 +114,31 @@ descriptorStatus: proposed
 
 If a prompt block reaches Warden as an execution candidate, Warden denies it by type.
 
+Warden also denies task descriptors that contain prompt-block-only fields:
+
+- `pinnedWorkspaceRoot`
+- `contextSnapshotId`
+- `---pb:v1---`
+
+## Denial Codes
+
+Important denial codes:
+
+- `PROMPT_BLOCK_FIELDS_IN_TASK_DESCRIPTOR`
+- `AUDIT_MODE_TOOL_EXECUTION_BLOCKED`
+- `PATH_SANDBOX_ESCAPE`
+- `TRACE_SOURCE_NOT_APPROVED`
+- `TRACE_OWNER_MISSING`
+- `BUDGET_INVALID`
+- `TOOL_BLOCKED`
+- `INTENT_BLOCKED`
+- `BLOCKED_RESPONSE_FLAG`
+
 ## API Projection
 
 ```text
 GET /api/tripp/permissions
+POST /api/tripp/warden/precheck
 ```
 
 The prototype server currently projects this policy from `readPermissionPolicy()`.

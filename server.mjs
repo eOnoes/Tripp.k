@@ -569,13 +569,19 @@ function normalizeMunchKind(kind) {
 
 function readPermissionPolicy() {
   return {
-    version: "0.2.0",
+    version: "0.3.0",
+    circuitBreaker: false,
     defaultDecision: "gated",
-    requiredDescriptorFields: ["type", "intent", "target", "constraints", "budget", "allowedTools", "trace"],
+    requiredDescriptorFields: ["id", "type", "intent", "target", "constraints", "budget", "allowedTools", "trace"],
     blockedDescriptorTypes: ["prompt_block"],
-    allowedDescriptorTypes: ["task_descriptor", "trace_descriptor", "runtime_contract_descriptor"],
+    allowedDescriptorTypes: ["task_descriptor"],
+    approvedTraceSources: ["gateway", "harness", "supervisor"],
+    allowedTargets: ["model", "tool", "data"],
     blockedTools: ["Developer.edit", "Developer.write", "delegate", "Apps.createApp", "git_commit"],
+    blockedResponseFlags: ["policyViolation", "unsafeToolCall", "sandboxEscape"],
     blockedIntents: ["unscoped_write", "credential_access", "destructive_shell", "silent_workspace_mutation"],
+    forbiddenPaths: ["node_modules/", ".git/", "dist/", "build/", "coverage/", "generated/", "vendor/"],
+    freshnessMs: 5 * 60 * 1000,
     harnessModeChangeRequiresConfirmation: true,
     modeTransitionPolicy: {
       CHAT: {
@@ -655,45 +661,177 @@ function wardenPrecheck(descriptor = {}) {
   const type = String(descriptor.type || "");
   const tool = String(descriptor.tool || descriptor.targetTool || "");
   const intent = String(descriptor.intent || "");
-  const missing = policy.requiredDescriptorFields.filter((field) => !(field in descriptor));
-  const blocking = [];
+  const target = String(descriptor.target || "");
+  const missing = policy.requiredDescriptorFields.filter((field) => isMissingDescriptorField(descriptor, field));
+  const denials = [];
   const warnings = [];
 
-  if (!type) blocking.push("descriptor type missing");
-  else if (policy.blockedDescriptorTypes.includes(type)) blocking.push(`descriptor type blocked: ${type}`);
-  else if (!policy.allowedDescriptorTypes.includes(type)) blocking.push(`descriptor type not allowed: ${type}`);
+  if (policy.circuitBreaker) addDenial(denials, "WARDEN_CIRCUIT_BREAKER_OPEN", "Warden circuit breaker is open; all execution descriptors denied.");
 
-  if (tool && policy.blockedTools.includes(tool)) blocking.push(`tool blocked: ${tool}`);
-  if (intent && policy.blockedIntents.includes(intent)) blocking.push(`intent blocked: ${intent}`);
-  if (missing.length) blocking.push(`missing required fields: ${missing.join(", ")}`);
+  if (!type) addDenial(denials, "DESCRIPTOR_TYPE_MISSING", "Descriptor type missing.");
+  else if (policy.blockedDescriptorTypes.includes(type)) addDenial(denials, "DESCRIPTOR_TYPE_BLOCKED", `Descriptor type blocked: ${type}.`);
+  else if (!policy.allowedDescriptorTypes.includes(type)) addDenial(denials, "DESCRIPTOR_TYPE_NOT_ALLOWED", `Descriptor type not allowed: ${type}.`);
+
+  if (!descriptor.id || typeof descriptor.id !== "string") addDenial(denials, "DESCRIPTOR_ID_MISSING", "Descriptor id missing or not a string.");
+  if (missing.length) addDenial(denials, "REQUIRED_FIELDS_MISSING", `Missing required fields: ${missing.join(", ")}.`);
+  validateTraceIdentity(descriptor.trace, policy, denials);
+  validateBudget(descriptor.budget, denials);
+
+  if (intent && policy.blockedIntents.includes(intent)) addDenial(denials, "INTENT_BLOCKED", `Intent blocked: ${intent}.`);
+  if (target && !policy.allowedTargets.includes(target)) addDenial(denials, "TARGET_NOT_ALLOWED", `Target not allowed: ${target}.`);
+  if (tool && policy.blockedTools.includes(tool)) addDenial(denials, "TOOL_BLOCKED", `Tool blocked: ${tool}.`);
+  if (target === "tool" && tool && Array.isArray(descriptor.allowedTools) && !descriptor.allowedTools.includes(tool)) {
+    addDenial(denials, "TOOL_NOT_IN_ALLOWED_TOOLS", `Tool ${tool} is not listed in allowedTools.`);
+  }
+  if (target === "model" && !descriptor.modelRoute && !descriptor.modelProfile) {
+    addDenial(denials, "MODEL_ROUTE_MISSING", "Model target requires modelRoute or modelProfile.");
+  }
+  const blockedFlags = (descriptor.responseFlags || []).filter((flag) => policy.blockedResponseFlags.includes(flag));
+  if (blockedFlags.length) addDenial(denials, "BLOCKED_RESPONSE_FLAG", `Blocked response flags present: ${blockedFlags.join(", ")}.`);
 
   if (type === "prompt_block") {
     const validation = validatePromptBlock(descriptor);
-    blocking.push("prompt_block is context-only and cannot execute");
+    addDenial(denials, "PROMPT_BLOCK_EXECUTION_DENIED", "prompt_block is context-only and cannot execute.");
     if (!validation.valid) warnings.push(...validation.warnings);
   }
+
+  if (type === "task_descriptor" && hasPromptBlockLeakage(descriptor)) {
+    addDenial(denials, "PROMPT_BLOCK_FIELDS_IN_TASK_DESCRIPTOR", "Task descriptor contains prompt-block-only fields or header.");
+  }
+
+  validateExecutionPolicy(descriptor, denials);
+  validatePathSandbox(descriptor, policy, denials);
+  validateFreshness(descriptor.trace, policy, denials);
 
   const modeTransition = descriptor.modeTransition || null;
   if (modeTransition) {
     const modeResult = validateModeTransition(modeTransition, policy);
-    if (!modeResult.allowed) blocking.push(modeResult.reason);
+    if (!modeResult.allowed) addDenial(denials, "MODE_TRANSITION_BLOCKED", modeResult.reason);
     if (modeResult.requiresConfirmation && !modeTransition.confirmed) {
-      blocking.push("mode transition requires operator confirmation");
+      addDenial(denials, "MODE_TRANSITION_REQUIRES_CONFIRMATION", "Mode transition requires operator confirmation.");
     }
   }
 
   return {
     type: "warden_precheck",
-    allowed: blocking.length === 0,
-    decision: blocking.length ? "deny" : "allow",
+    allowed: denials.length === 0,
+    decision: denials.length ? "deny" : "allow",
+    terminalState: denials.length ? "DENIED_BEFORE_MUNCH" : "WARDEN_PASS",
     descriptorType: type || "unknown",
     policyVersion: policy.version,
     missing,
-    blocking,
+    denialReasons: denials.map((denial) => denial.code),
+    denialDetails: denials,
+    blocking: denials.map((denial) => denial.message),
     warnings,
-    executionAllowed: blocking.length === 0,
+    executionAllowed: denials.length === 0,
     checkedAt: new Date().toISOString(),
   };
+}
+
+function addDenial(denials, code, message) {
+  if (!denials.some((denial) => denial.code === code && denial.message === message)) {
+    denials.push({ code, message });
+  }
+}
+
+function isMissingDescriptorField(descriptor, field) {
+  if (!(field in descriptor)) return true;
+  const value = descriptor[field];
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string" && !value.trim()) return true;
+  return false;
+}
+
+function validateTraceIdentity(trace = {}, policy, denials) {
+  if (!trace || typeof trace !== "object") {
+    addDenial(denials, "TRACE_MISSING", "Trace object missing.");
+    return;
+  }
+  if (!trace.source || !policy.approvedTraceSources.includes(trace.source)) {
+    addDenial(denials, "TRACE_SOURCE_NOT_APPROVED", "Trace source missing or not approved.");
+  }
+  if (!trace.owner && !trace.ownerId) {
+    addDenial(denials, "TRACE_OWNER_MISSING", "Trace owner or ownerId missing.");
+  }
+}
+
+function validateBudget(budget = {}, denials) {
+  if (!budget || typeof budget !== "object" || !Number.isInteger(budget.maxTokens) || budget.maxTokens < 1) {
+    addDenial(denials, "BUDGET_INVALID", "Budget maxTokens must be an integer >= 1.");
+  }
+}
+
+function validateExecutionPolicy(descriptor, denials) {
+  const operatorMode = String(descriptor.operatorMode || "").toUpperCase();
+  const target = String(descriptor.target || "");
+  const executionAllowed = descriptor.executionAllowed === true;
+  const contextOnly = descriptor.contextOnly === true;
+
+  if (operatorMode === "AUDIT" && (executionAllowed || target === "tool")) {
+    addDenial(denials, "AUDIT_MODE_TOOL_EXECUTION_BLOCKED", "Audit mode cannot execute tools.");
+  }
+  if (operatorMode === "BUILD" && descriptor.requiresConfirmation === false && (target === "tool" || target === "data")) {
+    addDenial(denials, "BUILD_MODE_CONFIRMATION_REQUIRED", "Build mode tool/data descriptors require confirmation.");
+  }
+  if (executionAllowed && (target === "data" || contextOnly)) {
+    addDenial(denials, "EXECUTION_FLAG_INCONSISTENT", "executionAllowed conflicts with target/contextOnly semantics.");
+  }
+}
+
+function hasPromptBlockLeakage(descriptor) {
+  const body = String(descriptor.body || descriptor.task || descriptor.prompt || "");
+  return Boolean(
+    "pinnedWorkspaceRoot" in descriptor ||
+      "contextSnapshotId" in descriptor ||
+      body.trimStart().startsWith("---pb:v1---"),
+  );
+}
+
+function validatePathSandbox(descriptor, policy, denials) {
+  const workspaceRoot = String(descriptor.workspaceRoot || "");
+  const paths = collectDescriptorPaths(descriptor);
+  if (!paths.length && !workspaceRoot) return;
+  if (!isAbsoluteWindowsPath(workspaceRoot)) {
+    addDenial(denials, "WORKSPACE_ROOT_INVALID", "workspaceRoot missing or not absolute.");
+    return;
+  }
+
+  const allowedPaths = Array.isArray(descriptor.constraints?.allowedPaths) ? descriptor.constraints.allowedPaths : [];
+  paths.forEach((candidate) => {
+    const normalizedPath = normalize(String(candidate || "")).replaceAll("\\", "/");
+    if (!candidate || normalizedPath.includes("../") || normalizedPath.startsWith("..")) {
+      addDenial(denials, "PATH_SANDBOX_ESCAPE", `Path escapes workspace sandbox: ${candidate}`);
+      return;
+    }
+    if (policy.forbiddenPaths.some((prefix) => normalizedPath.startsWith(prefix))) {
+      addDenial(denials, "FORBIDDEN_PATH", `Path hits forbidden prefix: ${candidate}`);
+      return;
+    }
+    if (allowedPaths.length && !allowedPaths.some((prefix) => normalizedPath.startsWith(String(prefix).replaceAll("\\", "/")))) {
+      addDenial(denials, "PATH_NOT_IN_ALLOWED_PATHS", `Path is outside allowedPaths: ${candidate}`);
+    }
+  });
+}
+
+function collectDescriptorPaths(descriptor) {
+  const paths = [];
+  if (Array.isArray(descriptor.files)) paths.push(...descriptor.files);
+  if (Array.isArray(descriptor.constraints?.files)) paths.push(...descriptor.constraints.files);
+  if (typeof descriptor.file === "string") paths.push(descriptor.file);
+  return paths;
+}
+
+function isAbsoluteWindowsPath(value) {
+  return /^[a-zA-Z]:[\\/]/.test(String(value || ""));
+}
+
+function validateFreshness(trace = {}, policy, denials) {
+  if (!trace?.timestamp) return;
+  const timestamp = Date.parse(trace.timestamp);
+  if (Number.isNaN(timestamp) || Date.now() - timestamp > policy.freshnessMs) {
+    addDenial(denials, "TRACE_STALE", "Trace timestamp is stale or invalid.");
+  }
 }
 
 function validateModeTransition(modeTransition, policy) {

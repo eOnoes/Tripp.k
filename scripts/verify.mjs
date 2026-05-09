@@ -74,11 +74,14 @@ try {
 
   const permissions = await getJson("/api/tripp/permissions");
   const permissionPass =
-    permissions.version === "0.2.0" &&
+    permissions.version === "0.3.0" &&
     permissions.defaultDecision === "gated" &&
     permissions.blockedDescriptorTypes?.includes("prompt_block") &&
     permissions.allowedDescriptorTypes?.includes("task_descriptor") &&
     permissions.blockedTools?.includes("Developer.write") &&
+    permissions.approvedTraceSources?.includes("supervisor") &&
+    permissions.allowedTargets?.includes("tool") &&
+    permissions.blockedResponseFlags?.includes("policyViolation") &&
     permissions.modeTransitionPolicy?.AUTO?.requiresConfirmation === true &&
     permissions.lanes?.shell_execute?.decision === "allowlist" &&
     permissions.lanes?.git_commit?.decision === "blocked";
@@ -290,7 +293,7 @@ try {
       constraints: [],
       budget: { maxTokens: 500 },
       allowedTools: [],
-      trace: { traceId: "verify-pb-deny" },
+      trace: { traceId: "verify-pb-deny", source: "supervisor", ownerId: "tripp.supervisor" },
       body: promptBlock.body,
       pinnedWorkspaceRoot: promptBlock.pinnedWorkspaceRoot,
       contextSnapshotId: promptBlock.contextSnapshotId,
@@ -305,27 +308,77 @@ try {
       constraints: [],
       budget: { maxTokens: 500 },
       allowedTools: ["Developer.write"],
-      trace: { traceId: "verify-tool-deny" },
+      trace: { traceId: "verify-tool-deny", source: "supervisor", ownerId: "tripp.supervisor" },
     },
   });
   const allowedDescriptor = await postJson("/api/tripp/warden/precheck", {
     descriptor: {
+      id: "verify-allow",
       type: "task_descriptor",
       intent: "inspect",
-      target: "README.md",
+      target: "tool",
       targetTool: "Developer.read",
       constraints: ["readonly"],
       budget: { maxTokens: 500 },
       allowedTools: ["Developer.read"],
-      trace: { traceId: "verify-allow" },
+      trace: { traceId: "verify-allow", source: "supervisor", ownerId: "tripp.supervisor" },
+    },
+  });
+  const masqueradeDescriptor = await postJson("/api/tripp/warden/precheck", {
+    descriptor: {
+      id: "verify-masquerade",
+      type: "task_descriptor",
+      intent: "inspect",
+      target: "tool",
+      targetTool: "Developer.read",
+      constraints: ["readonly"],
+      budget: { maxTokens: 500 },
+      allowedTools: ["Developer.read"],
+      trace: { traceId: "verify-masquerade", source: "supervisor", ownerId: "tripp.supervisor" },
+      pinnedWorkspaceRoot: "C:\\Dev\\ProjectA",
+      contextSnapshotId: "ctx_001",
+    },
+  });
+  const auditExecutionDescriptor = await postJson("/api/tripp/warden/precheck", {
+    descriptor: {
+      id: "verify-audit-exec",
+      type: "task_descriptor",
+      intent: "inspect",
+      target: "tool",
+      targetTool: "shell",
+      operatorMode: "Audit",
+      executionAllowed: true,
+      constraints: ["readonly"],
+      budget: { maxTokens: 500 },
+      allowedTools: ["shell"],
+      trace: { traceId: "verify-audit-exec", source: "supervisor", ownerId: "tripp.supervisor" },
+    },
+  });
+  const sandboxEscapeDescriptor = await postJson("/api/tripp/warden/precheck", {
+    descriptor: {
+      id: "verify-sandbox",
+      type: "task_descriptor",
+      intent: "inspect",
+      target: "tool",
+      targetTool: "Developer.read",
+      workspaceRoot: "C:\\Dev\\Tripp",
+      constraints: { allowedPaths: ["src/"] },
+      files: ["src/../../../windows/system32"],
+      budget: { maxTokens: 500 },
+      allowedTools: ["Developer.read"],
+      trace: { traceId: "verify-sandbox", source: "supervisor", ownerId: "tripp.supervisor" },
     },
   });
   const wardenPass =
     deniedPromptBlock.decision === "deny" &&
-    deniedPromptBlock.blocking?.some((item) => item.includes("prompt_block")) &&
+    deniedPromptBlock.denialReasons?.includes("PROMPT_BLOCK_EXECUTION_DENIED") &&
     deniedTool.decision === "deny" &&
-    deniedTool.blocking?.some((item) => item.includes("Developer.write")) &&
-    allowedDescriptor.decision === "allow";
+    deniedTool.denialReasons?.includes("TOOL_BLOCKED") &&
+    allowedDescriptor.decision === "allow" &&
+    masqueradeDescriptor.denialReasons?.includes("PROMPT_BLOCK_FIELDS_IN_TASK_DESCRIPTOR") &&
+    masqueradeDescriptor.terminalState === "DENIED_BEFORE_MUNCH" &&
+    auditExecutionDescriptor.denialReasons?.includes("AUDIT_MODE_TOOL_EXECUTION_BLOCKED") &&
+    sandboxEscapeDescriptor.denialReasons?.includes("PATH_SANDBOX_ESCAPE");
   console.log(`${wardenPass ? "PASS" : "FAIL"} warden: descriptor precheck`);
   if (!wardenPass) {
     failures.push({ name: "warden precheck" });
