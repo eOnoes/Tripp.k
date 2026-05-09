@@ -7,6 +7,9 @@ const port = Number(process.env.PORT || 4177);
 const host = process.env.HOST || "127.0.0.1";
 
 const bootstrapFile = join(root, "tripp-terminal-data.json");
+const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
+const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
+const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -49,7 +52,7 @@ async function handleTrippApi(request, response, url) {
 
   if (request.method === "POST" && url.pathname === "/api/tripp/reply") {
     const payload = await readJson(request);
-    sendJson(response, createReply(payload));
+    sendJson(response, await createReply(payload));
     return;
   }
 
@@ -57,17 +60,30 @@ async function handleTrippApi(request, response, url) {
 }
 
 function readBootstrap() {
+  const bootstrap = JSON.parse(readFileSync(bootstrapFile, "utf8"));
+
   return {
-    ...JSON.parse(readFileSync(bootstrapFile, "utf8")),
+    ...bootstrap,
+    status: {
+      ...bootstrap.status,
+      connection: backendUrl ? "BRIDGE READY" : bootstrap.status.connection,
+      model: backendUrl ? "tripp-adapter/backend" : bootstrap.status.model,
+    },
     runtime: {
-      mode: process.env.TRIPP_RUNTIME || "mock",
+      mode: backendUrl ? "backend-ready" : process.env.TRIPP_RUNTIME || "mock",
       bridge: "tripp-adapter",
-      backend: process.env.TRIPP_BACKEND_URL || null,
+      backend: backendUrl,
+      backendReplyEnabled,
     },
   };
 }
 
-function createReply(payload) {
+async function createReply(payload) {
+  if (backendUrl && backendReplyEnabled) {
+    const backendReply = await tryCreateBackendReply(payload);
+    if (backendReply) return backendReply;
+  }
+
   const prompt = String(payload?.prompt || "").trim();
   const mode = String(payload?.mode || "CHAT").toUpperCase();
   const tool = chooseTool(prompt);
@@ -109,11 +125,88 @@ function createReply(payload) {
   };
 }
 
+async function tryCreateBackendReply(payload) {
+  const sessionId = String(payload?.sessionId || "");
+  if (!sessionId || sessionId.startsWith("session-")) {
+    return null;
+  }
+
+  const started = Date.now();
+  const backendResponse = await backendFetch(`/sessions/${encodeURIComponent(sessionId)}/reply`, {
+    method: "POST",
+    body: JSON.stringify({ message: payload.prompt, mode: payload.mode }),
+  });
+
+  if (!backendResponse.ok) {
+    return null;
+  }
+
+  return {
+    id: `backend-reply-${Date.now()}`,
+    mode: String(payload?.mode || "CHAT").toUpperCase(),
+    status: {
+      connection: "CONNECTED",
+      model: "tripp-adapter/backend",
+      latency: `${Date.now() - started}ms`,
+      tokensIn: String(payload?.prompt || "").length,
+      tokensOut: 0,
+    },
+    messages: [
+      {
+        kind: "agent",
+        speaker: "tripp>",
+        body: mapBackendReply(await backendResponse.json()),
+      },
+    ],
+  };
+}
+
+function mapBackendReply(value) {
+  if (typeof value === "string") return value;
+  if (value?.message) return String(value.message);
+  if (value?.content) return String(value.content);
+  return "Backend reply received. Event streaming mapper is the next integration step.";
+}
+
+async function backendFetch(path, options = {}) {
+  if (!backendUrl) {
+    return { ok: false };
+  }
+
+  try {
+    return await fetch(`${backendUrl}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...backendAuthHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+  } catch {
+    return { ok: false };
+  }
+}
+
+function backendAuthHeaders() {
+  if (!backendSecret) return {};
+
+  return {
+    Authorization: `Bearer ${backendSecret}`,
+    "X-Secret-Key": backendSecret,
+    "X-Goose-Secret": backendSecret,
+  };
+}
+
+function normalizeBackendUrl(value) {
+  if (!value) return null;
+  return value.replace(/\/+$/, "");
+}
+
 function chooseTool(prompt) {
   const lower = prompt.toLowerCase();
   if (lower.includes("git")) return "git_status";
-  if (lower.includes("file") || lower.includes("read")) return "filesystem_read";
   if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
+  if (lower.includes("file") || lower.includes("read")) return "filesystem_read";
   if (lower.includes("web") || lower.includes("search")) return "web_search";
   return "code_analyze";
 }

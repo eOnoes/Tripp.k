@@ -484,8 +484,8 @@ function createLocalReply(payload) {
 function chooseTool(value) {
   const lower = value.toLowerCase();
   if (lower.includes("git")) return "git_status";
-  if (lower.includes("file") || lower.includes("read")) return "filesystem_read";
   if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
+  if (lower.includes("file") || lower.includes("read")) return "filesystem_read";
   if (lower.includes("web") || lower.includes("search")) return "web_search";
   return "code_analyze";
 }
