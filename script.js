@@ -483,7 +483,7 @@
   }
 
   function buildPlanningSummary() {
-    const recentTasks = state.tasks.filter((task) => task.status !== "pending" && task.status !== "patch_ready").slice(0, 5);
+    const recentTasks = state.tasks.filter((task) => task.status !== "pending" && task.status !== "patch_ready").slice(0, 6);
     const inspected = uniqueList(
       recentTasks
         .filter((task) => task.kind === "inspect" || task.tool === "filesystem_read")
@@ -493,25 +493,41 @@
     const blocked = recentTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
     const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
     const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
+    const hasBranchRetrieval = recentTasks.some((task) => isGateBranchRetrieval(task));
+    const hasBackendBranch = inspected.includes("server.mjs");
+    const hasUiBranch = inspected.includes("script.js");
+    const hasBranchReview = hasBranchRetrieval && hasBackendBranch && hasUiBranch;
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
     const known = uniqueList([
+      hasBranchReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
+      hasBranchReview ? "server.mjs inspection provided stronger direct context for read-only gate behavior." : null,
+      hasBranchReview ? "script.js inspection clarified result presentation but was less central to core gate behavior." : null,
       ...inspected.slice(0, 3).map((file) => `${file} was inspected for read-only review.`),
       ...conclusions
       .flatMap((conclusion) => conclusion.findings || [])
       .filter((finding) => !/blocked|failed|non-authoritative/i.test(finding)),
-    ]).slice(0, 4);
+    ].filter(Boolean)).slice(0, 4);
     const uncertain = [
+      hasBranchReview ? "Initial branching came from planning-only retrieval and remains non-authoritative." : null,
+      hasBranchReview ? "script.js remains relevant for presentation review, but is less useful for the current gate question." : null,
       planningOnly ? "Mock or planning-only evidence remains non-authoritative for file changes." : null,
       inspected.length ? null : "No files have been inspected in the recent read-only thread.",
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
     ].filter(Boolean);
+    const blockedSummary = hasBranchReview && blocked
+      ? ["A write-like shell or escalation path was blocked.", "No write-capable route was used."]
+      : blocked
+        ? `${blocked} read-only boundary preserved`
+        : "No blocked read-only tasks";
 
     return {
       countLabel: recentTasks.length ? `${recentTasks.length} recent read-only tasks` : "No read-only tasks yet",
       known: known.length ? known : ["No read-only findings yet"],
       uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
-      blocked: blocked ? `${blocked} read-only boundary preserved` : "No blocked read-only tasks",
-      next: gateTask?.goNoGo?.suiteStatus === "go"
+      blocked: blockedSummary,
+      next: hasBranchReview
+        ? "Continue from the stronger backend branch and inspect the next related source if more gate detail is needed."
+        : gateTask?.goNoGo?.suiteStatus === "go"
         ? "Continue read-only planning and review."
         : blocked
           ? "Review blocked tasks or inspect related sources."
@@ -521,6 +537,15 @@
 
   function uniqueList(values) {
     return [...new Set(values)];
+  }
+
+  function isGateBranchRetrieval(task) {
+    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
+    return Boolean(
+      task?.retrieval &&
+      prompt.includes("read-only gate") &&
+      (prompt.includes("operator") || prompt.includes("shown") || prompt.includes("results")),
+    );
   }
 
   function renderTaskConclusion(task) {
@@ -567,6 +592,18 @@
   function buildRetrievalConclusion(task) {
     const sourceKind = task.retrieval?.sourceKind || task.retrieval?.evidenceAuthority || "mock";
     const authority = task.retrieval?.authorityLevel || "planning-only";
+    if (isGateBranchRetrieval(task)) {
+      return {
+        tone: "planning",
+        result: "Planning only",
+        findings: [
+          "Planning-only retrieval suggested backend/gate and UI/result presentation review paths.",
+          `${sourceKind === "mock" ? "Mock" : sourceKind} evidence is ${authority} and non-authoritative for file changes.`,
+        ],
+        evidence: sourceKind === "mock" ? "Mock evidence - planning only" : `${sourceKind} evidence - ${authority}`,
+        nextStep: "Inspect related files or continue read-only narrowing.",
+      };
+    }
     return {
       tone: "planning",
       result: "Planning only",
@@ -580,12 +617,20 @@
   }
 
   function buildInspectConclusion(task) {
+    const target = task.target || "the requested file";
+    const branchFinding = target === "server.mjs"
+      ? "This branch provides stronger direct context for read-only gate behavior."
+      : target === "script.js"
+        ? "This branch clarifies result presentation but is less central to core gate behavior."
+        : task.excerpt
+          ? "A read-only excerpt is available on this card."
+          : "No file changes were made.";
     return {
       tone: "readonly",
       result: "Read-only inspection",
       findings: [
-        `Inspected ${task.target || "the requested file"} without mutation.`,
-        task.excerpt ? "A read-only excerpt is available on this card." : "No file changes were made.",
+        `Inspected ${target} without mutation.`,
+        branchFinding,
       ],
       evidence: "Read-only inspection",
       nextStep: "Inspect a related file or use the finding to continue planning.",

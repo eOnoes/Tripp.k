@@ -2470,7 +2470,7 @@ function createTaskAdapterDescriptor(task, targetTool, args) {
     target: "tool",
     targetTool,
     workspaceRoot: root,
-    constraints: { allowedPaths: ["README.md", "server.mjs", "scripts", "docs", "contracts", "agents", "tripp-terminal-data.json"] },
+    constraints: { allowedPaths: ["README.md", "server.mjs", "script.js", "scripts", "docs", "contracts", "agents", "tripp-terminal-data.json"] },
     budget: { maxTokens: 1200 },
     allowedTools: ["Developer.read", "Developer.tree", "Developer.shell"],
     trace: {

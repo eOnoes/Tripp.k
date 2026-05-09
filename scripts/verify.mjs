@@ -258,6 +258,7 @@ try {
     appScript.includes("buildTaskConclusion") &&
     appScript.includes("renderPlanningSummary") &&
     appScript.includes("buildPlanningSummary") &&
+    appScript.includes("isGateBranchRetrieval") &&
     appScript.includes("Current Understanding") &&
     appScript.includes("recent read-only tasks") &&
     appScript.includes("No read-only findings yet") &&
@@ -265,6 +266,15 @@ try {
     appScript.includes("What remains uncertain") &&
     appScript.includes("Blocked in read-only mode") &&
     appScript.includes("Next read-only direction") &&
+    appScript.includes("Two plausible review paths emerged from planning-only retrieval.") &&
+    appScript.includes("server.mjs inspection provided stronger direct context for read-only gate behavior.") &&
+    appScript.includes("script.js inspection clarified result presentation but was less central to core gate behavior.") &&
+    appScript.includes("Initial branching came from planning-only retrieval and remains non-authoritative.") &&
+    appScript.includes("script.js remains relevant for presentation review, but is less useful for the current gate question.") &&
+    appScript.includes("Continue from the stronger backend branch and inspect the next related source if more gate detail is needed.") &&
+    appScript.includes("Planning-only retrieval suggested backend/gate and UI/result presentation review paths.") &&
+    appScript.includes("This branch provides stronger direct context for read-only gate behavior.") &&
+    appScript.includes("This branch clarifies result presentation but is less central to core gate behavior.") &&
     continuityCopyGuardPass &&
     crossSurfaceReadOnlyCoherencePass &&
     appScript.includes("Continue read-only planning and review.") &&
@@ -343,12 +353,14 @@ try {
     readinessScoreboard.includes("Replace Goose for read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
     readinessScoreboard.includes("88-92%") &&
-    readinessScoreboard.includes("70%") &&
+    readinessScoreboard.includes("75%") &&
     readinessScoreboard.includes("35-45%") &&
-    readinessScoreboard.includes("Read-only planning/review readiness: approximately 70% toward replacing Goose for structured workflows.") &&
-    readinessScoreboard.includes("Evidence Required To Keep The 70% Claim") &&
-    readinessScoreboard.includes("70% Claim Invalidation") &&
+    readinessScoreboard.includes("Read-only planning/review readiness: approximately 75% toward replacing Goose for structured and moderately ambiguous workflows.") &&
+    readinessScoreboard.includes("Evidence Required To Keep The 75% Claim") &&
+    readinessScoreboard.includes("75% Claim Invalidation") &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
+    readinessScoreboard.includes("Multi-branch ambiguity acceptance now keeps backend and UI branches visible, ranks by usefulness, preserves mock uncertainty, and keeps blocked outcomes visible.") &&
+    readinessScoreboard.includes("Branch ranking stays based on usefulness, not truth or verification.") &&
     readinessScoreboard.includes("Gate GO means read-only harness readiness only") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
@@ -1020,6 +1032,72 @@ try {
   console.log(`${betaAcceptancePass ? "PASS" : "FAIL"} beta: primary read-only console acceptance flow`);
   if (!betaAcceptancePass) {
     failures.push({ name: "primary read-only beta acceptance" });
+  }
+
+  const branchSessionId = "verify-readonly-multibranch";
+  const branchRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files most likely control formal read-only gate behavior and how results are shown to the operator?",
+    mode: "AUTO",
+    sessionId: branchSessionId,
+  });
+  const branchBackendInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: branchSessionId,
+  });
+  const branchUiInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect script.js",
+    mode: "AUTO",
+    sessionId: branchSessionId,
+  });
+  const branchSafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: branchSessionId,
+  });
+  const branchBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command delete temp files",
+    mode: "AUTO",
+    sessionId: branchSessionId,
+  });
+  const branchGate = await postJson("/api/tripp/trials/read-only", {});
+  const branchCyst = await getJson("/api/tripp/cyst/events");
+  const branchTaskIds = [
+    branchRetrieval.task?.id,
+    branchBackendInspect.task?.id,
+    branchUiInspect.task?.id,
+    branchSafeShell.task?.id,
+    branchBlockedShell.task?.id,
+    branchGate.task?.id,
+  ].filter(Boolean);
+  const branchCystEvents = branchCyst.events?.filter((event) => branchTaskIds.includes(event.descriptorId) || event.descriptorId === branchGate.id) || [];
+  const multiBranchAcceptancePass =
+    branchRetrieval.task?.status === "retrieval_ready" &&
+    branchRetrieval.task?.retrieval?.sourceKind === "mock" &&
+    branchRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    branchRetrieval.task?.retrieval?.writeApprovalEligible === false &&
+    branchBackendInspect.task?.status === "inspected" &&
+    branchBackendInspect.task?.target === "server.mjs" &&
+    branchBackendInspect.task?.adapter?.status === "ok" &&
+    branchUiInspect.task?.status === "inspected" &&
+    branchUiInspect.task?.target === "script.js" &&
+    branchUiInspect.task?.adapter?.status === "ok" &&
+    branchSafeShell.task?.status === "completed" &&
+    branchSafeShell.task?.adapter?.invoked === true &&
+    branchBlockedShell.task?.status === "gated" &&
+    !branchBlockedShell.task?.adapter &&
+    branchBlockedShell.task?.permission?.decision === "gated" &&
+    branchGate.suiteStatus === "go" &&
+    branchGate.task?.goNoGo?.suiteStatus === "go" &&
+    branchCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === branchRetrieval.task?.id) &&
+    branchCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === branchBackendInspect.task?.id) &&
+    branchCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === branchUiInspect.task?.id) &&
+    branchCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === branchSafeShell.task?.id) &&
+    branchCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === branchBlockedShell.task?.id) &&
+    branchCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === branchGate.id && event.gateStage === "completed");
+  console.log(`${multiBranchAcceptancePass ? "PASS" : "FAIL"} beta: multi-branch read-only ambiguity acceptance flow`);
+  if (!multiBranchAcceptancePass) {
+    failures.push({ name: "multi-branch read-only ambiguity acceptance" });
   }
 
   if (failures.length) {
