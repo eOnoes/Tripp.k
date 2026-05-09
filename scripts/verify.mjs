@@ -342,9 +342,10 @@ try {
     readinessScoreboard.includes("Primary read-only console beta") &&
     readinessScoreboard.includes("Replace Goose for read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
-    readinessScoreboard.includes("85-90%") &&
-    readinessScoreboard.includes("65-75%") &&
+    readinessScoreboard.includes("88-92%") &&
+    readinessScoreboard.includes("68-72%") &&
     readinessScoreboard.includes("35-45%") &&
+    readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
     readinessScoreboard.includes("Gate GO means read-only harness readiness only") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
