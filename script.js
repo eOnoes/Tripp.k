@@ -23,6 +23,9 @@
     toolCount: document.querySelector("#toolCount"),
     taskRoot: document.querySelector("#taskRoot"),
     taskCount: document.querySelector("#taskCount"),
+    workspaceRoot: document.querySelector("#workspaceRoot"),
+    filePreview: document.querySelector("#filePreview"),
+    workspaceRefresh: document.querySelector(".workspace-refresh"),
     sessionRoot: document.querySelector("#sessionRoot"),
     newSession: document.querySelector(".new-session"),
     newSessionIcon: document.querySelector(".new-session-icon"),
@@ -56,6 +59,7 @@
     status: { ...data.status },
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
     swarm: data.swarm || { agents: [] },
+    workspace: { tree: [], selectedFile: null, file: null, loading: false, error: "" },
     busy: false,
   };
 
@@ -90,6 +94,7 @@
 
     elements.newSession.addEventListener("click", createSession);
     elements.newSessionIcon.addEventListener("click", createSession);
+    elements.workspaceRefresh.addEventListener("click", () => loadWorkspaceTree({ force: true }));
 
     elements.collapse.addEventListener("click", () => {
       state.opsExpanded = !state.opsExpanded;
@@ -103,6 +108,7 @@
     renderRail();
     renderMessages();
     renderTools();
+    renderWorkspace();
     renderTasks();
     renderSessions();
     renderStatus();
@@ -117,6 +123,10 @@
     });
     elements.collapse.textContent = state.opsExpanded ? "»" : "«";
     elements.collapse.title = state.opsExpanded ? "Shrink workspace panel" : "Expand workspace panel";
+
+    if (state.opsExpanded && state.opsTab === "workspace" && !state.workspace.tree.length && !state.workspace.loading) {
+      loadWorkspaceTree();
+    }
   }
 
   function renderModes() {
@@ -293,6 +303,87 @@
     }
   }
 
+  function renderWorkspace() {
+    if (!state.workspace.tree.length && !state.workspace.loading && !state.workspace.error) {
+      elements.workspaceRoot.innerHTML = `<div class="workspace-empty">Workspace tree not loaded.</div>`;
+    } else if (state.workspace.loading) {
+      elements.workspaceRoot.innerHTML = `<div class="workspace-empty">Reading workspace...</div>`;
+    } else if (state.workspace.error) {
+      elements.workspaceRoot.innerHTML = `<div class="workspace-empty">${escapeHtml(state.workspace.error)}</div>`;
+    } else {
+      elements.workspaceRoot.innerHTML = renderWorkspaceNodes(state.workspace.tree);
+    }
+
+    elements.workspaceRoot.querySelectorAll("[data-workspace-file]").forEach((button) => {
+      button.addEventListener("click", () => loadWorkspaceFile(button.dataset.workspaceFile));
+    });
+
+    renderFilePreview();
+  }
+
+  function renderWorkspaceNodes(nodes) {
+    return `
+      <ol class="workspace-tree">
+        ${nodes
+          .map((node) => {
+            if (node.type === "directory") {
+              return `
+                <li class="workspace-dir">
+                  <span>⌁ ${escapeHtml(node.name)}</span>
+                  ${renderWorkspaceNodes(node.children || [])}
+                </li>
+              `;
+            }
+
+            return `
+              <li>
+                <button class="${state.workspace.selectedFile === node.path ? "active" : ""}" type="button" data-workspace-file="${escapeHtml(
+                  node.path,
+                )}">
+                  <span>▧ ${escapeHtml(node.name)}</span>
+                  <small>${escapeHtml(node.language || "text")}</small>
+                </button>
+              </li>
+            `;
+          })
+          .join("")}
+      </ol>
+    `;
+  }
+
+  function renderFilePreview() {
+    const file = state.workspace.file;
+    if (!file) {
+      elements.filePreview.innerHTML = `
+        <header>
+          <strong>No file selected</strong>
+          <span>readonly</span>
+        </header>
+        <pre>Select a workspace file to inspect it here.</pre>
+      `;
+      return;
+    }
+
+    if (file.error) {
+      elements.filePreview.innerHTML = `
+        <header>
+          <strong>${escapeHtml(state.workspace.selectedFile || "Workspace file")}</strong>
+          <span>error</span>
+        </header>
+        <pre>${escapeHtml(file.error)}</pre>
+      `;
+      return;
+    }
+
+    elements.filePreview.innerHTML = `
+      <header>
+        <strong>${escapeHtml(file.path)}</strong>
+        <span>${escapeHtml(file.language)} · ${formatBytes(file.size)}</span>
+      </header>
+      <pre>${escapeHtml(file.content)}</pre>
+    `;
+  }
+
   function renderSessions() {
     elements.sessionRoot.innerHTML = state.sessions
       .map(
@@ -394,8 +485,22 @@
     }
 
     if (rail === "tools") {
+      state.opsExpanded = true;
+      state.opsTab = "tools";
       state.tools[0].expanded = true;
+      renderShell();
       renderTools();
+    }
+
+    if (rail === "tripp" || rail === "settings") {
+      state.opsExpanded = true;
+      state.opsTab = "status";
+      renderShell();
+    }
+
+    if (rail === "sessions") {
+      state.opsExpanded = true;
+      renderShell();
     }
 
     pushMessage({
@@ -513,6 +618,43 @@
     renderMessages();
   }
 
+  async function loadWorkspaceTree(options = {}) {
+    if (state.workspace.loading) return;
+    if (state.workspace.tree.length && !options.force) return;
+
+    state.workspace.loading = true;
+    state.workspace.error = "";
+    renderWorkspace();
+
+    try {
+      const result = await runtime.workspaceTree();
+      state.workspace.tree = result.children || [];
+      state.workspace.error = result.error || "";
+    } catch (error) {
+      state.workspace.error = "Workspace API unavailable.";
+      console.warn("Tripp workspace tree unavailable.", error);
+    } finally {
+      state.workspace.loading = false;
+      renderWorkspace();
+    }
+  }
+
+  async function loadWorkspaceFile(path) {
+    if (!path) return;
+    state.workspace.selectedFile = path;
+    state.workspace.file = { path, language: "text", size: 0, content: "Reading file..." };
+    renderWorkspace();
+
+    try {
+      state.workspace.file = await runtime.workspaceFile(path);
+    } catch (error) {
+      state.workspace.file = { path, error: "Workspace file API unavailable." };
+      console.warn("Tripp workspace file unavailable.", error);
+    }
+
+    renderWorkspace();
+  }
+
   function pushMessage(message) {
     const session = activeSession();
     session.transcript.push(message);
@@ -605,6 +747,13 @@
     return (input + output).toLocaleString("en-US");
   }
 
+  function formatBytes(value) {
+    const bytes = Number(value) || 0;
+    if (bytes < 1024) return `${bytes}b`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}kb`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}mb`;
+  }
+
   function railMessage(rail) {
     const messages = {
       terminal: "Terminal focus restored.",
@@ -691,6 +840,14 @@ function createTrippRuntime() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
+    },
+
+    async workspaceTree() {
+      return fetchJson("./api/tripp/workspace/tree");
+    },
+
+    async workspaceFile(path) {
+      return fetchJson(`./api/tripp/workspace/file?path=${encodeURIComponent(path)}`);
     },
   };
 }

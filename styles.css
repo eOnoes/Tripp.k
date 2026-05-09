@@ -369,15 +369,44 @@ button {
 }
 
 .terminal-app.ops-expanded .ops-panel {
-  grid-template-rows: 28px 112px minmax(230px, 1fr) 230px 190px;
+  grid-template-rows: 28px minmax(0, 1fr) 220px 170px;
 }
 
 .terminal-app.ops-expanded[data-panel-focus="tools"] .ops-panel {
-  grid-template-rows: 28px minmax(180px, 260px) minmax(110px, 0.65fr) 210px 190px;
+  grid-template-rows: 28px minmax(0, 1fr) 220px 170px;
 }
 
 .terminal-app.ops-expanded[data-panel-focus="tasks"] .ops-panel {
-  grid-template-rows: 28px 112px minmax(260px, 1fr) 230px 190px;
+  grid-template-rows: 28px minmax(0, 1fr) 220px 170px;
+}
+
+.terminal-app.ops-expanded .tools,
+.terminal-app.ops-expanded .workspace-view,
+.terminal-app.ops-expanded .system {
+  display: none;
+  grid-row: 2;
+}
+
+.terminal-app.ops-expanded[data-ops-tab="tools"] .tools,
+.terminal-app.ops-expanded[data-ops-tab="workspace"] .workspace-view,
+.terminal-app.ops-expanded[data-ops-tab="status"] .system {
+  display: grid;
+}
+
+.terminal-app.ops-expanded .tools {
+  grid-template-rows: 36px minmax(0, 1fr);
+}
+
+.terminal-app.ops-expanded .tasks {
+  grid-row: 3;
+}
+
+.terminal-app.ops-expanded .sessions {
+  grid-row: 4;
+}
+
+.terminal-app.ops-expanded .system {
+  grid-template-rows: 36px minmax(0, 1fr);
 }
 
 .ops-tabs {
@@ -478,6 +507,155 @@ button {
   padding: 0;
   list-style: none;
   overflow: auto;
+}
+
+.workspace-view {
+  display: none;
+  grid-template-rows: 36px minmax(0, 1fr);
+}
+
+.workspace-refresh {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--lime);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.workspace-refresh:hover {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: var(--black);
+}
+
+.workspace-shell {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(210px, 0.42fr) minmax(280px, 0.58fr);
+}
+
+#workspaceRoot,
+.file-preview {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+#workspaceRoot {
+  padding: 8px 0 12px;
+  border-right: 1px solid var(--line);
+}
+
+.workspace-empty {
+  padding: 14px;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.workspace-tree,
+.workspace-tree ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workspace-tree ol {
+  margin-left: 12px;
+}
+
+.workspace-tree li {
+  min-width: 0;
+}
+
+.workspace-dir > span,
+.workspace-tree button {
+  width: 100%;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  border-left: 2px solid transparent;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.workspace-dir > span {
+  color: var(--lime);
+  opacity: 0.86;
+}
+
+.workspace-tree button:hover,
+.workspace-tree button.active {
+  background: var(--panel-hover);
+  border-left-color: var(--lime);
+}
+
+.workspace-tree button span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.workspace-tree small {
+  color: var(--dim);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.file-preview {
+  display: grid;
+  grid-template-rows: 34px minmax(0, 1fr);
+  background: #070707;
+}
+
+.file-preview header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.file-preview strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.file-preview span {
+  flex: 0 0 auto;
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.file-preview pre {
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .tools li {
@@ -796,8 +974,10 @@ button {
 }
 
 .system dl {
+  min-height: 0;
   margin: 0;
   padding: 8px 12px;
+  overflow: auto;
 }
 
 .system div {
