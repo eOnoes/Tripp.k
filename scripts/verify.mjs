@@ -212,11 +212,8 @@ try {
     appScript.includes("mode:${event.retrievalMode}") &&
     appScript.includes("authority:${event.authorityLevel}") &&
     appScript.includes("degraded:true") &&
-    appScript.includes("planningAllowed:true") &&
-    appScript.includes("narrowingAllowed:true") &&
     appScript.includes("writeApprovalEligible:false") &&
     appScript.includes("applyEligible:false") &&
-    appScript.includes("approvalEvidence:false") &&
     appScript.includes("invoked:false") &&
     appScript.includes("writeBlockFamilyDetails") &&
     appScript.includes("layer === \"approval_state\"") &&

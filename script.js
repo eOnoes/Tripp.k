@@ -740,12 +740,8 @@
         event.retrievalMode ? `mode:${event.retrievalMode}` : null,
         event.authorityLevel ? `authority:${event.authorityLevel}` : null,
         event.degraded === true ? "degraded:true" : null,
-        event.degradationReason ? `degradation:${event.degradationReason}` : null,
-        event.planningAllowed === true ? "planningAllowed:true" : null,
-        event.narrowingAllowed === true ? "narrowingAllowed:true" : null,
         event.writeApprovalEligible === false ? "writeApprovalEligible:false" : null,
         event.applyEligible === false ? "applyEligible:false" : null,
-        event.approvalEvidence === false ? "approvalEvidence:false" : null,
       ];
     }
 
