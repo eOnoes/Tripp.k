@@ -927,9 +927,29 @@
       <div class="go-no-go ${escapeHtml(goNoGo.decision || "no_go")}">
         <b>${escapeHtml((goNoGo.decision || "no_go").toUpperCase())}</b>
         <span>${escapeHtml(goNoGo.summary || "")}</span>
-        <small>${escapeHtml((goNoGo.blockers || []).length ? `blockers: ${goNoGo.blockers.join(", ")}` : "all read-only gates passed")}</small>
+        <small>${escapeHtml(formatGateDiagnosticLine(goNoGo))}</small>
+        ${renderGateBlockingReasons(goNoGo)}
       </div>
     `;
+  }
+
+  function formatGateDiagnosticLine(goNoGo) {
+    const parts = [
+      `required:${goNoGo.requiredScenarioCount ?? "?"}`,
+      `present:${goNoGo.presentScenarioCount ?? "?"}`,
+      `missing:${goNoGo.missingScenarioIds?.length || 0}`,
+      `duplicate:${goNoGo.duplicateScenarioIds?.length || 0}`,
+      `incomplete:${goNoGo.incompleteScenarioIds?.length || 0}`,
+      `malformed:${goNoGo.malformedMixedScenarioIds?.length || 0}`,
+      `failed:${goNoGo.failedScenarioIds?.length || 0}`,
+    ];
+    return parts.join(" / ");
+  }
+
+  function renderGateBlockingReasons(goNoGo) {
+    const reasons = goNoGo.blockingReasons || [];
+    if (!reasons.length) return `<small>${escapeHtml("blocking reasons: none")}</small>`;
+    return `<small>${escapeHtml(`blocking reasons: ${reasons.join(" / ")}`)}</small>`;
   }
 
   function renderAdapterEvidence(adapter) {

@@ -204,6 +204,10 @@ try {
     appScript.includes("group-single") &&
     appScript.includes("event.taskId || event.traceId || event.descriptorId") &&
     appScript.includes("renderGoNoGoSummary") &&
+    appScript.includes("formatGateDiagnosticLine") &&
+    appScript.includes("renderGateBlockingReasons") &&
+    appScript.includes("blocking reasons: none") &&
+    appScript.includes("required:${goNoGo.requiredScenarioCount") &&
     appScript.includes("formatTrialExpected") &&
     appScript.includes("formatTrialRoute") &&
     appScript.includes("formatTrialCystTypes") &&
@@ -253,6 +257,7 @@ try {
     appCss.includes(".cyst-activity li.group-single") &&
     appCss.includes(".go-no-go") &&
     appCss.includes(".go-no-go.no_go") &&
+    appCss.includes(".go-no-go small + small") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
