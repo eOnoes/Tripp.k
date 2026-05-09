@@ -179,6 +179,7 @@ try {
   const appCss = await getText("/styles.css");
   const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
   const readinessScoreboard = readFileSync(new URL("../docs/tripp-readiness-scoreboard-v0.1.md", import.meta.url), "utf8");
+  const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
   const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
   const conclusionForbiddenTerms = [
     "approved",
@@ -364,6 +365,15 @@ try {
     readinessScoreboard.includes("Branch ranking stays based on usefulness, not truth or verification.") &&
     readinessScoreboard.includes("Longer-session repeatability harness passes.") &&
     readinessScoreboard.includes("Gate GO means read-only harness readiness only") &&
+    betaRegressionHarness.includes("Read-Only Beta Regression Harness v0.1") &&
+    betaRegressionHarness.includes("Operator-Independence Questions") &&
+    betaRegressionHarness.includes("Multi-Branch Ambiguity Session") &&
+    betaRegressionHarness.includes("Longer Repeatability Session") &&
+    betaRegressionHarness.includes("TASKS, Current Understanding, and Cyst materially contradict each other") &&
+    betaRegressionHarness.includes("Gate GO means read-only harness readiness only") &&
+    betaRegressionHarness.includes("primary read-only beta acceptance flow") &&
+    betaRegressionHarness.includes("multi-branch read-only ambiguity acceptance flow") &&
+    betaRegressionHarness.includes("longer read-only repeatability acceptance flow") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
