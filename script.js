@@ -551,7 +551,7 @@
   }
 
   function renderStatus() {
-    const latestCritical = state.cystEvents.find((event) => isCriticalCystEvent(event));
+    const latestCritical = latestCriticalCystEvent();
     const rows = [
       ["CONNECTION", `<i></i>${escapeHtml(state.status.connection)}`],
       ["RUNTIME", escapeHtml(displayRuntime(state.status.model))],
@@ -602,7 +602,7 @@
   }
 
   function renderCystActivity() {
-    const events = state.cystEvents.slice(0, 8);
+    const events = latestCystTimeline(state.cystEvents, 8);
     if (!events.length) {
       elements.cystRoot.innerHTML = `<section><header><strong>CYST ACTIVITY</strong><span>empty</span></header><p>No audit events recorded.</p></section>`;
       return;
@@ -776,6 +776,40 @@
   function isCriticalCystEvent(event) {
     const tone = cystTone(event);
     return tone === "blocked" || tone === "denied" || tone === "error";
+  }
+
+  function latestCriticalCystEvent() {
+    return orderCystEvents(state.cystEvents)
+      .slice()
+      .reverse()
+      .find((event) => isCriticalCystEvent(event));
+  }
+
+  function latestCystTimeline(events, limit) {
+    return orderCystEvents(events).slice(-limit);
+  }
+
+  function orderCystEvents(events) {
+    return (Array.isArray(events) ? events : [])
+      .map((event, index) => ({ event, index }))
+      .sort((left, right) => {
+        const timeDelta = cystEventTime(left.event) - cystEventTime(right.event);
+        if (timeDelta) return timeDelta;
+        const sequenceDelta = cystEventSequence(left.event) - cystEventSequence(right.event);
+        if (sequenceDelta) return sequenceDelta;
+        return left.index - right.index;
+      })
+      .map(({ event }) => event);
+  }
+
+  function cystEventTime(event) {
+    const time = Date.parse(event?.timestamp || "");
+    return Number.isNaN(time) ? 0 : time;
+  }
+
+  function cystEventSequence(event) {
+    const sequence = Number(event?.cystSequence ?? event?.sequence ?? 0);
+    return Number.isFinite(sequence) ? sequence : 0;
   }
 
   function formatCystTime(value) {

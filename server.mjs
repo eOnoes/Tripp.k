@@ -2035,6 +2035,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
         dedupe_key: routingDecision.dedupeKey,
       },
     });
+    recordRetrievalEvent(task.id, task.traceMap?.trace?.traceId || `trace_${task.id}`, task.retrieval);
     task.result = "Supervisor routed this through the Munch retrieval lane before native reads or edits.";
   }
 
@@ -2548,10 +2549,16 @@ function normalizeCystEvent(event) {
   const normalized = {
     ...event,
     cysToken: event.cysToken || createCystToken(event),
+    cystSequence: Number.isFinite(Number(event.cystSequence)) ? Number(event.cystSequence) : nextCystSequence(),
     timestamp: event.timestamp || new Date().toISOString(),
   };
   if (normalized.eventType === "lifecycle_transition" && !isValidLifecycleTransition(normalized)) return null;
   return normalized;
+}
+
+function nextCystSequence() {
+  const lastSequence = cystEventStore.events.reduce((max, event) => Math.max(max, Number(event.cystSequence || 0)), 0);
+  return lastSequence + 1;
 }
 
 function createCystToken(event) {

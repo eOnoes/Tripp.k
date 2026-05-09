@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -176,6 +176,7 @@ try {
   const bootstrapAfterSettings = await getJson("/api/tripp/bootstrap");
   const appHtml = await getText("/");
   const appScript = await getText("/script.js");
+  const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
   const workspacePass =
     workspaceTree.files?.some((entry) => entry.name === "README.md") &&
     workspaceFile.language === "markdown" &&
@@ -191,6 +192,9 @@ try {
     appHtml.includes("settingsForm") &&
     appScript.includes("renderCystActivity") &&
     appScript.includes("renderCystEvidenceMeta") &&
+    appScript.includes("latestCystTimeline") &&
+    appScript.includes("orderCystEvents") &&
+    appScript.includes("cystEventSequence") &&
     appScript.includes("write_escalation_blocked") &&
     appScript.includes("WRITE BLOCKED") &&
     appScript.includes("Mock evidence cannot authorize edits") &&
@@ -228,7 +232,10 @@ try {
     appScript.includes("APPLY BLOCKED") &&
     appScript.includes("renderReviewChanges") &&
     appScript.includes("saveCompactSettings") &&
-    appScript.includes("/api/tripp/cyst/events");
+    appScript.includes("/api/tripp/cyst/events") &&
+    serverSource.includes("cystSequence") &&
+    serverSource.includes("nextCystSequence") &&
+    serverSource.includes("recordRetrievalEvent(task.id");
   console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
   if (!workspacePass) {
     failures.push({ name: "workspace" });
@@ -676,7 +683,16 @@ try {
   }
 
   const cystAfterTrial = await getJson("/api/tripp/cyst/events");
+  const mockWriteEvents = orderCystEvents(
+    cystAfterTrial.events?.filter((event) => event.descriptorId === mockWriteReply.task?.id) || [],
+  );
+  const mockWriteRetrievalIndex = mockWriteEvents.findIndex((event) => event.eventType === "retrieval_event");
+  const mockWriteBlockIndex = mockWriteEvents.findIndex((event) => event.eventType === "write_escalation_blocked");
+  const mockWriteLifecycleIndex = mockWriteEvents.findIndex(
+    (event) => event.eventType === "lifecycle_transition" && event.lifecycleState === "evidence_ready",
+  );
   const cystLifecyclePass =
+    cystAfterTrial.events?.every((event) => Number.isFinite(Number(event.cystSequence))) &&
     cystAfterTrial.events?.some((event) => event.eventType === "trial_run" && event.descriptorId === trialRun.id) &&
     cystAfterTrial.events?.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === trialRun.task?.id) &&
     cystAfterTrial.events?.some(
@@ -708,7 +724,10 @@ try {
         event.invoked === false &&
         event.writeApprovalEligible === false &&
         event.applyEligible === false,
-    );
+    ) &&
+    mockWriteRetrievalIndex >= 0 &&
+    mockWriteBlockIndex > mockWriteRetrievalIndex &&
+    mockWriteLifecycleIndex > mockWriteBlockIndex;
   console.log(`${cystLifecyclePass ? "PASS" : "FAIL"} cyst: denial, trial, retrieval, and lifecycle events persisted`);
   if (!cystLifecyclePass) {
     failures.push({ name: "cyst lifecycle events" });
@@ -723,6 +742,24 @@ try {
   extraServers.forEach((candidate) => candidate.close?.());
   rmSync(runtimeDir, { recursive: true, force: true });
   extraRuntimeDirs.forEach((dir) => rmSync(dir, { recursive: true, force: true }));
+}
+
+function orderCystEvents(events) {
+  return (Array.isArray(events) ? events : [])
+    .map((event, index) => ({ event, index }))
+    .sort((left, right) => {
+      const timeDelta = cystEventTime(left.event) - cystEventTime(right.event);
+      if (timeDelta) return timeDelta;
+      const sequenceDelta = Number(left.event.cystSequence || 0) - Number(right.event.cystSequence || 0);
+      if (sequenceDelta) return sequenceDelta;
+      return left.index - right.index;
+    })
+    .map(({ event }) => event);
+}
+
+function cystEventTime(event) {
+  const timestamp = Date.parse(event?.timestamp || "");
+  return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 async function verifyBackendBridge() {
