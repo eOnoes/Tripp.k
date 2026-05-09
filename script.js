@@ -51,6 +51,7 @@
     })),
     status: { ...data.status },
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
+    swarm: data.swarm || { agents: [] },
     busy: false,
   };
 
@@ -291,6 +292,7 @@
       ["CONNECTION", `<i></i>${escapeHtml(state.status.connection)}`],
       ["RUNTIME", escapeHtml(displayRuntime(state.status.model))],
       ["SESSIONS", escapeHtml(displayCapability(state.runtime.capabilities?.sessions))],
+      ["SWARM", `${escapeHtml(state.swarm.agents?.length || 0)} agents`],
       ["SHELL", escapeHtml(displayCapability(state.runtime.capabilities?.shell))],
       ["WRITE", escapeHtml(displayCapability(state.runtime.capabilities?.filesystemWrite))],
       ["TOKENS IN", escapeHtml(state.status.tokensIn)],
@@ -679,6 +681,12 @@ async function loadStaticData() {
         latency: "679ms",
         mode: "CHAT",
         version: "v1.0.0",
+      },
+      swarm: {
+        version: "0.0.0",
+        face: "tripp",
+        supervisor: "tripp.supervisor",
+        agents: [],
       },
       tasks: [],
     };

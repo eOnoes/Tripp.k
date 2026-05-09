@@ -61,10 +61,22 @@ try {
   const healthPass =
     health.ok === true &&
     health.capabilities?.sessions === "persistent-local" &&
-    health.capabilities?.shell === "read-only-allowlist";
+    health.capabilities?.shell === "read-only-allowlist" &&
+    health.capabilities?.swarm === "manifest-local";
   console.log(`${healthPass ? "PASS" : "FAIL"} health: adapter capabilities`);
   if (!healthPass) {
     failures.push({ name: "health" });
+  }
+
+  const swarm = await getJson("/api/tripp/swarm");
+  const swarmPass =
+    swarm.face === "tripp" &&
+    swarm.supervisor === "tripp.supervisor" &&
+    swarm.agents?.some((agent) => agent.id === "tripp.drone.one" && agent.reportsTo === "tripp.supervisor") &&
+    swarm.agents?.some((agent) => agent.id === "tripp.auditor" && agent.lane === "quality");
+  console.log(`${swarmPass ? "PASS" : "FAIL"} swarm: manifest contract`);
+  if (!swarmPass) {
+    failures.push({ name: "swarm" });
   }
 
   const bridgePass = await verifyBackendBridge();

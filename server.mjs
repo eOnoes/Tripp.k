@@ -8,6 +8,7 @@ const port = Number(process.env.PORT || 4177);
 const host = process.env.HOST || "127.0.0.1";
 
 const bootstrapFile = join(root, "tripp-terminal-data.json");
+const swarmManifestFile = join(root, "agents", "tripp-swarm-manifest.json");
 const runtimeDir = resolve(process.env.TRIPP_RUNTIME_DIR || join(root, ".tripp-runtime"));
 const taskStoreFile = join(runtimeDir, "tasks.json");
 const sessionStoreFile = join(runtimeDir, "sessions.json");
@@ -67,6 +68,11 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/swarm") {
+    sendJson(response, readSwarmManifest());
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/tripp/reply") {
     const payload = await readJson(request);
     sendJson(response, await createReply(payload));
@@ -105,10 +111,12 @@ function readBootstrap() {
   const bootstrap = JSON.parse(readFileSync(bootstrapFile, "utf8"));
   const sessions = ensureSessionStore(bootstrap);
   const health = readHealth();
+  const swarm = readSwarmManifest();
 
   return {
     ...bootstrap,
     sessions,
+    swarm,
     status: {
       ...bootstrap.status,
       connection: backendUrl ? "BRIDGE READY" : bootstrap.status.connection,
@@ -138,6 +146,7 @@ function readHealth() {
     stores: {
       tasks: taskQueue.length,
       sessions: sessionStore.sessions.length,
+      agents: readSwarmManifest().agents.length,
       directory: ".tripp-runtime",
     },
     capabilities: {
@@ -149,9 +158,23 @@ function readHealth() {
       shell: "read-only-allowlist",
       git: "status-only",
       backendReply: backendUrl && backendReplyEnabled ? "enabled" : "disabled",
+      swarm: "manifest-local",
     },
     contract: backendContract(),
   };
+}
+
+function readSwarmManifest() {
+  try {
+    return JSON.parse(readFileSync(swarmManifestFile, "utf8"));
+  } catch {
+    return {
+      version: "0.0.0",
+      face: "tripp",
+      supervisor: "tripp.supervisor",
+      agents: [],
+    };
+  }
 }
 
 async function readBackendStatus() {

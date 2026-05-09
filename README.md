@@ -43,6 +43,7 @@ The verifier uses an isolated temporary runtime directory so test tasks and sess
   - `GET /api/tripp/bootstrap`
   - `GET /api/tripp/health`
   - `GET /api/tripp/backend/status`
+  - `GET /api/tripp/swarm`
   - `POST /api/tripp/reply`
   - `GET /api/tripp/tasks`
   - `POST /api/tripp/tasks/:taskId/approve`
@@ -56,6 +57,7 @@ The verifier uses an isolated temporary runtime directory so test tasks and sess
   - `TRIPP_BACKEND_HEALTH_PATH`, default `/health`
   - `TRIPP_RUNTIME_DIR` for overriding the local task/session store directory
 - Agent role/soul/operator doctrine lives under `agents/`.
+- The machine-readable swarm manifest lives at `agents/tripp-swarm-manifest.json`.
 
 Task approval is guarded. Approving a write task prepares a patch preview; applying currently supports only the approved welcome-message patch in `tripp-terminal-data.json`.
 Inspect tasks are read-only, auto-complete without acknowledgement, and can show excerpts for approved repo-local files such as `README.md`, `server.mjs`, `script.js`, `styles.css`, and `tripp-terminal-data.json`.

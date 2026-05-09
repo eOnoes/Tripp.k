@@ -1,0 +1,139 @@
+{
+  "version": "0.1.0",
+  "face": "tripp",
+  "supervisor": "tripp.supervisor",
+  "agents": [
+    {
+      "id": "tripp",
+      "label": "Tripp",
+      "lane": "face",
+      "reportsTo": null,
+      "toolSet": "conversation",
+      "docs": {
+        "role": "agents/tripp/tripp.role.md",
+        "soul": "agents/tripp/tripp.soul.md",
+        "operator": "agents/tripp/tripp.operator.md"
+      }
+    },
+    {
+      "id": "tripp.supervisor",
+      "label": "Tripp.supervisor",
+      "lane": "coordination",
+      "reportsTo": "tripp",
+      "toolSet": "delegation",
+      "docs": {
+        "role": "agents/tripp.supervisor/tripp.supervisor.role.md",
+        "soul": "agents/tripp.supervisor/tripp.supervisor.soul.md",
+        "operator": "agents/tripp.supervisor/tripp.supervisor.operator.md"
+      }
+    },
+    {
+      "id": "tripp.drone.one",
+      "label": "Tripp.drone.one",
+      "lane": "worker",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "tools-1-3",
+      "docs": {
+        "role": "agents/tripp.drone.one/tripp.drone.one.role.md",
+        "soul": "agents/tripp.drone.one/tripp.drone.one.soul.md",
+        "operator": "agents/tripp.drone.one/tripp.drone.one.operator.md"
+      }
+    },
+    {
+      "id": "tripp.drone.two",
+      "label": "Tripp.drone.two",
+      "lane": "worker",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "tools-4-6",
+      "docs": {
+        "role": "agents/tripp.drone.two/tripp.drone.two.role.md",
+        "soul": "agents/tripp.drone.two/tripp.drone.two.soul.md",
+        "operator": "agents/tripp.drone.two/tripp.drone.two.operator.md"
+      }
+    },
+    {
+      "id": "tripp.drone.three",
+      "label": "Tripp.drone.three",
+      "lane": "worker",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "tools-7-10",
+      "docs": {
+        "role": "agents/tripp.drone.three/tripp.drone.three.role.md",
+        "soul": "agents/tripp.drone.three/tripp.drone.three.soul.md",
+        "operator": "agents/tripp.drone.three/tripp.drone.three.operator.md"
+      }
+    },
+    {
+      "id": "tripp.inspector",
+      "label": "Tripp.inspector",
+      "lane": "quality",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "quality-review",
+      "docs": {
+        "role": "agents/tripp.inspector/tripp.inspector.role.md",
+        "soul": "agents/tripp.inspector/tripp.inspector.soul.md",
+        "operator": "agents/tripp.inspector/tripp.inspector.operator.md"
+      }
+    },
+    {
+      "id": "tripp.auditor",
+      "label": "Tripp.auditor",
+      "lane": "quality",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "risk-traceability",
+      "docs": {
+        "role": "agents/tripp.auditor/tripp.auditor.role.md",
+        "soul": "agents/tripp.auditor/tripp.auditor.soul.md",
+        "operator": "agents/tripp.auditor/tripp.auditor.operator.md"
+      }
+    },
+    {
+      "id": "tripp.helix",
+      "label": "Tripp.helix",
+      "lane": "specialist",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "architecture-synthesis",
+      "docs": {
+        "role": "agents/tripp.helix/tripp.helix.role.md",
+        "soul": "agents/tripp.helix/tripp.helix.soul.md",
+        "operator": "agents/tripp.helix/tripp.helix.operator.md"
+      }
+    },
+    {
+      "id": "tripp.echo",
+      "label": "Tripp.echo",
+      "lane": "specialist",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "memory-reflection",
+      "docs": {
+        "role": "agents/tripp.echo/tripp.echo.role.md",
+        "soul": "agents/tripp.echo/tripp.echo.soul.md",
+        "operator": "agents/tripp.echo/tripp.echo.operator.md"
+      }
+    },
+    {
+      "id": "tripp.watcher",
+      "label": "Tripp.watcher",
+      "lane": "specialist",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "monitoring",
+      "docs": {
+        "role": "agents/tripp.watcher/tripp.watcher.role.md",
+        "soul": "agents/tripp.watcher/tripp.watcher.soul.md",
+        "operator": "agents/tripp.watcher/tripp.watcher.operator.md"
+      }
+    },
+    {
+      "id": "tripp.picasso",
+      "label": "Tripp.picasso",
+      "lane": "specialist",
+      "reportsTo": "tripp.supervisor",
+      "toolSet": "frontend-bridge",
+      "docs": {
+        "role": "agents/tripp.picasso/tripp.picasso.role.md",
+        "soul": "agents/tripp.picasso/tripp.picasso.soul.md",
+        "operator": "agents/tripp.picasso/tripp.picasso.operator.md"
+      }
+    }
+  ]
+}
