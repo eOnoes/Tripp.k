@@ -26,6 +26,7 @@ All of these must pass:
    - summaries preserve uncertainty when inspection coverage is incomplete
    - next read-only direction remains specific without implying final certainty
    - branch ranking remains based on usefulness for review
+   - partial evidence synthesis contract passes
 
 4. Beta release discipline
    - scoped release notes exist
@@ -41,6 +42,7 @@ Do not move to 85% if:
 - older blocked read-only outcomes disappear from the planning story while still relevant
 - older branch context is erased instead of summarized or aged down
 - Current Understanding overcompresses partial evidence into a settled answer
+- single-branch evidence is treated as enough to settle a multi-branch question
 - release language implies edit/build or write-capable readiness
 - release language implies approval/apply capability or broad Goose replacement
 - operator-independence artifact fails or becomes certification-sounding
@@ -52,7 +54,7 @@ Do not move to 85% if:
 - Preserve older blocked read-only outcomes longer than ordinary findings.
 - Preserve older branch context when it still explains the current next read-only direction.
 - Label older context as earlier context, not stale failure.
-- Do not use resolved, verified, confirmed, approved, or ready language.
+- Do not use certainty, approval, or readiness language.
 
 ## Candidate Future Tests
 
@@ -62,5 +64,7 @@ Do not move to 85% if:
 - `branch_rolloff_summarizes_older_branch_context_without_overclaim`
 - `current_understanding_distinguishes_recent_from_older_relevant_context`
 - `partial_evidence_synthesis_preserves_uncertainty`
+- `single_branch_partial_evidence_stays_useful_but_incomplete`
+- `what_we_know_uses_only_directly_inspected_context_under_partial_evidence`
 - `beta_release_notes_remain_scoped_to_readonly_planning_review`
 - `future_write_docs_do_not_affect_current_runtime_claims`

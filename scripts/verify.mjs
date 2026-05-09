@@ -182,6 +182,7 @@ try {
   const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
   const betaReleaseNotes = readFileSync(new URL("../docs/read-only-beta-release-v0.1.md", import.meta.url), "utf8");
   const sessionVarietyPack = readFileSync(new URL("../docs/read-only-session-variety-pack-v0.1.md", import.meta.url), "utf8");
+  const partialEvidenceSynthesis = readFileSync(new URL("../docs/read-only-partial-evidence-synthesis-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -285,6 +286,10 @@ try {
     appScript.includes("Inspection of server.mjs provided useful runtime implementation context for read-only review.") &&
     appScript.includes("The initial docs/config and runtime branch suggestions came from planning-only retrieval and remain non-authoritative.") &&
     appScript.includes("Current findings compare usefulness for read-only review, not final ownership or final implementation control.") &&
+    appScript.includes("Planning-only retrieval suggested additional paths that remain non-authoritative.") &&
+    appScript.includes("Only part of the current question has been inspected directly.") &&
+    appScript.includes("Current findings are useful for read-only review but remain incomplete.") &&
+    appScript.includes("Inspect the next related source to clarify the remaining uncertainty.") &&
     appScript.includes("Continue from the currently more useful docs/config or runtime branch and inspect the next related source if more clarification is needed.") &&
     appScript.includes("Two plausible review paths emerged from planning-only retrieval.") &&
     appScript.includes("Inspection of server.mjs provided stronger direct context for the current gate question.") &&
@@ -500,6 +505,18 @@ try {
     sessionVarietyPack.includes("docs_config_vs_runtime_session_remains_self_explanatory") &&
     sessionVarietyPack.includes("partial_evidence_does_not_overclaim_across_varied_sessions") &&
     sessionVarietyPack.includes("cross_surface_coherence_holds_across_varied_session_pack") &&
+    partialEvidenceSynthesis.includes("Read-Only Partial Evidence Synthesis v0.1") &&
+    partialEvidenceSynthesis.includes("This document does not change the current 80% read-only Goose replacement estimate") &&
+    partialEvidenceSynthesis.includes("What we know = direct, bounded, observed read-only context only.") &&
+    partialEvidenceSynthesis.includes("What remains uncertain = mock retrieval implications, uninspected branches, partial coverage, and possible reorientation.") &&
+    partialEvidenceSynthesis.includes("Planning-only retrieval suggested additional paths that remain non-authoritative.") &&
+    partialEvidenceSynthesis.includes("Only part of the current question has been inspected directly.") &&
+    partialEvidenceSynthesis.includes("Current findings are useful for read-only review but remain incomplete.") &&
+    partialEvidenceSynthesis.includes("A write-like shell or escalation path remains blocked in the current read-only session.") &&
+    partialEvidenceSynthesis.includes("Inspect the next related source to clarify the remaining uncertainty.") &&
+    partialEvidenceSynthesis.includes("single_branch_partial_evidence_stays_useful_but_incomplete") &&
+    partialEvidenceSynthesis.includes("what_we_know_uses_only_directly_inspected_context_under_partial_evidence") &&
+    partialEvidenceSynthesis.includes("partial_evidence_copy_does_not_overclaim") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
@@ -557,6 +574,10 @@ try {
     readOnly85Gate.includes("older blocked read-only outcomes remain visible longer than ordinary findings") &&
     readOnly85Gate.includes("runtime acceptance lane passes") &&
     readOnly85Gate.includes("Synthesis quality under partial evidence") &&
+    readOnly85Gate.includes("partial evidence synthesis contract passes") &&
+    readOnly85Gate.includes("single-branch evidence is treated as enough to settle a multi-branch question") &&
+    readOnly85Gate.includes("single_branch_partial_evidence_stays_useful_but_incomplete") &&
+    readOnly85Gate.includes("what_we_know_uses_only_directly_inspected_context_under_partial_evidence") &&
     readOnly85Gate.includes("Beta release discipline") &&
     readOnly85Gate.includes("beta label does not imply edit/build replacement, approval/apply capability, or broad Goose parity") &&
     readOnly85Gate.includes("release language implies approval/apply capability or broad Goose replacement") &&
@@ -1733,6 +1754,49 @@ try {
   console.log(`${docsRuntimeVarietyPass ? "PASS" : "FAIL"} beta: docs/config vs runtime read-only acceptance flow`);
   if (!docsRuntimeVarietyPass) {
     failures.push({ name: "docs/config vs runtime read-only acceptance" });
+  }
+
+  const partialSessionId = "verify-readonly-partial-evidence";
+  const partialRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files best explain read-only beta behavior: docs/config guidance or server implementation?",
+    mode: "AUTO",
+    sessionId: partialSessionId,
+  });
+  const partialDocsInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: partialSessionId,
+  });
+  const partialSafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: partialSessionId,
+  });
+  const partialCyst = await getJson("/api/tripp/cyst/events");
+  const partialTaskIds = [
+    partialRetrieval.task?.id,
+    partialDocsInspect.task?.id,
+    partialSafeShell.task?.id,
+  ].filter(Boolean);
+  const partialCystEvents = partialCyst.events?.filter((event) => partialTaskIds.includes(event.descriptorId)) || [];
+  const partialEvidencePass =
+    partialRetrieval.task?.status === "retrieval_ready" &&
+    partialRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    partialRetrieval.task?.retrieval?.writeApprovalEligible === false &&
+    partialDocsInspect.task?.status === "inspected" &&
+    partialDocsInspect.task?.target === "README.md" &&
+    partialSafeShell.task?.status === "completed" &&
+    partialSafeShell.task?.adapter?.invoked === true &&
+    partialCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === partialRetrieval.task?.id) &&
+    partialCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === partialDocsInspect.task?.id) &&
+    partialCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === partialSafeShell.task?.id) &&
+    appScript.includes("Planning-only retrieval suggested additional paths that remain non-authoritative.") &&
+    appScript.includes("Only part of the current question has been inspected directly.") &&
+    appScript.includes("Current findings are useful for read-only review but remain incomplete.") &&
+    appScript.includes("Inspect the next related source to clarify the remaining uncertainty.");
+  console.log(`${partialEvidencePass ? "PASS" : "FAIL"} beta: partial-evidence synthesis acceptance flow`);
+  if (!partialEvidencePass) {
+    failures.push({ name: "partial-evidence synthesis acceptance" });
   }
 
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({

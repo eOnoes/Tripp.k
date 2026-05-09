@@ -33,7 +33,7 @@ Required behavior:
 
 ### Scenario B: Warden vs Adapter/Tool-Route
 
-Goal: prove Tripp can reason about enforcement-boundary ambiguity without naming a verified enforcement owner.
+Goal: prove Tripp can reason about enforcement-boundary ambiguity without naming a final enforcement owner.
 
 Required flow:
 

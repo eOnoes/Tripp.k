@@ -514,6 +514,7 @@
     const hasPolicyBranch = inspected.includes("README.md") || inspected.some((file) => file.startsWith("docs/"));
     const hasBranchReview = hasBranchRetrieval && hasBackendBranch && hasUiBranch;
     const hasDocsRuntimeReview = hasDocsRuntimeRetrieval && hasBackendBranch && hasPolicyBranch;
+    const hasDocsRuntimePartialReview = hasDocsRuntimeRetrieval && (hasBackendBranch || hasPolicyBranch) && !hasDocsRuntimeReview;
     const hasReversalReview = hasReversalRetrieval && hasBackendBranch && hasUiBranch;
     const hasRecoveryReview = hasRecoveryRetrieval && hasBackendBranch && hasUiBranch && blocked;
     const hasEnforcementReview = hasEnforcementRetrieval && hasBackendBranch && hasPolicyBranch && blocked;
@@ -525,6 +526,8 @@
       hasDocsRuntimeReview ? "Planning-only retrieval suggested docs/config guidance and runtime implementation as plausible review paths." : null,
       hasDocsRuntimeReview ? "Inspection of README.md provided useful docs/config context for read-only review." : null,
       hasDocsRuntimeReview ? "Inspection of server.mjs provided useful runtime implementation context for read-only review." : null,
+      hasDocsRuntimePartialReview && hasPolicyBranch ? "Inspection of README.md provided useful docs/config context for read-only review." : null,
+      hasDocsRuntimePartialReview && hasBackendBranch ? "Inspection of server.mjs provided useful runtime implementation context for read-only review." : null,
       hasRecoveryReview ? "Earlier inspection of the UI branch provided useful presentation context for blocked outcomes." : null,
       hasRecoveryReview ? "Later inspection of the runtime-handling branch provided more useful context for how blocked outcomes are handled in the current harness." : null,
       hasReversalReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
@@ -544,6 +547,9 @@
       hasEnforcementReview ? "Both policy and adapter behavior may contribute, even if one branch is currently more useful for review." : null,
       hasDocsRuntimeReview ? "The initial docs/config and runtime branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
       hasDocsRuntimeReview ? "Current findings compare usefulness for read-only review, not final ownership or final implementation control." : null,
+      hasDocsRuntimePartialReview ? "Planning-only retrieval suggested additional paths that remain non-authoritative." : null,
+      hasDocsRuntimePartialReview ? "Only part of the current question has been inspected directly." : null,
+      hasDocsRuntimePartialReview ? "Current findings are useful for read-only review but remain incomplete." : null,
       hasRecoveryReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
       hasRecoveryReview ? "The current interpretation changed after additional inspection and remains scoped to read-only review." : null,
       hasRecoveryReview ? "Presentation behavior may still depend on additional related files beyond the current runtime path." : null,
@@ -573,6 +579,8 @@
       blocked: blockedSummary,
       next: hasDocsRuntimeReview
         ? "Continue from the currently more useful docs/config or runtime branch and inspect the next related source if more clarification is needed."
+        : hasDocsRuntimePartialReview
+        ? "Inspect the next related source to clarify the remaining uncertainty."
         : hasEnforcementReview
         ? "Continue from the currently more useful enforcement branch and inspect the next related source if more clarification is needed."
         : hasRecoveryReview
