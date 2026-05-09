@@ -497,6 +497,7 @@
     const olderBranchContext = olderRelevantTasks.some(
       (task) =>
         isGateBranchRetrieval(task) ||
+        isDocsRuntimeBranchRetrieval(task) ||
         isCystRenderingBranchRetrieval(task) ||
         isBlockedOutcomeRecoveryRetrieval(task) ||
         isEnforcementBranchRetrieval(task),
@@ -504,6 +505,7 @@
     const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
     const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
     const hasBranchRetrieval = recentTasks.some((task) => isGateBranchRetrieval(task));
+    const hasDocsRuntimeRetrieval = recentTasks.some((task) => isDocsRuntimeBranchRetrieval(task));
     const hasReversalRetrieval = recentTasks.some((task) => isCystRenderingBranchRetrieval(task));
     const hasRecoveryRetrieval = recentTasks.some((task) => isBlockedOutcomeRecoveryRetrieval(task));
     const hasEnforcementRetrieval = recentTasks.some((task) => isEnforcementBranchRetrieval(task));
@@ -511,6 +513,7 @@
     const hasUiBranch = inspected.includes("script.js");
     const hasPolicyBranch = inspected.includes("README.md") || inspected.some((file) => file.startsWith("docs/"));
     const hasBranchReview = hasBranchRetrieval && hasBackendBranch && hasUiBranch;
+    const hasDocsRuntimeReview = hasDocsRuntimeRetrieval && hasBackendBranch && hasPolicyBranch;
     const hasReversalReview = hasReversalRetrieval && hasBackendBranch && hasUiBranch;
     const hasRecoveryReview = hasRecoveryRetrieval && hasBackendBranch && hasUiBranch && blocked;
     const hasEnforcementReview = hasEnforcementRetrieval && hasBackendBranch && hasPolicyBranch && blocked;
@@ -519,6 +522,9 @@
       hasEnforcementReview ? "Planning-only retrieval suggested policy-denial and adapter-route handling as plausible review paths." : null,
       hasEnforcementReview ? "Inspection of the policy branch provided useful context for read-only denial behavior." : null,
       hasEnforcementReview ? "Inspection of the adapter branch provided useful context for how blocked routes are handled in the current harness." : null,
+      hasDocsRuntimeReview ? "Planning-only retrieval suggested docs/config guidance and runtime implementation as plausible review paths." : null,
+      hasDocsRuntimeReview ? "Inspection of README.md provided useful docs/config context for read-only review." : null,
+      hasDocsRuntimeReview ? "Inspection of server.mjs provided useful runtime implementation context for read-only review." : null,
       hasRecoveryReview ? "Earlier inspection of the UI branch provided useful presentation context for blocked outcomes." : null,
       hasRecoveryReview ? "Later inspection of the runtime-handling branch provided more useful context for how blocked outcomes are handled in the current harness." : null,
       hasReversalReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
@@ -536,6 +542,8 @@
       hasEnforcementReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
       hasEnforcementReview ? "The current branch ranking reflects usefulness for the blocked-behavior question, not final enforcement certainty." : null,
       hasEnforcementReview ? "Both policy and adapter behavior may contribute, even if one branch is currently more useful for review." : null,
+      hasDocsRuntimeReview ? "The initial docs/config and runtime branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
+      hasDocsRuntimeReview ? "Current findings compare usefulness for read-only review, not final ownership or final implementation control." : null,
       hasRecoveryReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
       hasRecoveryReview ? "The current interpretation changed after additional inspection and remains scoped to read-only review." : null,
       hasRecoveryReview ? "Presentation behavior may still depend on additional related files beyond the current runtime path." : null,
@@ -550,7 +558,7 @@
       inspected.length ? null : "No files have been inspected in the recent read-only thread.",
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
     ].filter(Boolean);
-    const blockedSummary = (hasBranchReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
+    const blockedSummary = (hasBranchReview || hasDocsRuntimeReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
       ? ["A write-like shell or escalation path was blocked to preserve read-only mode.", "No write-capable route was used."]
       : blocked
         ? `${blocked} read-only boundary preserved`
@@ -563,7 +571,9 @@
       known: known.length ? known : ["No read-only findings yet"],
       uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
       blocked: blockedSummary,
-      next: hasEnforcementReview
+      next: hasDocsRuntimeReview
+        ? "Continue from the currently more useful docs/config or runtime branch and inspect the next related source if more clarification is needed."
+        : hasEnforcementReview
         ? "Continue from the currently more useful enforcement branch and inspect the next related source if more clarification is needed."
         : hasRecoveryReview
         ? "Continue from the runtime-handling branch and inspect the next related source if more clarification is needed."
@@ -589,6 +599,15 @@
       task?.retrieval &&
       prompt.includes("read-only gate") &&
       (prompt.includes("operator") || prompt.includes("shown") || prompt.includes("results")),
+    );
+  }
+
+  function isDocsRuntimeBranchRetrieval(task) {
+    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
+    return Boolean(
+      task?.retrieval &&
+      (prompt.includes("docs/config") || (prompt.includes("docs") && prompt.includes("config"))) &&
+      (prompt.includes("runtime") || prompt.includes("implementation") || prompt.includes("server")),
     );
   }
 

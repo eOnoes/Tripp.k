@@ -181,6 +181,7 @@ try {
   const readinessScoreboard = readFileSync(new URL("../docs/tripp-readiness-scoreboard-v0.1.md", import.meta.url), "utf8");
   const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
   const betaReleaseNotes = readFileSync(new URL("../docs/read-only-beta-release-v0.1.md", import.meta.url), "utf8");
+  const sessionVarietyPack = readFileSync(new URL("../docs/read-only-session-variety-pack-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -265,6 +266,7 @@ try {
     appScript.includes("renderPlanningSummary") &&
     appScript.includes("buildPlanningSummary") &&
     appScript.includes("isGateBranchRetrieval") &&
+    appScript.includes("isDocsRuntimeBranchRetrieval") &&
     appScript.includes("isCystRenderingBranchRetrieval") &&
     appScript.includes("isBlockedOutcomeRecoveryRetrieval") &&
     appScript.includes("isEnforcementBranchRetrieval") &&
@@ -278,6 +280,12 @@ try {
     appScript.includes("olderRelevantTasks") &&
     appScript.includes("Earlier branch context remains available but is outside the most recent task window.") &&
     appScript.includes("Earlier blocked read-only outcome remains relevant.") &&
+    appScript.includes("Planning-only retrieval suggested docs/config guidance and runtime implementation as plausible review paths.") &&
+    appScript.includes("Inspection of README.md provided useful docs/config context for read-only review.") &&
+    appScript.includes("Inspection of server.mjs provided useful runtime implementation context for read-only review.") &&
+    appScript.includes("The initial docs/config and runtime branch suggestions came from planning-only retrieval and remain non-authoritative.") &&
+    appScript.includes("Current findings compare usefulness for read-only review, not final ownership or final implementation control.") &&
+    appScript.includes("Continue from the currently more useful docs/config or runtime branch and inspect the next related source if more clarification is needed.") &&
     appScript.includes("Two plausible review paths emerged from planning-only retrieval.") &&
     appScript.includes("Inspection of server.mjs provided stronger direct context for the current gate question.") &&
     appScript.includes("Inspection of script.js added result-display context, but was less central to the current gate question.") &&
@@ -415,6 +423,8 @@ try {
     betaRegressionHarness.includes("longer read-only repeatability acceptance flow") &&
     betaRegressionHarness.includes("Branch Rolloff Session") &&
     betaRegressionHarness.includes("branch rolloff read-only acceptance flow") &&
+    betaRegressionHarness.includes("Session Variety Pack") &&
+    betaRegressionHarness.includes("docs/config vs runtime read-only acceptance flow") &&
     betaRegressionHarness.includes("Operator-Independence Artifact") &&
     betaRegressionHarness.includes("artifactType: \"operator_independence_check\"") &&
     betaRegressionHarness.includes("checks.understandableWithoutSidecar") &&
@@ -477,6 +487,19 @@ try {
     betaReleaseNotes.includes("beta_artifacts_require_known_limitations_before_beta_label") &&
     betaReleaseNotes.includes("beta_artifacts_require_gate_go_no_go_disclaimer_before_beta_label") &&
     betaReleaseNotes.includes("beta_artifacts_require_mock_evidence_disclaimer_before_beta_label") &&
+    sessionVarietyPack.includes("Read-Only Session Variety Pack v0.1") &&
+    sessionVarietyPack.includes("This document does not change the current 80% read-only Goose replacement estimate") &&
+    sessionVarietyPack.includes("Scenario A: Docs/Config vs Runtime Implementation") &&
+    sessionVarietyPack.includes("Scenario B: Warden vs Adapter/Tool-Route") &&
+    sessionVarietyPack.includes("Scenario C: Longer Session With Aging Context") &&
+    sessionVarietyPack.includes("docs/config and runtime implementation remain plausible review paths") &&
+    sessionVarietyPack.includes("mock retrieval remains non-authoritative") &&
+    sessionVarietyPack.includes("blocked outcome remains visible") &&
+    sessionVarietyPack.includes("all sessions stay coherent across TASKS, Current Understanding, and Cyst") &&
+    sessionVarietyPack.includes("session_variety_pack_covers_multiple_distinct_readonly_planning_shapes") &&
+    sessionVarietyPack.includes("docs_config_vs_runtime_session_remains_self_explanatory") &&
+    sessionVarietyPack.includes("partial_evidence_does_not_overclaim_across_varied_sessions") &&
+    sessionVarietyPack.includes("cross_surface_coherence_holds_across_varied_session_pack") &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
     futureWriteContract.includes("This document must not enable live mutation paths.") &&
@@ -529,6 +552,7 @@ try {
     readOnly85Gate.includes("does not change the current 80% read-only Goose replacement estimate") &&
     readOnly85Gate.includes("Required Proof Before 85%") &&
     readOnly85Gate.includes("Broader read-only session variety") &&
+    readOnly85Gate.includes("docs/config vs runtime implementation acceptance lane passes") &&
     readOnly85Gate.includes("Branch rolloff proof") &&
     readOnly85Gate.includes("older blocked read-only outcomes remain visible longer than ordinary findings") &&
     readOnly85Gate.includes("runtime acceptance lane passes") &&
@@ -538,6 +562,8 @@ try {
     readOnly85Gate.includes("release language implies approval/apply capability or broad Goose replacement") &&
     readOnly85Gate.includes("Branch Rolloff Policy") &&
     readOnly85Gate.includes("branch_rolloff_keeps_older_blocked_readonly_outcomes_visible") &&
+    readOnly85Gate.includes("session_variety_pack_covers_multiple_distinct_readonly_planning_shapes") &&
+    readOnly85Gate.includes("docs_config_vs_runtime_session_remains_self_explanatory") &&
     serverSource.includes("cystSequence") &&
     serverSource.includes("nextCystSequence") &&
     serverSource.includes("recordRetrievalEvent(task.id") &&
@@ -1643,6 +1669,70 @@ try {
   console.log(`${branchRolloffAcceptancePass ? "PASS" : "FAIL"} beta: branch rolloff read-only acceptance flow`);
   if (!branchRolloffAcceptancePass) {
     failures.push({ name: "branch rolloff read-only acceptance" });
+  }
+
+  const varietySessionId = "verify-readonly-session-variety-docs-runtime";
+  const varietyRetrieval = await postJson("/api/tripp/reply", {
+    prompt: "Which files best explain read-only beta behavior: docs/config guidance or server implementation?",
+    mode: "AUTO",
+    sessionId: varietySessionId,
+  });
+  const varietyDocsInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect README.md",
+    mode: "AUTO",
+    sessionId: varietySessionId,
+  });
+  const varietyRuntimeInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: varietySessionId,
+  });
+  const varietySafeShell = await postJson("/api/tripp/reply", {
+    prompt: "run node --version command",
+    mode: "AUTO",
+    sessionId: varietySessionId,
+  });
+  const varietyBlockedShell = await postJson("/api/tripp/reply", {
+    prompt: "run shell command write beta marker",
+    mode: "AUTO",
+    sessionId: varietySessionId,
+  });
+  const varietyGate = await postJson("/api/tripp/trials/read-only", {});
+  const varietyCyst = await getJson("/api/tripp/cyst/events");
+  const varietyTaskIds = [
+    varietyRetrieval.task?.id,
+    varietyDocsInspect.task?.id,
+    varietyRuntimeInspect.task?.id,
+    varietySafeShell.task?.id,
+    varietyBlockedShell.task?.id,
+    varietyGate.task?.id,
+  ].filter(Boolean);
+  const varietyCystEvents = varietyCyst.events?.filter((event) => varietyTaskIds.includes(event.descriptorId) || event.descriptorId === varietyGate.id) || [];
+  const docsRuntimeVarietyPass =
+    varietyRetrieval.task?.status === "retrieval_ready" &&
+    varietyRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
+    varietyRetrieval.task?.retrieval?.writeApprovalEligible === false &&
+    varietyDocsInspect.task?.status === "inspected" &&
+    varietyDocsInspect.task?.target === "README.md" &&
+    varietyRuntimeInspect.task?.status === "inspected" &&
+    varietyRuntimeInspect.task?.target === "server.mjs" &&
+    varietySafeShell.task?.status === "completed" &&
+    varietySafeShell.task?.adapter?.invoked === true &&
+    varietyBlockedShell.task?.status === "gated" &&
+    !varietyBlockedShell.task?.adapter &&
+    varietyGate.suiteStatus === "go" &&
+    varietyGate.task?.goNoGo?.suiteStatus === "go" &&
+    varietyCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === varietyRetrieval.task?.id) &&
+    varietyCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === varietyDocsInspect.task?.id) &&
+    varietyCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === varietyRuntimeInspect.task?.id) &&
+    varietyCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === varietySafeShell.task?.id) &&
+    varietyCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === varietyBlockedShell.task?.id) &&
+    varietyCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === varietyGate.id && event.gateStage === "completed") &&
+    appScript.includes("Planning-only retrieval suggested docs/config guidance and runtime implementation as plausible review paths.") &&
+    appScript.includes("The initial docs/config and runtime branch suggestions came from planning-only retrieval and remain non-authoritative.");
+  console.log(`${docsRuntimeVarietyPass ? "PASS" : "FAIL"} beta: docs/config vs runtime read-only acceptance flow`);
+  if (!docsRuntimeVarietyPass) {
+    failures.push({ name: "docs/config vs runtime read-only acceptance" });
   }
 
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({

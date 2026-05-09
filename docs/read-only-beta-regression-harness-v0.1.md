@@ -58,6 +58,12 @@ This harness keeps the read-only beta claim tied to repeatable proof instead of 
    - Preserve older blocked outcomes and relevant branch context in compact Current Understanding copy.
    - Keep Cyst as the full audit trail.
 
+9. Session Variety Pack
+   - Cover docs/config vs runtime implementation.
+   - Cover Warden vs adapter/tool-route enforcement ambiguity.
+   - Cover longer session aging/rolloff context.
+   - Confirm varied read-only sessions remain understandable without sidecar interpretation.
+
 ## Operator-Independence Questions
 
 An operator should be able to answer these from Tripp.g alone:
@@ -145,6 +151,7 @@ Block or pull back the beta claim if any of these occur:
 - `Warden-vs-adapter ambiguity acceptance flow`
 - `longer read-only repeatability acceptance flow`
 - `branch rolloff read-only acceptance flow`
+- `docs/config vs runtime read-only acceptance flow`
 - `operator independence artifact`
 - scoped beta release artifact checks
 - Cyst lifecycle and gate event checks

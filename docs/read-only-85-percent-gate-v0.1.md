@@ -14,6 +14,7 @@ All of these must pass:
    - multiple distinct session shapes pass
    - allowed and blocked read-only outcomes stay understandable together
    - mock evidence remains planning-only across varied prompts
+   - docs/config vs runtime implementation acceptance lane passes
 
 2. Branch rolloff proof
    - older branch context can age out of the immediate task window without disappearing from the session story
@@ -56,6 +57,8 @@ Do not move to 85% if:
 ## Candidate Future Tests
 
 - `branch_rolloff_keeps_older_blocked_readonly_outcomes_visible`
+- `session_variety_pack_covers_multiple_distinct_readonly_planning_shapes`
+- `docs_config_vs_runtime_session_remains_self_explanatory`
 - `branch_rolloff_summarizes_older_branch_context_without_overclaim`
 - `current_understanding_distinguishes_recent_from_older_relevant_context`
 - `partial_evidence_synthesis_preserves_uncertainty`
