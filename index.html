@@ -41,7 +41,12 @@
         </main>
 
         <aside class="ops-panel">
-          <button class="collapse" type="button">«</button>
+          <div class="ops-tabs" aria-label="Ops panel views">
+            <button class="collapse" type="button">«</button>
+            <button class="ops-tab" type="button" data-ops-tab="tools">TOOLS</button>
+            <button class="ops-tab active" type="button" data-ops-tab="workspace">WORKSPACE</button>
+            <button class="ops-tab" type="button" data-ops-tab="status">STATUS</button>
+          </div>
 
           <section class="panel-section tools">
             <h2>TOOL REGISTRY <span id="toolCount">(0)</span></h2>

@@ -17,6 +17,7 @@
     feed: document.querySelector(".terminal-feed"),
     modeButtons: [...document.querySelectorAll(".mode")],
     railButtons: [...document.querySelectorAll(".command-rail button")],
+    opsTabs: [...document.querySelectorAll(".ops-tab")],
     collapse: document.querySelector(".collapse"),
     toolRoot: document.querySelector("#toolRoot"),
     toolCount: document.querySelector("#toolCount"),
@@ -35,6 +36,7 @@
     mode: data.status.mode || "CHAT",
     activeRail: "terminal",
     opsExpanded: false,
+    opsTab: "workspace",
     panelFocus: "tasks",
     tools: data.tools.map((tool, index) => ({ ...tool, id: `tool-${index}`, expanded: false })),
     toolGroups: { online: false, offline: false },
@@ -73,6 +75,14 @@
       button.addEventListener("click", () => setRail(button.dataset.rail));
     });
 
+    elements.opsTabs.forEach((button) => {
+      button.addEventListener("click", () => {
+        state.opsTab = button.dataset.opsTab;
+        state.opsExpanded = true;
+        renderShell();
+      });
+    });
+
     elements.form.addEventListener("submit", (event) => {
       event.preventDefault();
       submitCommand();
@@ -101,6 +111,10 @@
   function renderShell() {
     elements.app.classList.toggle("ops-expanded", state.opsExpanded);
     elements.app.dataset.panelFocus = state.panelFocus;
+    elements.app.dataset.opsTab = state.opsTab;
+    elements.opsTabs.forEach((button) => {
+      button.classList.toggle("active", button.dataset.opsTab === state.opsTab);
+    });
     elements.collapse.textContent = state.opsExpanded ? "»" : "«";
     elements.collapse.title = state.opsExpanded ? "Shrink workspace panel" : "Expand workspace panel";
   }
