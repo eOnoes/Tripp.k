@@ -192,6 +192,8 @@ try {
     appScript.includes("renderCystActivity") &&
     appScript.includes("renderCystEvidenceMeta") &&
     appScript.includes("write_escalation_blocked") &&
+    appScript.includes("reasonCode") &&
+    appScript.includes("BLOCK") &&
     appScript.includes("WRITE BLOCKED") &&
     appScript.includes("APPLY BLOCKED") &&
     appScript.includes("renderReviewChanges") &&
@@ -667,6 +669,12 @@ try {
         event.eventType === "write_escalation_blocked" &&
         event.descriptorId === mockWriteReply.task?.id &&
         event.errorCode === "MOCK_EVIDENCE_NON_AUTHORITATIVE" &&
+        event.reasonCode === "mock_evidence_non_authoritative" &&
+        event.blockLayer === "evidence" &&
+        event.escalationTarget === "write_approval" &&
+        event.escalationStage === "intent_detected" &&
+        event.approvalState === "missing" &&
+        event.adapterDecision === "not_invoked" &&
         event.invoked === false &&
         event.writeApprovalEligible === false &&
         event.applyEligible === false,

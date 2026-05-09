@@ -656,9 +656,9 @@
   function cystCompact(event) {
     if (event.eventType === "write_escalation_blocked") {
       return [
-        "write escalation",
-        event.errorCode || event.reason || "blocked",
-        event.sourceKind || event.evidenceAuthority || "evidence",
+        `${event.blockLayer || "evidence"} block`,
+        event.reasonCode || event.errorCode || "write_escalation_blocked",
+        event.escalationStage || event.escalationTarget || "intent_detected",
         formatCystTime(event.timestamp),
       ]
         .filter(Boolean)
@@ -685,6 +685,7 @@
     if (!["retrieval_event", "write_escalation_blocked"].includes(event.eventType)) return "";
     const flags = [
       event.degraded ? "DEGRADED" : null,
+      event.blockLayer ? `${String(event.blockLayer).toUpperCase()} BLOCK` : null,
       event.writeApprovalEligible === false ? "WRITE BLOCKED" : "WRITE ELIGIBLE",
       event.applyEligible === false ? "APPLY BLOCKED" : "APPLY ELIGIBLE",
     ].filter(Boolean);

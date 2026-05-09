@@ -2271,8 +2271,11 @@ function recordWriteEscalationBlockedIfNeeded(task = {}) {
   if (task.evidenceGate?.writeApprovalEligible !== false && task.evidenceGate?.applyEligible !== false) return null;
 
   return recordWriteEscalationBlockedEvent(task, {
-    reasonCode: "MOCK_EVIDENCE_NON_AUTHORITATIVE",
+    blockLayer: "evidence",
+    reasonCode: "mock_evidence_non_authoritative",
     reason: "Mock evidence is planning-only and cannot authorize write approval or apply readiness.",
+    escalationTarget: "write_approval",
+    escalationStage: "intent_detected",
   });
 }
 
@@ -2617,6 +2620,8 @@ function recordRetrievalEvent(descriptorId, traceId, retrieval = {}) {
 
 function recordWriteEscalationBlockedEvent(task = {}, details = {}) {
   const traceId = task.traceMap?.trace?.traceId || task.traceMap?.traceId || `trace_${task.id || Date.now()}`;
+  const reasonCode = details.reasonCode || "mock_evidence_non_authoritative";
+  const errorCode = reasonCode.toUpperCase();
   const evidenceContract = createMockEvidenceContract({
     sourceSystem: task.retrieval?.sourceSystem || task.traceMap?.sourceSystem || "mock-retrieval",
     evidenceId: task.retrieval?.evidenceId || task.traceMap?.evidenceId || task.id,
@@ -2636,11 +2641,19 @@ function recordWriteEscalationBlockedEvent(task = {}, details = {}) {
     adapter: null,
     tool: task.tool || "write_escalation",
     resultStatus: "blocked",
-    errorCode: details.reasonCode || "MOCK_EVIDENCE_NON_AUTHORITATIVE",
+    errorCode,
     status: "blocked",
     decision: "write_escalation_blocked",
+    escalationTarget: details.escalationTarget || "write_approval",
+    escalationStage: details.escalationStage || "intent_detected",
+    blockLayer: details.blockLayer || "evidence",
+    reasonCode,
     reason: details.reason || evidenceContract.operatorWarning,
     invoked: false,
+    targetFile: task.target || task.patchPlan?.file || null,
+    approvalState: task.patchPlan?.approval?.status || task.patchPlan?.status || "missing",
+    wardenDecision: details.wardenDecision || null,
+    adapterDecision: details.adapterDecision || "not_invoked",
     backend: task.retrieval?.backend || "tripp-munch-mock",
     confidence: task.retrieval?.confidence || task.traceMap?.confidenceLabel || "low",
     ...evidenceContract,
