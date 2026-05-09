@@ -73,21 +73,29 @@ async function createReply(sessionId, payload) {
   const promptBlock = createPromptBlock(prompt);
 
   return {
-    messages: [
-      {
-        kind: "tool",
-        speaker: "tripp.bridge>",
-        tool,
-        result: `${tool} routed via ${agent}`,
-        status: "completed",
-      },
-      {
-        kind: "agent",
-        speaker: promptBlock ? "tripp.prompt>" : "tripp.bridge>",
-        body: promptBlock ? "Copy-ready Goose.Prompt block prepared." : bridgeMessage(prompt, mode, style, agent),
-        promptBlock,
-      },
-    ],
+    messages: promptBlock
+      ? [
+          {
+            kind: "agent",
+            speaker: "tripp.prompt>",
+            body: "Copy-ready Goose.Prompt block prepared.",
+            promptBlock,
+          },
+        ]
+      : [
+          {
+            kind: "tool",
+            speaker: "tripp.bridge>",
+            tool,
+            result: `${tool} routed via ${agent}`,
+            status: "completed",
+          },
+          {
+            kind: "agent",
+            speaker: "tripp.bridge>",
+            body: bridgeMessage(prompt, mode, style, agent),
+          },
+        ],
     tasks: promptBlock
       ? []
       : [
