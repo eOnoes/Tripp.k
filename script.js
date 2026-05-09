@@ -700,16 +700,19 @@
 
   function writeBlockCause(event) {
     const code = String(event.reasonCode || event.errorCode || "").toLowerCase();
-    if (code.includes("mock")) return "Mock evidence is planning-only";
+    if (code.includes("mock")) return "Mock evidence cannot authorize edits";
     if (code.includes("planning_only")) return "Planning-only evidence";
     if (code.includes("degraded")) return "Degraded evidence not sufficient";
     if (code.includes("approval_missing")) return "Approval missing";
     if (code.includes("approval_stale")) return "Approval stale";
     if (code.includes("approval_dismissed")) return "Approval dismissed";
+    if (code.includes("warden") && String(event.escalationTarget || "").includes("apply")) return "Warden denied apply path";
     if (code.includes("warden")) return "Warden denied escalation";
+    if (code.includes("adapter") && code.includes("not_invoked")) return "Adapter not invoked";
     if (code.includes("adapter")) return "Adapter blocked write path";
-    if (code.includes("apply_ineligible")) return "Apply ineligible";
-    return event.reason || "Write progression blocked";
+    if (code.includes("apply_ineligible")) return "Apply is not eligible";
+    if (code.includes("target_not_apply_ready")) return "Target is not apply-ready";
+    return String(event.escalationTarget || "").includes("apply") ? "Apply progression blocked" : "Write progression blocked";
   }
 
   function writeBlockDetails(event) {

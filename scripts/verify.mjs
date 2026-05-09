@@ -193,10 +193,20 @@ try {
     appScript.includes("renderCystEvidenceMeta") &&
     appScript.includes("write_escalation_blocked") &&
     appScript.includes("WRITE BLOCKED") &&
-    appScript.includes("Mock evidence is planning-only") &&
+    appScript.includes("Mock evidence cannot authorize edits") &&
+    appScript.includes("Planning-only evidence") &&
+    appScript.includes("Degraded evidence not sufficient") &&
     appScript.includes("Approval missing") &&
+    appScript.includes("Approval stale") &&
+    appScript.includes("Approval dismissed") &&
     appScript.includes("Warden denied escalation") &&
+    appScript.includes("Warden denied apply path") &&
     appScript.includes("Adapter blocked write path") &&
+    appScript.includes("Adapter not invoked") &&
+    appScript.includes("Apply is not eligible") &&
+    appScript.includes("Target is not apply-ready") &&
+    appScript.includes("Write progression blocked") &&
+    appScript.includes("Apply progression blocked") &&
     appScript.includes("reasonCode") &&
     appScript.includes("BLOCK") &&
     appScript.includes("APPLY BLOCKED") &&
