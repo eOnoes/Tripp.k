@@ -190,6 +190,7 @@ try {
   const everydayMixedSessionDoc = readFileSync(new URL("../docs/read-only-everyday-mixed-session-v0.1.md", import.meta.url), "utf8");
   const evidenceProvenanceDoc = readFileSync(new URL("../docs/read-only-evidence-provenance-v0.1.md", import.meta.url), "utf8");
   const contractRuntimeTraceDoc = readFileSync(new URL("../docs/read-only-contract-runtime-trace-v0.1.md", import.meta.url), "utf8");
+  const kimiComparisonDoc = readFileSync(new URL("../docs/kimi-swarm-comparison-integration-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -423,6 +424,10 @@ try {
     readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review: 85%.") &&
     readinessScoreboard.includes("85% reflects internal, scoped readiness for read-only planning/review within Tripp.g's current acceptance gates.") &&
     readinessScoreboard.includes("It is not external validation, not broad Goose parity, and not evidence of edit/build or write-capable readiness.") &&
+    readinessScoreboard.includes("Capability Statement") &&
+    readinessScoreboard.includes("Current scoped read-only planning/review can inspect repo-local files") &&
+    readinessScoreboard.includes("Current scoped read-only planning/review cannot edit files") &&
+    readinessScoreboard.includes("authorize policy/config mutation") &&
     readinessScoreboard.includes("broader read-only planning/review workflows across multiple structured and moderately ambiguous session shapes") &&
     readinessScoreboard.includes("90% remains a future gate.") &&
     readinessScoreboard.includes("broadened scenario pack that includes an everyday mixed-session family, long-session stress coverage, deeper partial-evidence synthesis quality, expanded operator-independence breadth, evidence provenance discipline, a compact contract-to-runtime trace matrix, anti-recommendation-laundering guardrails, a minimum adversarial pack, and continued release/copy discipline") &&
@@ -679,6 +684,15 @@ try {
     contractRuntimeTraceDoc.includes("buildPlanningSummary") &&
     contractRuntimeTraceDoc.includes("buildPlanningProvenance") &&
     contractRuntimeTraceDoc.includes("trace_matrix_maps_contract_rule_to_runtime_path_verifier_lane_and_ui_surface") &&
+    kimiComparisonDoc.includes("Kimi Swarm Comparison Integration v0.1") &&
+    kimiComparisonDoc.includes("Warden as hard safety authority") &&
+    kimiComparisonDoc.includes("Supervisor should not be able to override read-only safety policy") &&
+    kimiComparisonDoc.includes("Preserve session continuity, but add provenance, aging, and anti-laundering controls") &&
+    kimiComparisonDoc.includes("Make Supervisor the sole authority") &&
+    kimiComparisonDoc.includes("This would weaken Warden's hard-deny role") &&
+    kimiComparisonDoc.includes("Current scoped read-only planning/review can") &&
+    kimiComparisonDoc.includes("Current scoped read-only planning/review cannot") &&
+    kimiComparisonDoc.includes("kimi_comparison_adopts_capability_list_wording") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&

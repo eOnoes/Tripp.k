@@ -48,6 +48,12 @@ Tripp.g currently supports broader read-only planning/review workflows across mu
 
 This readiness estimate remains limited to read-only planning/review and does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity.
 
+## Capability Statement
+
+Current scoped read-only planning/review can inspect repo-local files, use planning-only retrieval for narrowing, run bounded allowlisted safe-shell observations, surface blocked write-like outcomes, summarize recent read-only session state, and preserve ambiguity or contradiction recovery without finality language.
+
+Current scoped read-only planning/review cannot edit files, apply patches, approve changes, run live write workflows, validate implementation readiness, authorize policy/config mutation, claim broad Goose parity, or serve as external validation of safety or correctness.
+
 ## Evidence Required To Keep The 85% Claim
 
 - Mixed-session acceptance harness passes.
