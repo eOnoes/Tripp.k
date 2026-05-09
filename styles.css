@@ -355,7 +355,7 @@ button {
 .ops-panel {
   min-height: 0;
   display: grid;
-  grid-template-rows: 24px minmax(260px, 1fr) 320px 190px;
+  grid-template-rows: 24px minmax(220px, 1fr) 176px 260px 190px;
   background: var(--black);
   border-left: 1px solid var(--line);
 }
@@ -470,6 +470,93 @@ button {
 
 .tools li.expanded p {
   display: block;
+}
+
+.tasks {
+  display: grid;
+  grid-template-rows: 36px minmax(0, 1fr);
+}
+
+#taskRoot {
+  min-height: 0;
+  overflow: auto;
+}
+
+.empty-tasks {
+  padding: 12px;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.task {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+}
+
+.task.pending {
+  border-left: 2px solid var(--lime);
+}
+
+.task.approved {
+  border-left: 2px solid var(--green);
+}
+
+.task.dismissed {
+  border-left: 2px solid var(--dim);
+  opacity: 0.72;
+}
+
+.task header {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.task strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.task header span {
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.task p,
+.task small {
+  display: block;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.task div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.task button {
+  height: 24px;
+  background: #111111;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.task button:hover {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: var(--black);
 }
 
 .tools i,

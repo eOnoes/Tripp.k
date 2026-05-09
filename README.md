@@ -34,8 +34,13 @@ http://127.0.0.1:4177/
 - Tripp adapter routes for bootstrap and prompt replies:
   - `GET /api/tripp/bootstrap`
   - `POST /api/tripp/reply`
+  - `GET /api/tripp/tasks`
+  - `POST /api/tripp/tasks/:taskId/approve`
+  - `POST /api/tripp/tasks/:taskId/dismiss`
 - Optional backend bridge env:
   - `TRIPP_BACKEND_URL`
   - `TRIPP_BACKEND_SECRET` or `GOOSE_SERVER__SECRET_KEY`
   - `TRIPP_ENABLE_BACKEND_REPLY=true`
 - Agent role/soul/operator doctrine lives under `agents/`.
+
+Task approval is currently UI/state only. Real filesystem writes remain disabled until the supervised execution bridge is implemented.

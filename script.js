@@ -20,6 +20,8 @@
     collapse: document.querySelector(".collapse"),
     toolRoot: document.querySelector("#toolRoot"),
     toolCount: document.querySelector("#toolCount"),
+    taskRoot: document.querySelector("#taskRoot"),
+    taskCount: document.querySelector("#taskCount"),
     sessionRoot: document.querySelector("#sessionRoot"),
     newSession: document.querySelector(".new-session"),
     newSessionIcon: document.querySelector(".new-session-icon"),
@@ -34,6 +36,7 @@
     activeRail: "terminal",
     collapsed: false,
     tools: data.tools.map((tool, index) => ({ ...tool, id: `tool-${index}`, expanded: false })),
+    tasks: data.tasks || [],
     sessions: data.sessions.map((session, index) => ({
       ...session,
       id: `session-${index}`,
@@ -81,6 +84,7 @@
     renderRail();
     renderMessages();
     renderTools();
+    renderTasks();
     renderSessions();
     renderStatus();
   }
@@ -173,6 +177,41 @@
         tool.expanded = !tool.expanded;
         renderTools();
       });
+    });
+  }
+
+  function renderTasks() {
+    elements.taskCount.textContent = `(${state.tasks.length})`;
+
+    if (!state.tasks.length) {
+      elements.taskRoot.innerHTML = `<div class="empty-tasks">No supervised tasks.</div>`;
+      return;
+    }
+
+    elements.taskRoot.innerHTML = state.tasks
+      .map(
+        (task) => `
+          <article class="task ${escapeHtml(task.status)}">
+            <header>
+              <strong>${escapeHtml(task.title)}</strong>
+              <span>${escapeHtml(task.status)}</span>
+            </header>
+            <p>${escapeHtml(task.tool)}</p>
+            ${
+              task.status === "pending"
+                ? `<div>
+                    <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Approve</button>
+                    <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
+                  </div>`
+                : `<small>${escapeHtml(task.result || "Task state updated.")}</small>`
+            }
+          </article>
+        `,
+      )
+      .join("");
+
+    elements.taskRoot.querySelectorAll("[data-task-action]").forEach((button) => {
+      button.addEventListener("click", () => updateTask(button.dataset.task, button.dataset.taskAction));
     });
   }
 
@@ -282,11 +321,41 @@
       pushMessage({ ...message, time: now() });
     });
 
+    if (reply.task) {
+      upsertTask(reply.task);
+    }
+
     updateCounters(reply.status, value);
     setBusy(false);
     renderSessions();
+    renderTasks();
     renderStatus();
     renderMessages();
+  }
+
+  async function updateTask(taskId, action) {
+    const result = await runtime.taskAction(taskId, action);
+    if (result.task) {
+      upsertTask(result.task);
+      pushMessage({
+        kind: "system",
+        speaker: "task>",
+        time: now(),
+        body: `${result.task.id} ${result.task.status}. ${result.task.result || ""}`.trim(),
+      });
+      renderTasks();
+      renderMessages();
+    }
+  }
+
+  function upsertTask(task) {
+    const index = state.tasks.findIndex((candidate) => candidate.id === task.id);
+    if (index === -1) {
+      state.tasks.unshift(task);
+      return;
+    }
+
+    state.tasks[index] = task;
   }
 
   function createSession() {
@@ -385,6 +454,27 @@ function createTrippRuntime() {
         return createLocalReply(payload);
       }
     },
+
+    async taskAction(taskId, action) {
+      try {
+        return await fetchJson(`./api/tripp/tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(action)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+      } catch (apiError) {
+        console.warn("Tripp task action unavailable; using local task fallback.", apiError);
+        return {
+          task: {
+            id: taskId,
+            title: "Local fallback task",
+            tool: "local",
+            status: action === "approve" ? "approved" : "dismissed",
+            result: "Updated locally because the task API was unavailable.",
+          },
+        };
+      }
+    },
   };
 }
 
@@ -441,6 +531,7 @@ async function loadStaticData() {
         mode: "CHAT",
         version: "v1.0.0",
       },
+      tasks: [],
     };
   }
 }
@@ -448,6 +539,18 @@ async function loadStaticData() {
 function createLocalReply(payload) {
   const mode = String(payload?.mode || "CHAT").toUpperCase();
   const prompt = String(payload?.prompt || "");
+  const task =
+    mode === "AUTO"
+      ? {
+          id: `local-task-${Date.now()}`,
+          title: prompt.length > 46 ? `${prompt.slice(0, 43)}...` : prompt || "Untitled task",
+          prompt,
+          tool: chooseTool(prompt),
+          sessionId: payload?.sessionId || null,
+          status: "pending",
+          result: "",
+        }
+      : null;
 
   return {
     status: {
@@ -456,14 +559,15 @@ function createLocalReply(payload) {
       tokensIn: prompt.length,
       tokensOut: mode === "AUTO" ? 74 : 42,
     },
+    task,
     messages:
       mode === "AUTO"
         ? [
             {
               kind: "tool",
               speaker: "tripp.auto>",
-              tool: chooseTool(prompt),
-              result: "local fallback queued for supervised execution",
+              tool: task.tool,
+              result: `${task.id} pending approval`,
             },
             {
               kind: "agent",

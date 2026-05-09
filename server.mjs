@@ -10,6 +10,7 @@ const bootstrapFile = join(root, "tripp-terminal-data.json");
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
 const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
 const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
+const taskQueue = [];
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -56,6 +57,19 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/tasks") {
+    sendJson(response, { tasks: taskQueue });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname.startsWith("/api/tripp/tasks/")) {
+    const payload = await readJson(request);
+    const taskId = decodeURIComponent(url.pathname.split("/").at(-2) || "");
+    const action = decodeURIComponent(url.pathname.split("/").at(-1) || "");
+    sendJson(response, updateTask(taskId, action, payload));
+    return;
+  }
+
   sendJson(response, { error: "Unknown Tripp API route." }, 404);
 }
 
@@ -75,6 +89,7 @@ function readBootstrap() {
       backend: backendUrl,
       backendReplyEnabled,
     },
+    tasks: taskQueue,
   };
 }
 
@@ -87,6 +102,7 @@ async function createReply(payload) {
   const prompt = String(payload?.prompt || "").trim();
   const mode = String(payload?.mode || "CHAT").toUpperCase();
   const tool = chooseTool(prompt);
+  const task = mode === "AUTO" ? createTask({ prompt, tool, sessionId: payload?.sessionId }) : null;
 
   return {
     id: `reply-${Date.now()}`,
@@ -98,6 +114,7 @@ async function createReply(payload) {
       tokensIn: prompt.length,
       tokensOut: mode === "AUTO" ? 74 : 42,
     },
+    task,
     messages:
       mode === "AUTO"
         ? [
@@ -105,13 +122,13 @@ async function createReply(payload) {
               kind: "tool",
               speaker: "tripp.auto>",
               tool,
-              result: "mock bridge queued for supervised execution",
+              result: `task ${task.id} pending approval`,
             },
             {
               kind: "agent",
               speaker: "tripp.supervisor>",
               body:
-                "I can route that through the supervised coding lane. The next backend chunk will replace this mock bridge with live harness session calls.",
+                "I staged that as a supervised task. Review it in TASKS before anything writes or executes.",
             },
           ]
         : [
@@ -123,6 +140,48 @@ async function createReply(payload) {
             },
           ],
   };
+}
+
+function createTask({ prompt, tool, sessionId }) {
+  const task = {
+    id: `task-${Date.now()}`,
+    title: summarizeTask(prompt),
+    prompt,
+    tool,
+    sessionId: sessionId || null,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+  };
+
+  taskQueue.unshift(task);
+  return task;
+}
+
+function updateTask(taskId, action) {
+  const task = taskQueue.find((candidate) => candidate.id === taskId);
+  if (!task) {
+    return { error: "Task not found." };
+  }
+
+  if (action === "approve") {
+    task.status = "approved";
+    task.result = "Approved in UI. Real execution remains disabled until the filesystem bridge is implemented.";
+    return { task };
+  }
+
+  if (action === "dismiss") {
+    task.status = "dismissed";
+    task.result = "Dismissed by operator.";
+    return { task };
+  }
+
+  return { error: "Unknown task action.", task };
+}
+
+function summarizeTask(prompt) {
+  const cleaned = prompt.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "Untitled task";
+  return cleaned.length > 46 ? `${cleaned.slice(0, 43)}...` : cleaned;
 }
 
 async function tryCreateBackendReply(payload) {
