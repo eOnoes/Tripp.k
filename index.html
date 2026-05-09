@@ -100,6 +100,21 @@
           <section class="panel-section system">
             <h2>SYSTEM STATUS</h2>
             <dl id="statusRoot"></dl>
+            <form class="settings-form" id="settingsForm">
+              <header>
+                <strong>COMPACT POLICY</strong>
+                <span id="compactPolicyState">manual</span>
+              </header>
+              <label>
+                <span>AUTO AT</span>
+                <input id="autoCompactAt" type="number" min="8000" max="256000" step="1000" />
+              </label>
+              <label>
+                <span>LIMIT</span>
+                <input id="contextLimit" type="number" min="16000" max="512000" step="1000" />
+              </label>
+              <button type="submit">SAVE POLICY</button>
+            </form>
             <div id="cystRoot" class="cyst-activity"></div>
           </section>
         </aside>

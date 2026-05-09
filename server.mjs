@@ -13,6 +13,7 @@ const runtimeDir = resolve(process.env.TRIPP_RUNTIME_DIR || join(root, ".tripp-r
 const taskStoreFile = join(runtimeDir, "tasks.json");
 const sessionStoreFile = join(runtimeDir, "sessions.json");
 const cystStoreFile = join(runtimeDir, "cyst-events.json");
+const settingsStoreFile = join(runtimeDir, "settings.json");
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
 const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
 const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
@@ -20,6 +21,7 @@ const backendHealthPath = process.env.TRIPP_BACKEND_HEALTH_PATH || "/health";
 const taskQueue = loadTaskQueue();
 const sessionStore = loadSessionStore();
 const cystEventStore = loadCystEventStore();
+const settingsStore = loadSettingsStore();
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -67,6 +69,17 @@ async function handleTrippApi(request, response, url) {
 
   if (request.method === "GET" && url.pathname === "/api/tripp/permissions") {
     sendJson(response, readPermissionPolicy());
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/tripp/settings") {
+    sendJson(response, settingsStore);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/settings") {
+    const payload = await readJson(request);
+    sendJson(response, updateSettings(payload));
     return;
   }
 
@@ -218,6 +231,8 @@ function readBootstrap() {
     munch: readMunchHealth(),
     status: {
       ...bootstrap.status,
+      contextLimit: settingsStore.compact.contextLimit,
+      autoCompactAt: settingsStore.compact.autoCompactAt,
       connection: backendUrl ? "BRIDGE READY" : bootstrap.status.connection,
       model: backendUrl ? "tripp-adapter/backend" : bootstrap.status.model,
     },
@@ -229,6 +244,7 @@ function readBootstrap() {
       capabilities: health.capabilities,
     },
     tasks: taskQueue,
+    settings: settingsStore,
   };
 }
 
@@ -2332,6 +2348,60 @@ function loadCystEventStore() {
   }
 }
 
+function defaultSettings() {
+  return {
+    compact: {
+      contextLimit: 128000,
+      autoCompactAt: 96000,
+      enabled: true,
+      updatedAt: null,
+    },
+  };
+}
+
+function loadSettingsStore() {
+  try {
+    if (!existsSync(settingsStoreFile)) return defaultSettings();
+    const parsed = JSON.parse(readFileSync(settingsStoreFile, "utf8"));
+    return normalizeSettings(parsed);
+  } catch {
+    return defaultSettings();
+  }
+}
+
+function normalizeSettings(value = {}) {
+  const defaults = defaultSettings();
+  const contextLimit = clampNumber(value.compact?.contextLimit, 16000, 512000, defaults.compact.contextLimit);
+  const autoCompactAt = clampNumber(value.compact?.autoCompactAt, 8000, contextLimit, defaults.compact.autoCompactAt);
+  return {
+    compact: {
+      contextLimit,
+      autoCompactAt,
+      enabled: value.compact?.enabled !== false,
+      updatedAt: value.compact?.updatedAt || null,
+    },
+  };
+}
+
+function updateSettings(payload = {}) {
+  const next = normalizeSettings({
+    compact: {
+      ...settingsStore.compact,
+      ...(payload.compact || payload),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+  settingsStore.compact = next.compact;
+  saveSettingsStore();
+  return settingsStore;
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+
 function saveTaskQueue() {
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(taskStoreFile, `${JSON.stringify({ tasks: taskQueue.slice(0, 50) }, null, 2)}\n`, "utf8");
@@ -2345,6 +2415,11 @@ function saveSessionStore() {
 function saveCystEventStore() {
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(cystStoreFile, `${JSON.stringify({ events: cystEventStore.events.slice(0, 100) }, null, 2)}\n`, "utf8");
+}
+
+function saveSettingsStore() {
+  mkdirSync(runtimeDir, { recursive: true });
+  writeFileSync(settingsStoreFile, `${JSON.stringify(settingsStore, null, 2)}\n`, "utf8");
 }
 
 function recordCystEvent(event) {

@@ -17,6 +17,10 @@
     compactContext: document.querySelector(".compact-context"),
     reviewChanges: document.querySelector("#reviewChanges"),
     reviewSummary: document.querySelector("#reviewSummary"),
+    settingsForm: document.querySelector("#settingsForm"),
+    autoCompactAt: document.querySelector("#autoCompactAt"),
+    contextLimit: document.querySelector("#contextLimit"),
+    compactPolicyState: document.querySelector("#compactPolicyState"),
     messageRoot: document.querySelector("#messageRoot"),
     feed: document.querySelector(".terminal-feed"),
     returnChat: document.querySelector(".return-chat"),
@@ -65,8 +69,9 @@
     })),
     status: { ...data.status },
     context: {
-      limit: Number(data.status.contextLimit || 128000),
-      autoCompactAt: Number(data.status.autoCompactAt || 96000),
+      limit: Number(data.settings?.compact?.contextLimit || data.status.contextLimit || 128000),
+      autoCompactAt: Number(data.settings?.compact?.autoCompactAt || data.status.autoCompactAt || 96000),
+      enabled: data.settings?.compact?.enabled !== false,
       lastCompactedAt: null,
     },
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
@@ -117,6 +122,7 @@
     elements.returnChat.addEventListener("click", scrollToCurrentChat);
     elements.compactContext.addEventListener("click", compactCurrentChat);
     elements.reviewChanges.querySelector("button").addEventListener("click", openReviewChanges);
+    elements.settingsForm.addEventListener("submit", saveCompactSettings);
     elements.feed.addEventListener("scroll", updateChatFollowState);
     elements.messageRoot.addEventListener("click", handleMessageClick);
 
@@ -136,6 +142,7 @@
     renderTasks();
     renderSessions();
     renderStatus();
+    renderSettings();
   }
 
   function renderShell() {
@@ -579,9 +586,18 @@
     const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
     elements.inputModel.textContent = `model: ${displayActiveModel(state.status.model)}`;
     elements.compactContext.textContent = `CTX ${formatCompactNumber(used)} / ${formatCompactNumber(limit)}`;
+    elements.compactContext.classList.toggle("warn", state.context.enabled && used >= state.context.autoCompactAt);
     elements.compactContext.title = `Compact current chat context. Auto compact target: ${formatCompactNumber(
       state.context.autoCompactAt,
     )}. Current usage: ${pct}%.`;
+  }
+
+  function renderSettings() {
+    elements.autoCompactAt.value = state.context.autoCompactAt;
+    elements.contextLimit.value = state.context.limit;
+    const used = contextTokens();
+    elements.compactPolicyState.textContent =
+      state.context.enabled && used >= state.context.autoCompactAt ? "threshold reached" : "armed";
   }
 
   function renderCystActivity() {
@@ -1286,7 +1302,49 @@
     activeSession().messages = activeSession().transcript.length;
     renderMessages();
     renderStatus();
+    renderSettings();
     requestAnimationFrame(scrollToCurrentChat);
+  }
+
+  async function saveCompactSettings(event) {
+    event.preventDefault();
+    const contextLimit = Number(elements.contextLimit.value);
+    const autoCompactAt = Number(elements.autoCompactAt.value);
+    state.context.limit = Math.max(16000, Math.min(512000, Math.round(contextLimit || state.context.limit)));
+    state.context.autoCompactAt = Math.max(8000, Math.min(state.context.limit, Math.round(autoCompactAt || state.context.autoCompactAt)));
+    renderStatus();
+    renderSettings();
+    try {
+      const saved = await runtime.saveSettings({
+        compact: {
+          contextLimit: state.context.limit,
+          autoCompactAt: state.context.autoCompactAt,
+          enabled: state.context.enabled,
+        },
+      });
+      state.context.limit = saved.compact?.contextLimit || state.context.limit;
+      state.context.autoCompactAt = saved.compact?.autoCompactAt || state.context.autoCompactAt;
+      state.context.enabled = saved.compact?.enabled !== false;
+      pushMessage({
+        kind: "system",
+        speaker: "settings>",
+        time: now(),
+        body: `Compact policy saved. Auto threshold ${formatCompactNumber(state.context.autoCompactAt)} / limit ${formatCompactNumber(
+          state.context.limit,
+        )}.`,
+      });
+      renderMessages();
+      renderStatus();
+      renderSettings();
+    } catch {
+      pushMessage({
+        kind: "system",
+        speaker: "settings>",
+        time: now(),
+        body: "Compact policy saved locally. Settings API is unavailable.",
+      });
+      renderMessages();
+    }
   }
 
   function formatBytes(value) {
@@ -1398,6 +1456,14 @@ function createTrippRuntime() {
 
     async reviewChanges() {
       return fetchJson("./api/tripp/review-changes");
+    },
+
+    async saveSettings(payload) {
+      return fetchJson("./api/tripp/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
     },
 
     async runReadOnlyTrials() {

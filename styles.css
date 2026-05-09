@@ -561,6 +561,13 @@ button {
   border-color: var(--black);
 }
 
+.input-telemetry .compact-context.warn {
+  background: rgba(200, 255, 0, 0.12);
+  color: var(--lime);
+  border-color: var(--lime);
+  box-shadow: 0 0 12px rgba(200, 255, 0, 0.16);
+}
+
 .terminal-input > button[type="submit"] {
   width: 48px;
   height: 48px;
@@ -580,6 +587,69 @@ button {
   background: #1a1a1a;
   color: var(--dim);
   cursor: wait;
+}
+
+.settings-form {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-form header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.settings-form header strong {
+  color: var(--text);
+}
+
+.settings-form label {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.settings-form input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--black);
+  color: var(--text);
+  border: 1px solid var(--line);
+  outline: 0;
+}
+
+.settings-form input:focus {
+  border-color: var(--lime);
+}
+
+.settings-form button {
+  height: 30px;
+  background: var(--black);
+  color: var(--lime);
+  border: 1px solid var(--line);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.settings-form button:hover {
+  background: var(--lime);
+  color: var(--black);
 }
 
 .ops-panel {

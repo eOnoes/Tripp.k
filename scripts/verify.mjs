@@ -145,6 +145,9 @@ try {
   const workspaceFile = await getJson("/api/tripp/workspace/file?path=README.md");
   const blockedFile = await getJson("/api/tripp/workspace/file?path=.git/config");
   const reviewChanges = await getJson("/api/tripp/review-changes");
+  const settings = await getJson("/api/tripp/settings");
+  const savedSettings = await postJson("/api/tripp/settings", { compact: { autoCompactAt: 42000, contextLimit: 128000 } });
+  const bootstrapAfterSettings = await getJson("/api/tripp/bootstrap");
   const appHtml = await getText("/");
   const appScript = await getText("/script.js");
   const workspacePass =
@@ -154,10 +157,15 @@ try {
     blockedFile.error === "Workspace path is ignored." &&
     typeof reviewChanges.hasChanges === "boolean" &&
     reviewChanges.source === "git-status-readonly" &&
+    settings.compact?.autoCompactAt >= 8000 &&
+    savedSettings.compact?.autoCompactAt === 42000 &&
+    bootstrapAfterSettings.status?.autoCompactAt === 42000 &&
     appHtml.includes("cystRoot") &&
     appHtml.includes("reviewChanges") &&
+    appHtml.includes("settingsForm") &&
     appScript.includes("renderCystActivity") &&
     appScript.includes("renderReviewChanges") &&
+    appScript.includes("saveCompactSettings") &&
     appScript.includes("/api/tripp/cyst/events");
   console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
   if (!workspacePass) {
