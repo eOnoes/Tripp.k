@@ -958,6 +958,11 @@ try {
     mode: "AUTO",
     sessionId: betaSessionId,
   });
+  const betaFollowupInspect = await postJson("/api/tripp/reply", {
+    prompt: "inspect server.mjs",
+    mode: "AUTO",
+    sessionId: betaSessionId,
+  });
   const betaSafeShell = await postJson("/api/tripp/reply", {
     prompt: "run node --version command",
     mode: "AUTO",
@@ -973,6 +978,7 @@ try {
   const betaTaskIds = [
     betaInspect.task?.id,
     betaRetrieval.task?.id,
+    betaFollowupInspect.task?.id,
     betaSafeShell.task?.id,
     betaBlockedShell.task?.id,
     betaGate.task?.id,
@@ -988,6 +994,10 @@ try {
     betaRetrieval.task?.retrieval?.authorityLevel === "planning-only" &&
     betaRetrieval.task?.retrieval?.writeApprovalEligible === false &&
     betaRetrieval.task?.evidenceGate?.status === "blocked" &&
+    betaFollowupInspect.task?.status === "inspected" &&
+    betaFollowupInspect.task?.target === "server.mjs" &&
+    betaFollowupInspect.task?.adapter?.status === "ok" &&
+    betaFollowupInspect.task?.excerpt &&
     betaSafeShell.task?.status === "completed" &&
     betaSafeShell.task?.adapter?.status === "ok" &&
     betaSafeShell.task?.adapter?.invoked === true &&
@@ -999,6 +1009,7 @@ try {
     betaGate.task?.goNoGo?.suiteStatus === "go" &&
     betaCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === betaInspect.task?.id) &&
     betaCystEvents.some((event) => event.eventType === "retrieval_event" && event.descriptorId === betaRetrieval.task?.id) &&
+    betaCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === betaFollowupInspect.task?.id) &&
     betaCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === betaSafeShell.task?.id) &&
     betaCystEvents.some((event) => event.eventType === "lifecycle_transition" && event.descriptorId === betaBlockedShell.task?.id) &&
     betaCystEvents.some((event) => event.eventType === "gate_run" && event.descriptorId === betaGate.id && event.gateStage === "completed");
