@@ -7,7 +7,7 @@ Status: working beta scoreboard. This is not a live-write approval document.
 | Milestone | Current estimate | Current state | Main blocker | Next proof | Owner |
 |---|---:|---|---|---|---|
 | Primary read-only console beta | 90-93% | Formal gate, task conclusions, Current Understanding, Cyst audit, mixed-session beta acceptance, and longer-session repeatability are in place. | Operator QA across repeated real sessions. | Repeat the longer read-only session shape and confirm no cross-surface contradiction. | Codex + Goose |
-| Replace Goose for read-only planning/review | 80% | Tripp now passes linear, multi-branch, branch-reversal, contradiction-recovery, Warden-vs-adapter, longer-session, session-variety, branch-rolloff, and partial-evidence read-only planning threads. | 85% is not yet reached; it remains a future gate requiring stable broader proof and Goose review. | Keep the full 85% gate green across session variety, partial-evidence synthesis, branch rolloff, release discipline, and pack-level operator independence. | Goose review + Codex |
+| Replace Goose for structured/moderately ambiguous read-only planning/review | 85% | Tripp now supports broader structured and moderately ambiguous read-only planning/review workflows across multiple session shapes, including ambiguity handling, contradiction recovery, branch rolloff, partial-evidence synthesis, blocked-state continuity, and pack-level operator-independence evidence within the current beta harness scope. | Breadth remains scoped; sprawling open-ended synthesis and implementation reasoning are still Goose-led. | Prove longer and messier read-only sessions stay coherent without broad Goose parity or edit/build claims. | Goose review + Codex |
 | Replace Goose for edit/build work | 35-45% | Safety doctrine and read-only gates are strong, but live mutation remains blocked. | General patchPlan, approval/apply lifecycle, stale checks, sandboxed apply, and authoritative write evidence. | Build and pass a separate live-edit gate after read-only beta is stable. | Future Tripp + Codex |
 
 ## Fastest Path to Add 10 Points
@@ -37,11 +37,13 @@ Status: working beta scoreboard. This is not a live-write approval document.
 
 ## Read-Only Goose Replacement Statement
 
-Read-only planning/review readiness: approximately 80% toward replacing Goose for structured and moderately ambiguous workflows. Tripp.g now supports coherent read-only planning/review flows across inspection, planning-only retrieval, safe shell checks, blocked escalation handling, formal read-only gate review, two-branch ambiguity handling, contradiction recovery, enforcement-boundary ambiguity, and beta harness operator-independence proof. In mixed read-only sessions, TASKS, Current Understanding, and Cyst provide enough consistent context for common structured review work without requiring Goose to interpret each step. This estimate applies only to read-only planning/review workflows and does not include edit/build work, approval/apply flows, or broader ambiguous implementation reasoning.
+Replace Goose for structured/moderately ambiguous read-only planning/review: 85%.
 
-85% is not yet reached. The next gate requires broader session-variety proof, stronger partial-evidence synthesis quality, branch rolloff stability, release discipline, and pack-level operator-independence evidence to remain green under review. This readiness estimate remains limited to read-only planning/review and does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity.
+Tripp.g now supports broader structured and moderately ambiguous read-only planning/review workflows across multiple session shapes, including ambiguity handling, contradiction recovery, branch rolloff, partial-evidence synthesis, blocked-state continuity, and pack-level operator-independence evidence within the current beta harness scope.
 
-## Evidence Required To Keep The 80% Claim
+This readiness estimate remains limited to read-only planning/review and does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity.
+
+## Evidence Required To Keep The 85% Claim
 
 - Mixed-session acceptance harness passes.
 - Multi-branch ambiguity acceptance harness passes.
@@ -61,7 +63,7 @@ Read-only planning/review readiness: approximately 80% toward replacing Goose fo
 - Gate GO means read-only harness readiness only.
 - Copy guardrails prevent edit, apply, approval, commit, write, verified-target, or implementation-readiness language.
 
-## 80% Claim Invalidation
+## 85% Claim Invalidation
 
 Pull the claim back if any of these occur:
 

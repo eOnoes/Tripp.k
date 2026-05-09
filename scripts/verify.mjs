@@ -393,20 +393,21 @@ try {
     appCss.includes(".go-no-go.no_go") &&
     appCss.includes(".go-no-go small + small") &&
     readinessScoreboard.includes("Primary read-only console beta") &&
-    readinessScoreboard.includes("Replace Goose for read-only planning/review") &&
+    readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
     readinessScoreboard.includes("90-93%") &&
-    readinessScoreboard.includes("80%") &&
+    readinessScoreboard.includes("85%") &&
     readinessScoreboard.includes("35-45%") &&
-    readinessScoreboard.includes("Read-only planning/review readiness: approximately 80% toward replacing Goose for structured and moderately ambiguous workflows.") &&
-    readinessScoreboard.includes("85% is not yet reached.") &&
-    readinessScoreboard.includes("it remains a future gate requiring stable broader proof and Goose review") &&
+    readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous read-only planning/review: 85%.") &&
+    readinessScoreboard.includes("broader structured and moderately ambiguous read-only planning/review workflows across multiple session shapes") &&
+    readinessScoreboard.includes("pack-level operator-independence evidence within the current beta harness scope") &&
     readinessScoreboard.includes("Session variety pack harness passes.") &&
     readinessScoreboard.includes("Partial-evidence synthesis harness passes.") &&
     readinessScoreboard.includes("Operator-independence pack artifact passes.") &&
     readinessScoreboard.includes("does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity") &&
-    readinessScoreboard.includes("Evidence Required To Keep The 80% Claim") &&
-    readinessScoreboard.includes("80% Claim Invalidation") &&
+    readinessScoreboard.includes("Evidence Required To Keep The 85% Claim") &&
+    readinessScoreboard.includes("85% Claim Invalidation") &&
+    !/\b(?:imminent|unlocked|ready for next phase|nearly replaces Goose|Goose-equivalent|autonomous reviewer|implementation-ready|edit-ready|write-ready)\b/i.test(readinessScoreboard) &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
     readinessScoreboard.includes("Multi-branch ambiguity acceptance now keeps backend and UI branches visible, ranks by usefulness, preserves mock uncertainty, and keeps blocked outcomes visible.") &&
     readinessScoreboard.includes("Branch-reversal acceptance now shows Tripp can reorient toward a more useful branch without erasing the earlier branch.") &&
@@ -1917,8 +1918,11 @@ try {
     operatorPackArtifact.scenarioResults.length === 3 &&
     requiredOperatorPackScenarioIds.every((scenarioId) => operatorPackScenarioIds.includes(scenarioId)) &&
     new Set(operatorPackScenarioIds).size === operatorPackScenarioIds.length &&
+    operatorPackArtifact.scenarioResults.every((scenario) => operatorPackArtifact.requiredScenarioIds.includes(scenario.scenarioId)) &&
     operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === "pass") &&
     operatorPackArtifact.scenarioResults.every((scenario) => Object.values(scenario.checks).every((status) => status === "pass")) &&
+    operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === (Object.values(scenario.checks).every((status) => status === "pass") ? "pass" : "fail")) &&
+    operatorPackArtifact.overallStatus === (operatorPackArtifact.scenarioResults.every((scenario) => scenario.status === "pass") ? "pass" : "fail") &&
     operatorPackArtifact.packSummary === "Required read-only scenario families remained understandable without sidecar interpretation." &&
     !/certified|validated replacement|goose no longer needed|independent reasoning confirmed|replacement certified/i.test(operatorPackArtifact.packSummary) &&
     !appScript.includes("operator_independence_pack_check") &&
