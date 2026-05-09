@@ -63,6 +63,11 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/permissions") {
+    sendJson(response, readPermissionPolicy());
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/backend/status") {
     sendJson(response, await readBackendStatus());
     return;
@@ -165,8 +170,43 @@ function readHealth() {
       git: "status-only",
       backendReply: backendUrl && backendReplyEnabled ? "enabled" : "disabled",
       swarm: "manifest-local",
+      permissions: "policy-local",
     },
     contract: backendContract(),
+  };
+}
+
+function readPermissionPolicy() {
+  return {
+    version: "0.1.0",
+    defaultDecision: "gated",
+    lanes: {
+      filesystem_read: {
+        decision: "allow",
+        scope: "repo-local approved file list",
+      },
+      filesystem_write: {
+        decision: "gated",
+        scope: "patch preview first, guarded apply only",
+      },
+      shell_execute: {
+        decision: "allowlist",
+        scope: "read-only commands only",
+        allowed: ["node --version", "npm --version", "git ls-files"],
+      },
+      git_status: {
+        decision: "allow",
+        scope: "read-only status snapshot",
+      },
+      git_commit: {
+        decision: "blocked",
+        scope: "mutating git actions require a future command bridge",
+      },
+      backend: {
+        decision: "allow",
+        scope: "configured backend reply contract",
+      },
+    },
   };
 }
 
@@ -296,15 +336,18 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.result = target
       ? `Read-only excerpt prepared from ${target.relative}. No acknowledgement required.`
       : "Inspection blocked. No approved repo-local target file was detected.";
+    task.permission = permissionDecision(tool, target ? "allow" : "gated", "repo-local read-only inspection");
   }
 
   if (kind === "git" && tool === "git_status") {
     task.excerpt = createGitStatusExcerpt();
     task.result = "Safe git status snapshot captured. No repository mutation was performed.";
+    task.permission = permissionDecision(tool, "allow", "git status is read-only");
   }
 
   if (kind === "git" && tool !== "git_status") {
     task.result = "Mutating git actions are gated until the command approval bridge is implemented.";
+    task.permission = permissionDecision(tool, "blocked", "mutating git actions are not executable in this prototype");
   }
 
   if (kind === "shell") {
@@ -312,6 +355,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.status = shell.ok ? "completed" : "gated";
     task.excerpt = shell.output;
     task.result = shell.message;
+    task.permission = permissionDecision(tool, shell.ok ? "allow" : "gated", shell.reason);
   }
 
   if (kind === "analysis") {
@@ -320,6 +364,11 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.excerpt = analysis.excerpt;
     task.findings = analysis.findings;
     task.result = analysis.message;
+    task.permission = permissionDecision(tool, analysis.ok ? "allow" : "gated", analysis.reason);
+  }
+
+  if (kind === "edit") {
+    task.permission = permissionDecision(tool, "gated", "filesystem writes require patch preview and guarded apply");
   }
 
   taskQueue.unshift(task);
@@ -592,6 +641,7 @@ function createShellSnapshot(prompt) {
       ok: false,
       output: "",
       message: "Shell request gated. Only read-only allowlisted commands can auto-run.",
+      reason: "command is outside the read-only shell allowlist",
     };
   }
 
@@ -606,12 +656,14 @@ function createShellSnapshot(prompt) {
       ok: true,
       output: output || "(no output)",
       message: `Safe shell command completed: ${command.label}`,
+      reason: `${command.label} is in the read-only shell allowlist`,
     };
   } catch (error) {
     return {
       ok: false,
       output: error.stdout || error.stderr || error.message,
       message: `Safe shell command failed: ${command.label}`,
+      reason: `${command.label} is allowlisted but failed locally`,
     };
   }
 }
@@ -623,6 +675,7 @@ function createAnalysisSnapshot(target) {
       excerpt: "",
       findings: "",
       message: "Analysis gated. Name an approved repo-local file such as server.mjs or script.js.",
+      reason: "analysis needs an approved repo-local file target",
     };
   }
 
@@ -641,6 +694,16 @@ function createAnalysisSnapshot(target) {
     excerpt: lines.slice(0, 28).join("\n"),
     findings,
     message: `Read-only analysis prepared for ${target.relative}.`,
+    reason: "repo-local read-only code analysis",
+  };
+}
+
+function permissionDecision(tool, decision, reason) {
+  return {
+    tool,
+    decision,
+    reason,
+    policyVersion: readPermissionPolicy().version,
   };
 }
 

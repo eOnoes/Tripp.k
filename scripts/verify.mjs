@@ -62,10 +62,21 @@ try {
     health.ok === true &&
     health.capabilities?.sessions === "persistent-local" &&
     health.capabilities?.shell === "read-only-allowlist" &&
-    health.capabilities?.swarm === "manifest-local";
+    health.capabilities?.swarm === "manifest-local" &&
+    health.capabilities?.permissions === "policy-local";
   console.log(`${healthPass ? "PASS" : "FAIL"} health: adapter capabilities`);
   if (!healthPass) {
     failures.push({ name: "health" });
+  }
+
+  const permissions = await getJson("/api/tripp/permissions");
+  const permissionPass =
+    permissions.defaultDecision === "gated" &&
+    permissions.lanes?.shell_execute?.decision === "allowlist" &&
+    permissions.lanes?.git_commit?.decision === "blocked";
+  console.log(`${permissionPass ? "PASS" : "FAIL"} permissions: policy contract`);
+  if (!permissionPass) {
+    failures.push({ name: "permissions" });
   }
 
   const swarm = await getJson("/api/tripp/swarm");
@@ -87,7 +98,8 @@ try {
   });
   const routePass =
     routePreview.route?.agentId === "tripp.drone.three" &&
-    routedReply.task?.agentId === "tripp.drone.three";
+    routedReply.task?.agentId === "tripp.drone.three" &&
+    routedReply.task?.permission?.decision === "allow";
   console.log(`${routePass ? "PASS" : "FAIL"} swarm: supervisor route preview and task assignment`);
   if (!routePass) {
     failures.push({ name: "swarm route" });

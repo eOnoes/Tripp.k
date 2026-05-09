@@ -213,12 +213,14 @@
                       <div><dt>KIND</dt><dd>${escapeHtml(task.kind || "task")}</dd></div>
                       <div><dt>SOURCE</dt><dd>${escapeHtml(task.origin || "local")}</dd></div>
                       <div><dt>AGENT</dt><dd>${escapeHtml(task.agentId || "tripp.supervisor")}</dd></div>
+                      <div><dt>PERMIT</dt><dd>${escapeHtml(task.permission?.decision || "unknown")}</dd></div>
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
                       <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
                     </dl>
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
+                    ${task.permission?.reason ? `<pre>${escapeHtml(task.permission.reason)}</pre>` : ""}
                     ${task.patch ? `<pre>${escapeHtml(task.patch)}</pre>` : ""}
                   </section>`
                 : ""
