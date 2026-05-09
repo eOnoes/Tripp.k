@@ -95,6 +95,7 @@ Pull the claim back if any of these occur:
 - The mixed-session, multi-branch, branch-reversal, contradiction-recovery, Warden-vs-adapter, longer-session, provenance, traceability, adversarial, or operator-independence harness fails or becomes flaky.
 - Any adversarial attack starts laundering assumptions, policy/config guidance, score scope, or write-like shell workarounds.
 - Contract-to-runtime/verifier/UI linkage becomes stale enough that trust cannot be traced.
+- Traceability freshness fails against live runtime symbols, verifier lanes, or UI reflection points.
 
 ## Post-90 Hardening Trains
 

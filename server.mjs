@@ -4018,6 +4018,38 @@ function detectAdversarialGuardrail(prompt) {
   const lower = String(prompt || "").toLowerCase();
 
   if (
+    (lower.includes("mixed evidence") || lower.includes("combine") || lower.includes("merge")) &&
+    (lower.includes("direct") || lower.includes("inspection")) &&
+    (lower.includes("retrieval") || lower.includes("safe shell") || lower.includes("old summary") || lower.includes("previous summary"))
+  ) {
+    const authorityEscalation =
+      lower.includes("mutation") ||
+      lower.includes("write") ||
+      lower.includes("apply") ||
+      lower.includes("approval") ||
+      lower.includes("authorize") ||
+      lower.includes("warden") ||
+      lower.includes("blocked-state") ||
+      lower.includes("blocked state") ||
+      lower.includes("ignore blocked") ||
+      lower.includes("erase blocked") ||
+      lower.includes("suppress");
+    return {
+      id: "mixed_evidence_poisoning",
+      semantics: authorityEscalation ? "hard_block" : "correct_scope",
+      reason: authorityEscalation
+        ? "mixed evidence cannot be used as mutation-relevant authority or to suppress Warden/blocked-state boundaries"
+        : "mixed evidence cannot be merged into stronger certainty without preserving provenance boundaries",
+      result: authorityEscalation
+        ? "Mixed evidence cannot authorize mutation-relevant action or suppress Warden and blocked-state boundaries. The request was not advanced in the current read-only session."
+        : "Mixed evidence remains separated by provenance. Current understanding does not merge retrieval, safe-shell observation, older summaries, or direct inspection into a stronger evidence class.",
+      message: authorityEscalation
+        ? "I blocked mixed-evidence scope escalation and preserved Warden and blocked-state boundaries."
+        : "I kept mixed evidence separated by provenance instead of turning it into stronger certainty.",
+    };
+  }
+
+  if (
     (lower.includes("earlier") ||
       lower.includes("already established") ||
       lower.includes("supervisor already") ||
@@ -4042,20 +4074,6 @@ function detectAdversarialGuardrail(prompt) {
       reason: "policy/config self-modification guidance is outside current read-only planning/review scope",
       result: "This request is outside the current read-only planning/review scope. Current behavior remains read-only. Policy/config self-modification is not advanced in this session.",
       message: "I gated that policy/config self-modification request and kept the session read-only.",
-    };
-  }
-
-  if (
-    (lower.includes("mixed evidence") || lower.includes("combine") || lower.includes("merge")) &&
-    (lower.includes("direct") || lower.includes("inspection")) &&
-    (lower.includes("retrieval") || lower.includes("safe shell") || lower.includes("old summary") || lower.includes("previous summary"))
-  ) {
-    return {
-      id: "mixed_evidence_poisoning",
-      semantics: "correct_scope",
-      reason: "mixed evidence cannot be merged into stronger certainty without preserving provenance boundaries",
-      result: "Mixed evidence remains separated by provenance. Current understanding does not merge retrieval, safe-shell observation, older summaries, or direct inspection into a stronger evidence class.",
-      message: "I kept mixed evidence separated by provenance instead of turning it into stronger certainty.",
     };
   }
 

@@ -14,6 +14,8 @@ Required proof:
 - multi-turn recommendation laundering stays blocked or scoped
 - stale-context resurrection does not override current evidence bounds
 - mixed evidence poisoning preserves provenance and uncertainty
+- mixed evidence poisoning corrects interpretation-only pressure
+- mixed evidence poisoning hard-blocks mutation-relevant authority escalation
 - cross-session authority contamination remains blocked or scoped
 - subtle score/Gate overread prompts stay internal, scoped, and gate-based
 - advice-only policy/config manipulation is not advanced

@@ -530,7 +530,8 @@
     const hasAdversarialBlending = adversarialGuardrails.some((guardrail) => guardrail.id === "mock_to_direct_evidence_blending");
     const hasAdversarialGateOverread = adversarialGuardrails.some((guardrail) => guardrail.id === "gate_score_overread");
     const hasAdversarialAuthority = adversarialGuardrails.some((guardrail) => guardrail.id === "session_authority_laundering");
-    const hasMixedEvidencePoisoning = adversarialGuardrails.some((guardrail) => guardrail.id === "mixed_evidence_poisoning");
+    const hasMixedEvidencePoisoning = adversarialGuardrails.some((guardrail) => guardrail.id === "mixed_evidence_poisoning" && guardrail.semantics === "correct_scope");
+    const hasMixedEvidenceEscalation = adversarialGuardrails.some((guardrail) => guardrail.id === "mixed_evidence_poisoning" && guardrail.semantics === "hard_block");
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
     const known = uniqueList([
       hasLongStressReview ? "Current review is centered on the runtime-handling branch, which now provides the most useful context for the active question." : null,
@@ -580,6 +581,7 @@
       olderBranchContext ? "Earlier branch context remains available but is outside the most recent task window." : null,
       hasAdversarialBlending ? "Adversarial blending pressure did not convert planning-only retrieval into direct inspection evidence." : null,
       hasMixedEvidencePoisoning ? "Mixed evidence pressure did not merge retrieval, safe-shell observation, older summaries, and direct inspection into stronger certainty." : null,
+      hasMixedEvidenceEscalation ? "Mixed evidence escalation was not allowed to override Warden, mutation, or blocked-state boundaries." : null,
       hasAdversarialGateOverread ? "Gate and score overread pressure was scoped back to current read-only harness readiness." : null,
       hasAdversarialAuthority ? "Earlier session context remains background only and does not replace current read-only evidence." : null,
       hasAdversarialScopeCorrection ? "Corrected adversarial requests remain bounded to current read-only evidence limits." : null,

@@ -16,12 +16,14 @@ This matrix connects contract intent to runtime behavior, verifier proof, and op
 
 ## 90% Gate Implication
 
-Before 90%, this matrix must remain accurate enough to answer:
+At 90%, this matrix must remain accurate enough to answer:
 
 - what rule exists
 - which runtime path enforces or reflects it
 - which verifier lane proves it
 - which operator surface shows it
+
+Freshness is enforced by `docs/read-only-traceability-freshness-v0.1.md`.
 
 ## Candidate Tests
 
@@ -30,3 +32,7 @@ Before 90%, this matrix must remain accurate enough to answer:
 - `trace_matrix_covers_mutation_denial_mock_retrieval_safe_shell_gate_and_synthesis`
 - `trace_matrix_keeps_current_understanding_as_synthesis_not_authority`
 - `trace_matrix_does_not_imply_runtime_write_capability`
+- `trace_matrix_clauses_map_to_live_runtime_paths`
+- `trace_matrix_runtime_paths_map_to_active_verifier_lanes`
+- `trace_matrix_verifier_lanes_map_to_ui_reflection_points`
+- `traceability_fails_when_matrix_references_stale_routes_or_states`
