@@ -207,13 +207,17 @@ try {
     appScript.includes("Target is not apply-ready") &&
     appScript.includes("Write progression blocked") &&
     appScript.includes("Apply progression blocked") &&
+    appScript.includes("layer:${event.blockLayer}") &&
     appScript.includes("target:${event.escalationTarget}") &&
     appScript.includes("source:${event.sourceKind}") &&
-    appScript.includes("mode:${event.retrievalMode}") &&
     appScript.includes("authority:${event.authorityLevel}") &&
-    appScript.includes("degraded:true") &&
-    appScript.includes("writeApprovalEligible:false") &&
-    appScript.includes("applyEligible:false") &&
+    !appScript.includes("reason:${event.reasonCode}") &&
+    !appScript.includes("note:${event.reason}") &&
+    !appScript.includes("stage:${event.escalationStage}") &&
+    !appScript.includes("mode:${event.retrievalMode}") &&
+    !appScript.includes("degraded:true") &&
+    !appScript.includes("writeApprovalEligible:false") &&
+    !appScript.includes("applyEligible:false") &&
     appScript.includes("invoked:false") &&
     appScript.includes("writeBlockFamilyDetails") &&
     appScript.includes("layer === \"approval_state\"") &&

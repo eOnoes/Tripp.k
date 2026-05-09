@@ -682,7 +682,10 @@
       event.writeApprovalEligible === false ? "WRITE BLOCKED" : "WRITE ELIGIBLE",
       event.applyEligible === false ? "APPLY BLOCKED" : "APPLY ELIGIBLE",
     ].filter(Boolean);
-    const reason = event.reason || event.operatorWarning || "Retrieval audit event.";
+    const reason =
+      event.eventType === "write_escalation_blocked"
+        ? writeBlockCause(event)
+        : event.reason || event.operatorWarning || "Retrieval audit event.";
     const details = event.eventType === "write_escalation_blocked" ? writeBlockDetails(event) : [];
 
     return `
@@ -718,10 +721,7 @@
   function writeBlockDetails(event) {
     const always = [
       event.blockLayer ? `layer:${event.blockLayer}` : null,
-      event.reasonCode ? `reason:${event.reasonCode}` : null,
-      event.reason ? `note:${event.reason}` : null,
       event.escalationTarget ? `target:${event.escalationTarget}` : null,
-      event.escalationStage ? `stage:${event.escalationStage}` : null,
     ];
     const family = writeBlockFamilyDetails(event);
     const invoked = event.invoked === false ? ["invoked:false"] : [];
@@ -737,11 +737,7 @@
     if (layer === "evidence") {
       return [
         event.sourceKind ? `source:${event.sourceKind}` : null,
-        event.retrievalMode ? `mode:${event.retrievalMode}` : null,
-        event.authorityLevel ? `authority:${event.authorityLevel}` : null,
-        event.degraded === true ? "degraded:true" : null,
-        event.writeApprovalEligible === false ? "writeApprovalEligible:false" : null,
-        event.applyEligible === false ? "applyEligible:false" : null,
+        !event.sourceKind && event.authorityLevel ? `authority:${event.authorityLevel}` : null,
       ];
     }
 
@@ -759,7 +755,6 @@
 
     if (target.includes("apply") || code.includes("apply_") || code.includes("target_not_apply_ready")) {
       return [
-        event.applyEligible === false ? "applyEligible:false" : null,
         event.approvalState ? `approval:${event.approvalState}` : null,
       ];
     }
