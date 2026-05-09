@@ -356,6 +356,7 @@
                       <div><dt>RETRIEVE</dt><dd>${escapeHtml(task.routingDecision?.retrievalKind || "none")}</dd></div>
                       <div><dt>CONF</dt><dd>${escapeHtml(task.routingDecision?.confidenceRequired || "medium")}</dd></div>
                       <div><dt>PERMIT</dt><dd>${escapeHtml(task.permission?.decision || "unknown")}</dd></div>
+                      <div><dt>LIFE</dt><dd>${escapeHtml(task.lifecycle?.state || "unknown")} · ${escapeHtml(task.lifecycle?.descriptorStatus || "proposed")}</dd></div>
                       <div><dt>STYLE</dt><dd>${escapeHtml(task.codingMode || "goose")}</dd></div>
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
                       <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>

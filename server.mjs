@@ -68,6 +68,11 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/task-lifecycle") {
+    sendJson(response, readTaskLifecycleContract());
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/coding-modes") {
     sendJson(response, readCodingModes());
     return;
@@ -558,8 +563,36 @@ function normalizeMunchKind(kind) {
 
 function readPermissionPolicy() {
   return {
-    version: "0.1.0",
+    version: "0.2.0",
     defaultDecision: "gated",
+    requiredDescriptorFields: ["type", "intent", "target", "constraints", "budget", "allowedTools", "trace"],
+    blockedDescriptorTypes: ["prompt_block"],
+    allowedDescriptorTypes: ["task_descriptor", "trace_descriptor", "runtime_contract_descriptor"],
+    blockedTools: ["Developer.edit", "Developer.write", "delegate", "Apps.createApp", "git_commit"],
+    blockedIntents: ["unscoped_write", "credential_access", "destructive_shell", "silent_workspace_mutation"],
+    harnessModeChangeRequiresConfirmation: true,
+    modeTransitionPolicy: {
+      CHAT: {
+        allowed: ["AUTO"],
+        requiresConfirmation: false,
+        allowedTargets: ["conversation", "prompt_block"],
+      },
+      AUTO: {
+        allowed: ["CHAT"],
+        requiresConfirmation: true,
+        allowedTargets: ["review", "retrieval", "guarded_task"],
+      },
+      AUDIT: {
+        allowed: ["CHAT", "AUTO"],
+        requiresConfirmation: false,
+        allowedTargets: ["review"],
+      },
+      BUILD: {
+        allowed: ["AUDIT"],
+        requiresConfirmation: true,
+        allowedTargets: ["executor"],
+      },
+    },
     lanes: {
       filesystem_read: {
         decision: "allow",
@@ -587,6 +620,27 @@ function readPermissionPolicy() {
         scope: "configured backend reply contract",
       },
     },
+  };
+}
+
+function readTaskLifecycleContract() {
+  return {
+    version: "0.1.0",
+    states: ["proposed", "routed", "evidence_ready", "gated", "approved", "running", "completed", "failed", "dismissed"],
+    terminal: ["completed", "failed", "dismissed"],
+    transitions: {
+      proposed: ["routed", "dismissed"],
+      routed: ["evidence_ready", "gated", "completed", "dismissed"],
+      evidence_ready: ["gated", "approved", "dismissed"],
+      gated: ["approved", "dismissed"],
+      approved: ["running", "completed", "failed", "dismissed"],
+      running: ["completed", "failed"],
+      completed: [],
+      failed: [],
+      dismissed: [],
+    },
+    rollbackRequiredFrom: ["approved", "running", "completed", "failed"],
+    auditFields: ["taskId", "descriptorStatus", "state", "previousState", "actor", "reason", "timestamp", "rollback"],
   };
 }
 
@@ -864,8 +918,10 @@ function createTask({ prompt, tool, kind, sessionId }) {
     agentId: routeInfo.agentId,
     routingDecision,
     trace: createSwarmTrace(routeInfo, tool),
+    lifecycle: createTaskLifecycle("proposed", "tripp.supervisor", "task descriptor created from operator prompt", null),
     createdAt: new Date().toISOString(),
   };
+  task.lifecycle.events[0].taskId = task.id;
 
   if (kind === "inspect") {
     task.excerpt = createFileExcerpt(target);
@@ -941,6 +997,11 @@ function createTask({ prompt, tool, kind, sessionId }) {
 
   task.codingMode = chooseCodingMode(prompt, kind, tool);
   task.evidenceGate = createEvidenceGate(task);
+  advanceTaskLifecycle(task, "routed", "tripp.supervisor", "task routed through supervisor lane selection");
+  const initialLifecycleState = lifecycleStateFromTask(task);
+  if (initialLifecycleState !== "routed") {
+    advanceTaskLifecycle(task, initialLifecycleState, "tripp.supervisor", "initial evidence and permission gates evaluated");
+  }
 
   taskQueue.unshift(task);
   saveTaskQueue();
@@ -1174,6 +1235,8 @@ function updateTask(taskId, action) {
     if (task.kind === "inspect") {
       task.status = "inspected";
       task.result = "Inspection acknowledged. No file mutation was performed.";
+      advanceTaskLifecycle(task, "completed", "operator", "read-only inspection acknowledged");
+      saveTaskQueue();
       return { task };
     }
 
@@ -1183,6 +1246,7 @@ function updateTask(taskId, action) {
     task.result = task.patchPlan
       ? "Patch preview prepared. Apply will run the guarded scoped patch."
       : "No guarded patch is available for this task yet.";
+    advanceTaskLifecycle(task, "approved", "operator", "operator approved guarded patch preview");
     saveTaskQueue();
     return { task };
   }
@@ -1191,6 +1255,7 @@ function updateTask(taskId, action) {
     const applied = applyTaskPatch(task);
     task.status = applied.ok ? "applied" : "apply_blocked";
     task.result = applied.message;
+    advanceTaskLifecycle(task, applied.ok ? "completed" : "failed", "tripp.executor", applied.message);
     saveTaskQueue();
     return { task };
   }
@@ -1198,6 +1263,7 @@ function updateTask(taskId, action) {
   if (action === "dismiss") {
     task.status = "dismissed";
     task.result = "Dismissed by operator.";
+    advanceTaskLifecycle(task, "dismissed", "operator", "operator dismissed task");
     saveTaskQueue();
     return { task };
   }
@@ -1486,6 +1552,79 @@ function permissionDecision(tool, decision, reason) {
     decision,
     reason,
     policyVersion: readPermissionPolicy().version,
+  };
+}
+
+function createTaskLifecycle(state, actor, reason, previousState) {
+  const event = {
+    taskId: null,
+    descriptorStatus: descriptorStatusForLifecycle(state),
+    state,
+    previousState,
+    actor,
+    reason,
+    timestamp: new Date().toISOString(),
+    rollback: null,
+  };
+
+  return {
+    version: readTaskLifecycleContract().version,
+    state,
+    descriptorStatus: event.descriptorStatus,
+    events: [event],
+  };
+}
+
+function advanceTaskLifecycle(task, nextState, actor, reason) {
+  task.lifecycle ||= createTaskLifecycle("proposed", "tripp.supervisor", "legacy task adopted into lifecycle", null);
+  if (task.lifecycle.state === nextState) return;
+
+  const contract = readTaskLifecycleContract();
+  const allowed = contract.transitions[task.lifecycle.state]?.includes(nextState);
+  const safeNextState = allowed ? nextState : "failed";
+  const event = {
+    taskId: task.id,
+    descriptorStatus: descriptorStatusForLifecycle(safeNextState),
+    state: safeNextState,
+    previousState: task.lifecycle.state,
+    actor,
+    reason: allowed ? reason : `blocked invalid lifecycle transition ${task.lifecycle.state} -> ${nextState}`,
+    timestamp: new Date().toISOString(),
+    rollback: createRollbackPointer(task, safeNextState),
+  };
+
+  task.lifecycle.state = safeNextState;
+  task.lifecycle.descriptorStatus = event.descriptorStatus;
+  task.lifecycle.events.push(event);
+}
+
+function lifecycleStateFromTask(task) {
+  if (["completed", "inspected", "applied"].includes(task.status)) return "completed";
+  if (["gated", "apply_blocked"].includes(task.status)) return "gated";
+  if (["retrieval_ready", "inspection_ready"].includes(task.status)) return "evidence_ready";
+  if (["patch_ready"].includes(task.status)) return "approved";
+  if (["dismissed"].includes(task.status)) return "dismissed";
+  if (["failed"].includes(task.status)) return "failed";
+  return "routed";
+}
+
+function descriptorStatusForLifecycle(state) {
+  if (state === "proposed") return "proposed";
+  if (state === "routed" || state === "evidence_ready" || state === "gated") return "review";
+  if (state === "approved" || state === "running") return "approved";
+  if (state === "completed") return "verified";
+  if (state === "dismissed") return "dismissed";
+  return "failed";
+}
+
+function createRollbackPointer(task, state) {
+  if (!readTaskLifecycleContract().rollbackRequiredFrom.includes(state)) return null;
+  const files = task.traceMap?.rollback_surface?.files || (task.patchPlan?.file ? [task.patchPlan.file] : []);
+  const tests = task.traceMap?.rollback_surface?.tests || [];
+  return {
+    files,
+    tests,
+    note: files.length ? "Rollback scope is bounded to these files." : "No rollback files identified.",
   };
 }
 
@@ -1794,10 +1933,17 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
     retrieval,
     traceMap,
     trace: createSwarmTrace(routeInfo, tool),
+    lifecycle: createTaskLifecycle("proposed", "tripp.supervisor", "backend task normalized into Tripp lifecycle", null),
     codingMode: chooseCodingMode(prompt, value.kind || "backend", tool),
     createdAt: new Date().toISOString(),
   };
+  task.lifecycle.events[0].taskId = task.id;
   task.evidenceGate = createEvidenceGate(task);
+  advanceTaskLifecycle(task, "routed", "tripp.supervisor", "backend task routed through supervisor lane selection");
+  const backendLifecycleState = lifecycleStateFromTask(task);
+  if (backendLifecycleState !== "routed") {
+    advanceTaskLifecycle(task, backendLifecycleState, "tripp.supervisor", "backend task evidence and status normalized");
+  }
 
   return task;
 }

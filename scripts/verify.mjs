@@ -74,12 +74,28 @@ try {
 
   const permissions = await getJson("/api/tripp/permissions");
   const permissionPass =
+    permissions.version === "0.2.0" &&
     permissions.defaultDecision === "gated" &&
+    permissions.blockedDescriptorTypes?.includes("prompt_block") &&
+    permissions.allowedDescriptorTypes?.includes("task_descriptor") &&
+    permissions.blockedTools?.includes("Developer.write") &&
+    permissions.modeTransitionPolicy?.AUTO?.requiresConfirmation === true &&
     permissions.lanes?.shell_execute?.decision === "allowlist" &&
     permissions.lanes?.git_commit?.decision === "blocked";
   console.log(`${permissionPass ? "PASS" : "FAIL"} permissions: policy contract`);
   if (!permissionPass) {
     failures.push({ name: "permissions" });
+  }
+
+  const lifecycle = await getJson("/api/tripp/task-lifecycle");
+  const lifecyclePass =
+    lifecycle.version === "0.1.0" &&
+    lifecycle.states?.includes("evidence_ready") &&
+    lifecycle.transitions?.approved?.includes("running") &&
+    lifecycle.rollbackRequiredFrom?.includes("completed");
+  console.log(`${lifecyclePass ? "PASS" : "FAIL"} lifecycle: Cyst task state contract`);
+  if (!lifecyclePass) {
+    failures.push({ name: "lifecycle" });
   }
 
   const codingModes = await getJson("/api/tripp/coding-modes");
@@ -180,11 +196,13 @@ try {
   });
   const routingPass =
     discoveryReply.task?.routingDecision?.lane === "munch" &&
+    discoveryReply.task?.lifecycle?.state === "evidence_ready" &&
     discoveryReply.task?.retrieval?.backend === "tripp-munch-mock" &&
     discoveryReply.task?.traceMap?.traceVerification?.terminalState === "TRACE_PASS_WITH_WARNINGS" &&
     discoveryReply.task?.evidenceGate?.status === "blocked" &&
     discoveryReply.task?.evidenceGate?.missing?.includes("confidence >= medium") &&
     editReply.task?.routingDecision?.lane === "native" &&
+    editReply.task?.lifecycle?.state === "routed" &&
     editReply.task?.evidenceGate?.status === "ready" &&
     editReply.task?.permission?.decision === "gated" &&
     runtimeReply.task?.routingDecision?.lane === "hybrid" &&
