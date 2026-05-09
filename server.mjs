@@ -180,6 +180,14 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.result = shell.message;
   }
 
+  if (kind === "analysis") {
+    const analysis = createAnalysisSnapshot(target);
+    task.status = analysis.ok ? "completed" : "gated";
+    task.excerpt = analysis.excerpt;
+    task.findings = analysis.findings;
+    task.result = analysis.message;
+  }
+
   taskQueue.unshift(task);
   return task;
 }
@@ -207,7 +215,13 @@ function supervisorMessage(task) {
       : "That shell request is outside the safe read-only allowlist, so I gated it without a click-through.";
   }
 
-  return "I staged that analysis task for review in TASKS.";
+  if (task.kind === "analysis") {
+    return task.status === "completed"
+      ? `I analyzed ${task.target} and put the read-only findings in TASKS.`
+      : "I need an approved repo-local file target before I can analyze anything.";
+  }
+
+  return "I recorded that task in TASKS.";
 }
 
 function updateTask(taskId, action) {
@@ -256,6 +270,7 @@ function initialTaskStatus(kind, tool) {
   if (kind === "git" && tool === "git_status") return "completed";
   if (kind === "git") return "gated";
   if (kind === "shell") return "gated";
+  if (kind === "analysis") return "gated";
   return "pending";
 }
 
@@ -323,6 +338,52 @@ function createShellSnapshot(prompt) {
       message: `Safe shell command failed: ${command.label}`,
     };
   }
+}
+
+function createAnalysisSnapshot(target) {
+  if (!target) {
+    return {
+      ok: false,
+      excerpt: "",
+      findings: "",
+      message: "Analysis gated. Name an approved repo-local file such as server.mjs or script.js.",
+    };
+  }
+
+  const text = readFileSync(target.absolute, "utf8");
+  const lines = text.split(/\r?\n/);
+  const findings = [
+    `File: ${target.relative}`,
+    `Lines: ${lines.length}`,
+    `Bytes: ${Buffer.byteLength(text, "utf8")}`,
+    `Likely role: ${describeFileRole(target.relative)}`,
+    `Risk note: ${describeFileRisk(target.relative)}`,
+  ].join("\n");
+
+  return {
+    ok: true,
+    excerpt: lines.slice(0, 28).join("\n"),
+    findings,
+    message: `Read-only analysis prepared for ${target.relative}.`,
+  };
+}
+
+function describeFileRole(file) {
+  if (file === "server.mjs") return "local HTTP server, Tripp adapter API, and task execution guard";
+  if (file === "script.js") return "browser UI state, rendering, and Tripp runtime client";
+  if (file === "styles.css") return "terminal shell layout, Tripp theme, and task panel styling";
+  if (file === "index.html") return "static app structure and panel mount points";
+  if (file.endsWith(".json")) return "seed data for terminal messages, tools, sessions, and status";
+  if (file.endsWith(".md")) return "project documentation or agent doctrine";
+  return "repo-local project file";
+}
+
+function describeFileRisk(file) {
+  if (file === "server.mjs") return "high leverage; mistakes can break API routes or weaken task guards";
+  if (file === "script.js") return "high UI impact; mistakes can break prompt/task rendering";
+  if (file === "styles.css") return "visual impact; mistakes can hide controls or harm layout";
+  if (file === "tripp-terminal-data.json") return "low-medium; malformed JSON breaks bootstrap data";
+  return "read-only analysis only; no mutation performed";
 }
 
 function applyTaskPatch(task) {
@@ -444,6 +505,7 @@ function chooseTool(prompt) {
   if (lower.includes("git")) return "git_status";
   if (lower.includes("shell") || lower.includes("terminal") || lower.includes("command")) return "shell_execute";
   if (lower.includes("node --version") || lower.includes("npm --version")) return "shell_execute";
+  if (lower.includes("analyze") || lower.includes("review") || lower.includes("explain")) return "code_analyze";
   if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
   if (lower.includes("file") || lower.includes("read") || lower.includes("inspect") || lower.includes("show")) {
     return "filesystem_read";
@@ -458,6 +520,7 @@ function chooseTaskKind(prompt, tool) {
   if (tool === "filesystem_write") return "edit";
   if (tool.startsWith("git_")) return "git";
   if (tool === "shell_execute") return "shell";
+  if (tool === "code_analyze") return "analysis";
   return "analysis";
 }
 

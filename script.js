@@ -210,6 +210,7 @@
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
                     </dl>
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
+                    ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
                     ${task.patch ? `<pre>${escapeHtml(task.patch)}</pre>` : ""}
                   </section>`
                 : ""

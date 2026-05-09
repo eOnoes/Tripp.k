@@ -47,3 +47,4 @@ Task approval is guarded. Approving a write task prepares a patch preview; apply
 Inspect tasks are read-only, auto-complete without acknowledgement, and can show excerpts for approved repo-local files such as `README.md`, `server.mjs`, `script.js`, `styles.css`, and `tripp-terminal-data.json`.
 `git status` tasks are also read-only and auto-complete; mutating git actions such as commit are recorded as gated without an approval/apply click-through.
 Shell tasks auto-run only a small read-only allowlist such as `node --version`, `npm --version`, and repo file listing; other shell requests are recorded as gated.
+Analysis tasks are read-only, auto-complete for approved repo-local files, and show a short excerpt plus lightweight findings in the task detail.
