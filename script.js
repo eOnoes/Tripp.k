@@ -383,6 +383,10 @@
       return `${task.id} apply blocked. Filesystem mutation is still gated.`;
     }
 
+    if (task.status === "applied") {
+      return `${task.id} applied. ${task.result || ""}`.trim();
+    }
+
     return `${task.id} ${task.status}. ${task.result || ""}`.trim();
   }
 

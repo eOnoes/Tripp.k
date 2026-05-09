@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
 
@@ -171,8 +171,9 @@ function updateTask(taskId, action) {
   }
 
   if (action === "apply") {
-    task.status = "apply_blocked";
-    task.result = "Apply is gated. Filesystem mutation is not enabled yet.";
+    const applied = applyTaskPatch(task);
+    task.status = applied.ok ? "applied" : "apply_blocked";
+    task.result = applied.message;
     return { task };
   }
 
@@ -203,6 +204,42 @@ function createPatchPreview(task) {
     '-      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
     '+      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
   ].join("\n");
+}
+
+function applyTaskPatch(task) {
+  if (task.status !== "patch_ready") {
+    return { ok: false, message: "Apply blocked. Task must be patch_ready first." };
+  }
+
+  if (task.tool !== "filesystem_write") {
+    return { ok: false, message: "Apply blocked. Only filesystem_write tasks can mutate files." };
+  }
+
+  if (task.patch !== createPatchPreview(task)) {
+    return { ok: false, message: "Apply blocked. Patch preview does not match the approved guarded patch." };
+  }
+
+  const target = resolve(root, "tripp-terminal-data.json");
+  if (target !== bootstrapFile || !target.startsWith(root + sep)) {
+    return { ok: false, message: "Apply blocked. Target file is outside the approved workspace guard." };
+  }
+
+  const data = JSON.parse(readFileSync(target, "utf8"));
+  const current = data?.messages?.[0]?.body;
+  const expected = "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin.";
+  const next = "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits.";
+
+  if (current === next) {
+    return { ok: true, message: "Patch already applied to tripp-terminal-data.json." };
+  }
+
+  if (current !== expected) {
+    return { ok: false, message: "Apply blocked. File content changed since patch preview was prepared." };
+  }
+
+  const updated = readFileSync(target, "utf8").replace(JSON.stringify(expected), JSON.stringify(next));
+  writeFileSync(target, updated, "utf8");
+  return { ok: true, message: "Applied guarded patch to tripp-terminal-data.json." };
 }
 
 async function tryCreateBackendReply(payload) {

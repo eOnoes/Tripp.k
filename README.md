@@ -43,5 +43,4 @@ http://127.0.0.1:4177/
   - `TRIPP_ENABLE_BACKEND_REPLY=true`
 - Agent role/soul/operator doctrine lives under `agents/`.
 
-Task approval is currently UI/state only. Real filesystem writes remain disabled until the supervised execution bridge is implemented.
-Approving a write task prepares a patch preview; applying remains blocked until filesystem mutation is explicitly wired.
+Task approval is guarded. Approving a write task prepares a patch preview; applying currently supports only the approved welcome-message patch in `tripp-terminal-data.json`.

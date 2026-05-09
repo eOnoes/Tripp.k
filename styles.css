@@ -506,6 +506,11 @@ button {
   border-left: 2px solid #888888;
 }
 
+.task.applied {
+  border-left: 2px solid var(--green);
+  background: #061006;
+}
+
 .task.dismissed {
   border-left: 2px solid var(--dim);
   opacity: 0.72;
