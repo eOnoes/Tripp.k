@@ -95,6 +95,18 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/tripp/trace/map") {
+    const payload = await readJson(request);
+    sendJson(response, createTraceDroneMap(payload));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/trace/verify") {
+    const payload = await readJson(request);
+    sendJson(response, verifyTraceDroneMap(payload?.traceMap || payload));
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/swarm") {
     sendJson(response, readSwarmManifest());
     return;
@@ -344,6 +356,176 @@ function createMunchContextMap(payload = {}) {
       elapsed_ms: 0,
     },
   };
+}
+
+function createTraceDroneMap(payload = {}) {
+  const task = String(payload.task || payload.prompt || payload.query || "").trim();
+  const traceId = payload.traceId || `trace_${Date.now()}`;
+  const candidates = rankTraceCandidates(task);
+  const owners = candidates.slice(0, Number(payload.ownerMax || 5)).map((candidate) => ({
+    file: candidate.file,
+    confidence: candidate.confidence,
+    reason: candidate.reason,
+    role: candidate.role,
+    signals: candidate.signals,
+  }));
+  const related = uniqueStrings([
+    ...owners.map((owner) => owner.file),
+    "docs/tripcore-munch-g-integration-plan.md",
+    "docs/tripp-supervisor-retrieval-playbook.md",
+  ]).slice(0, 8);
+  const tests = ["scripts/verify.mjs", "scripts/verify-linked.mjs"].filter((file) => existsSync(join(root, file)));
+  const confidence = owners.length ? Math.max(...owners.map((owner) => owner.confidence)) : 0.05;
+  const warnings = ["mock Trace.Drone map; real trace runtime is not wired yet"];
+
+  const traceMap = {
+    traceId,
+    role: "Trace.Drone",
+    status: "boundary_map",
+    readOnly: true,
+    executionAllowed: false,
+    planningAllowed: false,
+    implementationAllowed: false,
+    task,
+    owners,
+    related,
+    tests,
+    chain_effects: traceChainEffects(task),
+    forbidden: [".git/", "node_modules/", "vendor/", "dist/"],
+    rollback_surface: {
+      files: owners.map((owner) => owner.file),
+      tests,
+      scope: owners.length > 4 ? "broad_owner_surface" : owners.length ? "bounded_owner_surface" : "unresolved",
+      note: owners.length ? "Mock bounded surface from task keyword matching." : "No owner surface found.",
+    },
+    confidence,
+    confidenceLabel: confidenceLabel(confidence),
+    evidence: owners.map((owner) => ({
+      file: owner.file,
+      signals: owner.signals,
+      score: owner.confidence,
+      note: owner.reason,
+    })),
+    warnings,
+    trace: {
+      traceId,
+      source: "trace-drone-mock",
+    },
+  };
+  traceMap.traceVerification = verifyTraceDroneMap(traceMap);
+  return traceMap;
+}
+
+function verifyTraceDroneMap(traceMap = {}) {
+  const owners = Array.isArray(traceMap.owners) ? traceMap.owners : [];
+  const tests = Array.isArray(traceMap.tests) ? traceMap.tests : [];
+  const warnings = Array.isArray(traceMap.warnings) ? [...traceMap.warnings] : [];
+  const blocking = [];
+  const confidence = Number(traceMap.confidence || 0);
+  const docsOnly = owners.length > 0 && owners.every((owner) => String(owner.file || "").toLowerCase().endsWith(".md"));
+  const forbiddenHit = owners.some((owner) =>
+    [".git/", "node_modules/", "vendor/", "dist/"].some((prefix) => String(owner.file || "").startsWith(prefix)),
+  );
+  const broadSurface = owners.length > 4;
+
+  if (!owners.length) blocking.push("no owners found");
+  if (confidence < 0.45) blocking.push("confidence below trace threshold");
+  if (docsOnly) blocking.push("owners are docs-only");
+  if (forbiddenHit) blocking.push("forbidden path in owners");
+  if (broadSurface) warnings.push("owner surface is broad and should be tightened");
+  if (!tests.length) warnings.push("no related tests found");
+
+  const pass = blocking.length === 0;
+  const terminalState = !owners.length
+    ? "TRACE_UNRESOLVED"
+    : blocking.length
+      ? "TRACE_ESCALATE"
+      : warnings.length
+        ? "TRACE_PASS_WITH_WARNINGS"
+        : "TRACE_PASS";
+
+  return {
+    pass,
+    terminalState,
+    tightenAllowed: broadSurface || confidence < 0.7,
+    warnings,
+    blocking,
+    checks: {
+      confidence,
+      ownerCount: owners.length,
+      testsPresent: tests.length > 0,
+      docsOnly,
+      forbiddenHit,
+      broadSurface,
+    },
+    attempts: Number(traceMap.traceVerification?.attempts || 1),
+    tightened: Boolean(traceMap.traceVerification?.tightened || false),
+    previous: traceMap.traceVerification?.previous || null,
+  };
+}
+
+function rankTraceCandidates(task) {
+  const lower = String(task || "").toLowerCase();
+  const candidates = [];
+  const add = (file, confidence, reason, role, signals) => {
+    if (existsSync(join(root, file))) candidates.push({ file, confidence, reason, role, signals });
+  };
+
+  if (lower.includes("munch") || lower.includes("health") || lower.includes("route") || lower.includes("api")) {
+    add("server.mjs", 0.72, "server exposes Munch health, retrieval, context-map, and task routing routes", "controller", [
+      "api-route",
+      "munch",
+      "health",
+    ]);
+    add("scripts/verify.mjs", 0.58, "verifier asserts Munch route and routing behavior", "supporting", [
+      "verification",
+      "munch",
+    ]);
+  }
+
+  if (lower.includes("ui") || lower.includes("workspace") || lower.includes("task")) {
+    add("script.js", 0.66, "browser state renders task, workspace, routing, retrieval, and evidence gate details", "controller", [
+      "ui-render",
+      "task-card",
+    ]);
+    add("styles.css", 0.52, "styles define task, retrieval, and evidence gate presentation", "supporting", [
+      "ui-style",
+      "evidence",
+    ]);
+  }
+
+  if (lower.includes("doc") || lower.includes("doctrine") || lower.includes("playbook")) {
+    add("docs/tripp-supervisor-retrieval-playbook.md", 0.62, "playbook defines supervisor retrieval doctrine", "source_of_truth", [
+      "doctrine",
+      "supervisor",
+    ]);
+  }
+
+  if (!candidates.length) {
+    add("server.mjs", 0.42, "fallback owner candidate from adapter API surface", "unknown", ["fallback"]);
+  }
+
+  return candidates.sort((a, b) => b.confidence - a.confidence);
+}
+
+function traceChainEffects(task) {
+  const lower = String(task || "").toLowerCase();
+  const effects = ["supervisor routing state", "task evidence gate"];
+  if (lower.includes("workspace") || lower.includes("ui")) effects.push("workspace projection");
+  if (lower.includes("munch") || lower.includes("retrieval")) effects.push("retrieval lane contract");
+  if (lower.includes("runtime") || lower.includes("goosed")) effects.push("runtime contract evidence");
+  return effects;
+}
+
+function confidenceLabel(value) {
+  if (value >= 0.82) return "strong";
+  if (value >= 0.55) return "medium";
+  if (value > 0) return "weak";
+  return "none";
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.filter(Boolean))];
 }
 
 function normalizeMunchKind(kind) {
@@ -693,6 +875,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
   if (routingDecision.lane === "munch") {
     task.status = "retrieval_ready";
     task.permission = permissionDecision(tool, "allow", "retrieval-only Munch lane; no execution or mutation");
+    task.traceMap = createTraceDroneMap({ task: prompt, traceId: `trace_${task.id}` });
     task.retrieval = createMunchRetrieval({
       id: `rr_${task.id}`,
       kind: routingDecision.retrievalKind,
@@ -716,6 +899,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
   }
 
   if (routingDecision.lane === "hybrid") {
+    task.traceMap = createTraceDroneMap({ task: prompt, traceId: `trace_${task.id}` });
     task.result = `${task.result || "Task staged."} Hybrid lane selected: collect native runtime evidence, then use Munch for supporting docs/config retrieval.`;
   }
 
@@ -798,6 +982,13 @@ function createEvidenceGate(task) {
   }
 
   if (lane === "munch") {
+    const terminalState = task.traceMap?.traceVerification?.terminalState;
+    if (terminalState) satisfied.push(`trace:${terminalState}`);
+    else missing.push("trace map");
+    if (terminalState === "TRACE_ESCALATE" || terminalState === "TRACE_UNRESOLVED") {
+      missing.push("trace pass state");
+    }
+
     if (task.retrieval?.backend) satisfied.push(`backend:${task.retrieval.backend}`);
     else missing.push("retrieval backend");
 
@@ -829,6 +1020,8 @@ function createEvidenceGate(task) {
 
   missing.push("native runtime observation");
   missing.push("supporting Munch context map");
+  if (task.traceMap?.traceVerification?.terminalState) satisfied.push(`trace:${task.traceMap.traceVerification.terminalState}`);
+  else missing.push("trace map");
   return {
     status: "blocked",
     lane,
@@ -1440,6 +1633,10 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
           },
         })
       : null;
+  const traceMap =
+    routingDecision.lane === "munch" || routingDecision.lane === "hybrid"
+      ? createTraceDroneMap({ task: prompt, traceId: `trace_${value.id || `backend-task-${Date.now()}-${index}`}` })
+      : null;
   const task = {
     id: value.id || `backend-task-${Date.now()}-${index}`,
     title: value.title || value.summary || tool || summarizeTask(prompt),
@@ -1455,6 +1652,7 @@ function normalizeBackendTask(value, index, sessionId, prompt) {
     agentId: routeInfo.agentId,
     routingDecision,
     retrieval,
+    traceMap,
     trace: createSwarmTrace(routeInfo, tool),
     codingMode: chooseCodingMode(prompt, value.kind || "backend", tool),
     createdAt: new Date().toISOString(),

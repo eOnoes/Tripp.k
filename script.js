@@ -263,6 +263,7 @@
                       <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
                     </dl>
                     ${renderEvidenceGate(task.evidenceGate)}
+                    ${renderTraceMap(task.traceMap)}
                     ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
                     ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
                     ${renderRetrieval(task.retrieval)}
@@ -491,6 +492,32 @@
           <div><dt>OK</dt><dd>${escapeHtml((gate.satisfied || []).join(" / ") || "none")}</dd></div>
           <div><dt>MISS</dt><dd>${escapeHtml((gate.missing || []).join(" / ") || "none")}</dd></div>
           <div><dt>NEXT</dt><dd>${escapeHtml((gate.next || []).join(" / ") || "none")}</dd></div>
+        </dl>
+      </section>
+    `;
+  }
+
+  function renderTraceMap(traceMap) {
+    if (!traceMap) return "";
+
+    const verification = traceMap.traceVerification || {};
+    const owners = (traceMap.owners || [])
+      .map((owner) => `${owner.file} (${owner.confidence})`)
+      .join(" / ");
+    const rollback = traceMap.rollback_surface?.files?.join(" / ") || "none";
+
+    return `
+      <section class="trace-map-detail ${escapeHtml(verification.terminalState || "TRACE_UNRESOLVED")}">
+        <header>
+          <strong>TraceDroneMap</strong>
+          <span>${escapeHtml(verification.terminalState || "TRACE_UNRESOLVED")}</span>
+        </header>
+        <dl>
+          <div><dt>CONF</dt><dd>${escapeHtml(traceMap.confidenceLabel || "none")} · ${escapeHtml(traceMap.confidence || 0)}</dd></div>
+          <div><dt>OWN</dt><dd>${escapeHtml(owners || "none")}</dd></div>
+          <div><dt>ROLL</dt><dd>${escapeHtml(rollback)}</dd></div>
+          <div><dt>WARN</dt><dd>${escapeHtml((verification.warnings || traceMap.warnings || []).join(" / ") || "none")}</dd></div>
+          <div><dt>BLOCK</dt><dd>${escapeHtml((verification.blocking || []).join(" / ") || "none")}</dd></div>
         </dl>
       </section>
     `;

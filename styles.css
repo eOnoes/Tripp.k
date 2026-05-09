@@ -876,6 +876,13 @@ button {
   background: #080808;
 }
 
+.trace-map-detail {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #1d2d2d;
+  background: #050909;
+}
+
 .evidence-gate.ready {
   border-color: #1f5f1f;
   background: #061006;
@@ -894,7 +901,16 @@ button {
   margin-bottom: 6px;
 }
 
+.trace-map-detail header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .evidence-gate header strong,
+.trace-map-detail header strong,
 .retrieval-detail strong {
   display: block;
   color: var(--lime);
@@ -909,7 +925,18 @@ button {
   text-transform: uppercase;
 }
 
+.trace-map-detail header span {
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .evidence-gate dl {
+  margin: 6px 0 0;
+}
+
+.trace-map-detail dl {
   margin: 6px 0 0;
 }
 
@@ -917,11 +944,23 @@ button {
   grid-template-columns: 38px minmax(0, 1fr);
 }
 
+.trace-map-detail div {
+  grid-template-columns: 38px minmax(0, 1fr);
+}
+
 .evidence-gate dt {
   color: var(--dim);
 }
 
+.trace-map-detail dt {
+  color: var(--dim);
+}
+
 .evidence-gate dd {
+  color: var(--muted);
+}
+
+.trace-map-detail dd {
   color: var(--muted);
 }
 

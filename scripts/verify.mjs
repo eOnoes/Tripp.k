@@ -147,6 +147,22 @@ try {
     failures.push({ name: "munch" });
   }
 
+  const traceMap = await postJson("/api/tripp/trace/map", {
+    task: "where is Munch health exposed",
+    traceId: "verify-trace-map",
+  });
+  const traceVerify = await postJson("/api/tripp/trace/verify", { traceMap });
+  const tracePass =
+    traceMap.role === "Trace.Drone" &&
+    traceMap.executionAllowed === false &&
+    traceMap.owners?.some((owner) => owner.file === "server.mjs") &&
+    traceMap.rollback_surface?.files?.includes("server.mjs") &&
+    traceVerify.terminalState === traceMap.traceVerification?.terminalState;
+  console.log(`${tracePass ? "PASS" : "FAIL"} trace: map and verification stubs`);
+  if (!tracePass) {
+    failures.push({ name: "trace" });
+  }
+
   const discoveryReply = await postJson("/api/tripp/reply", {
     prompt: "where is Munch health exposed",
     mode: "AUTO",
@@ -165,6 +181,7 @@ try {
   const routingPass =
     discoveryReply.task?.routingDecision?.lane === "munch" &&
     discoveryReply.task?.retrieval?.backend === "tripp-munch-mock" &&
+    discoveryReply.task?.traceMap?.traceVerification?.terminalState === "TRACE_PASS_WITH_WARNINGS" &&
     discoveryReply.task?.evidenceGate?.status === "blocked" &&
     discoveryReply.task?.evidenceGate?.missing?.includes("confidence >= medium") &&
     editReply.task?.routingDecision?.lane === "native" &&

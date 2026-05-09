@@ -57,6 +57,7 @@ try {
           task.origin === "backend" &&
           task.routingDecision?.lane === "munch" &&
           task.retrieval?.backend === "tripp-munch-mock" &&
+          task.traceMap?.traceVerification?.terminalState === "TRACE_PASS_WITH_WARNINGS" &&
           task.evidenceGate?.status === "blocked",
       ),
     ],
