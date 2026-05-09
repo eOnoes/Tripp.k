@@ -1162,6 +1162,10 @@ button {
   opacity: 0.84;
 }
 
+.task.gated:has(.task-conclusion.planning) {
+  border-left-color: #c8ff00;
+}
+
 .task.patch_ready {
   border-left: 2px solid var(--green);
 }
@@ -1984,6 +1988,11 @@ button {
   border-left-color: #c8ff00;
 }
 
+.cyst-activity li.corrected {
+  border-left-color: #8fb6ff;
+  background: #05080d;
+}
+
 .cyst-activity li.denied,
 .cyst-activity li.error {
   border-left-color: #ff3333;
@@ -1998,6 +2007,10 @@ button {
 .cyst-activity li.denied > span,
 .cyst-activity li.error > span {
   color: #ff3333;
+}
+
+.cyst-activity li.corrected > span {
+  color: #8fb6ff;
 }
 
 .cyst-activity li div {

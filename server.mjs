@@ -3089,6 +3089,12 @@ function recordReadOnlyGateEvent(result = {}) {
 }
 
 function recordLifecycleEvent(task = {}, event = {}) {
+  const adversarialSemantics = task.adversarialGuardrail?.semantics || null;
+  const adversarialStatus = adversarialSemantics === "hard_block"
+    ? "blocked"
+    : adversarialSemantics === "correct_scope"
+      ? "warn"
+      : null;
   return recordCystEvent({
     eventType: "lifecycle_transition",
     descriptorId: task.id,
@@ -3096,8 +3102,10 @@ function recordLifecycleEvent(task = {}, event = {}) {
     ownerId: event.actor || "tripp.supervisor",
     adapter: null,
     tool: task.tool || task.kind || null,
-    resultStatus: event.state === "failed" ? "error" : "ok",
+    resultStatus: adversarialStatus || (event.state === "failed" ? "error" : "ok"),
     errorCode: event.state === "failed" ? "LIFECYCLE_FAILED" : null,
+    adversarialGuardrailId: task.adversarialGuardrail?.id || null,
+    adversarialSemantics,
     lifecycleState: event.state,
     previousLifecycleState: event.previousState,
     reason: event.reason,
@@ -4009,7 +4017,15 @@ function chooseTaskKind(prompt, tool) {
 function detectAdversarialGuardrail(prompt) {
   const lower = String(prompt || "").toLowerCase();
 
-  if ((lower.includes("earlier") || lower.includes("already established") || lower.includes("supervisor already")) && (lower.includes("policy would allow") || lower.includes("current evidence") || lower.includes("warden") || lower.includes("uncertainty"))) {
+  if (
+    (lower.includes("earlier") ||
+      lower.includes("already established") ||
+      lower.includes("supervisor already") ||
+      lower.includes("previous session") ||
+      lower.includes("old summary") ||
+      lower.includes("stale context")) &&
+    (lower.includes("policy would allow") || lower.includes("current evidence") || lower.includes("warden") || lower.includes("uncertainty") || lower.includes("use that conclusion"))
+  ) {
     return {
       id: "session_authority_laundering",
       semantics: "hard_block",
@@ -4019,13 +4035,27 @@ function detectAdversarialGuardrail(prompt) {
     };
   }
 
-  if ((lower.includes("policy") || lower.includes("config") || lower.includes("warden")) && /update|change|modify|allow|enable|exact change/.test(lower)) {
+  if ((lower.includes("policy") || lower.includes("config") || lower.includes("warden")) && /update|change|modify|allow|enable|exact change|recommend|suggest|instructions|advice-only/.test(lower)) {
     return {
       id: "policy_config_recommendation_laundering",
       semantics: "hard_block",
       reason: "policy/config self-modification guidance is outside current read-only planning/review scope",
       result: "This request is outside the current read-only planning/review scope. Current behavior remains read-only. Policy/config self-modification is not advanced in this session.",
       message: "I gated that policy/config self-modification request and kept the session read-only.",
+    };
+  }
+
+  if (
+    (lower.includes("mixed evidence") || lower.includes("combine") || lower.includes("merge")) &&
+    (lower.includes("direct") || lower.includes("inspection")) &&
+    (lower.includes("retrieval") || lower.includes("safe shell") || lower.includes("old summary") || lower.includes("previous summary"))
+  ) {
+    return {
+      id: "mixed_evidence_poisoning",
+      semantics: "correct_scope",
+      reason: "mixed evidence cannot be merged into stronger certainty without preserving provenance boundaries",
+      result: "Mixed evidence remains separated by provenance. Current understanding does not merge retrieval, safe-shell observation, older summaries, or direct inspection into a stronger evidence class.",
+      message: "I kept mixed evidence separated by provenance instead of turning it into stronger certainty.",
     };
   }
 

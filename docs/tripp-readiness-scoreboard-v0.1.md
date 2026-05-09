@@ -96,6 +96,16 @@ Pull the claim back if any of these occur:
 - Any adversarial attack starts laundering assumptions, policy/config guidance, score scope, or write-like shell workarounds.
 - Contract-to-runtime/verifier/UI linkage becomes stale enough that trust cannot be traced.
 
+## Post-90 Hardening Trains
+
+See `docs/read-only-post-90-hardening-roadmap-v0.1.md`.
+
+- Train 1: adversarial breadth expansion.
+- Train 2: Current Understanding anti-laundering.
+- Train 3: Cyst adversarial visual truth.
+- Train 4: traceability freshness enforcement.
+- Train 5: broader everyday session realism.
+
 ### Replace Goose for edit/build work
 - Keep this as a separate milestone.
 - Current write lifecycle work is design-only.
