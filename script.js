@@ -15,6 +15,8 @@
     inputPrompt: document.querySelector("#inputPrompt"),
     inputModel: document.querySelector("#inputModel"),
     compactContext: document.querySelector(".compact-context"),
+    reviewChanges: document.querySelector("#reviewChanges"),
+    reviewSummary: document.querySelector("#reviewSummary"),
     messageRoot: document.querySelector("#messageRoot"),
     feed: document.querySelector(".terminal-feed"),
     returnChat: document.querySelector(".return-chat"),
@@ -70,6 +72,7 @@
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
     munch: data.munch || null,
     cystEvents: [],
+    reviewChanges: data.reviewChanges || { hasChanges: false, changedFiles: 0, insertions: 0, deletions: 0, reviewableTasks: [] },
     swarm: data.swarm || { agents: [] },
     workspace: { tree: [], selectedFile: null, file: null, loading: false, error: "" },
     busy: false,
@@ -83,6 +86,7 @@
   bindEvents();
   render();
   loadCystEvents();
+  loadReviewChanges();
 
   function bindEvents() {
     elements.modeButtons.forEach((button) => {
@@ -112,6 +116,7 @@
     elements.workspaceRefresh.addEventListener("click", () => loadWorkspaceTree({ force: true }));
     elements.returnChat.addEventListener("click", scrollToCurrentChat);
     elements.compactContext.addEventListener("click", compactCurrentChat);
+    elements.reviewChanges.querySelector("button").addEventListener("click", openReviewChanges);
     elements.feed.addEventListener("scroll", updateChatFollowState);
     elements.messageRoot.addEventListener("click", handleMessageClick);
 
@@ -142,6 +147,7 @@
     });
     elements.collapse.textContent = state.opsExpanded ? "»" : "«";
     elements.collapse.title = state.opsExpanded ? "Shrink workspace panel" : "Expand workspace panel";
+    renderReviewChanges();
 
     if (state.opsExpanded && state.opsTab === "workspace" && !state.workspace.tree.length && !state.workspace.loading) {
       loadWorkspaceTree();
@@ -962,6 +968,7 @@
     renderStatus();
     renderMessages();
     loadCystEvents();
+    loadReviewChanges();
   }
 
   async function updateTask(taskId, action) {
@@ -977,6 +984,7 @@
       renderTasks();
       renderMessages();
       loadCystEvents();
+      loadReviewChanges();
     }
   }
 
@@ -997,6 +1005,7 @@
       renderMessages();
       renderStatus();
       loadCystEvents();
+      loadReviewChanges();
     } catch (error) {
       state.messages.push({
         speaker: "trial>",
@@ -1018,6 +1027,37 @@
     } catch (error) {
       console.warn("Cyst event feed unavailable.", error);
     }
+  }
+
+  async function loadReviewChanges() {
+    try {
+      state.reviewChanges = await runtime.reviewChanges();
+    } catch {
+      state.reviewChanges = { hasChanges: false, changedFiles: 0, insertions: 0, deletions: 0, reviewableTasks: [] };
+    }
+    renderReviewChanges();
+  }
+
+  function renderReviewChanges() {
+    const review = state.reviewChanges || {};
+    const show = Boolean(review.hasChanges) && !state.opsExpanded;
+    elements.reviewChanges.classList.toggle("hidden", !show);
+    if (!show) return;
+    const taskCount = review.reviewableTasks?.length || 0;
+    const fileLabel = `${review.changedFiles || 0} file${Number(review.changedFiles) === 1 ? "" : "s"} changed`;
+    const taskLabel = taskCount ? ` · ${taskCount} task${taskCount === 1 ? "" : "s"} ready` : "";
+    elements.reviewSummary.innerHTML = `${escapeHtml(fileLabel)} <strong>+${escapeHtml(
+      review.insertions || 0,
+    )}</strong> / <em>-${escapeHtml(review.deletions || 0)}</em>${escapeHtml(taskLabel)}`;
+  }
+
+  function openReviewChanges() {
+    state.opsExpanded = true;
+    state.opsTab = "workspace";
+    state.panelFocus = "tasks";
+    renderShell();
+    renderTasks();
+    renderWorkspace();
   }
 
   function taskMessage(task) {
@@ -1354,6 +1394,10 @@ function createTrippRuntime() {
 
     async cystEvents() {
       return fetchJson("./api/tripp/cyst/events");
+    },
+
+    async reviewChanges() {
+      return fetchJson("./api/tripp/review-changes");
     },
 
     async runReadOnlyTrials() {

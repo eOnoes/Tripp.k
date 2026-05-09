@@ -34,6 +34,11 @@
             <button class="return-chat hidden" type="button" title="Return to current chat">RETURN TO CURRENT CHAT</button>
           </section>
 
+          <div class="review-changes hidden" id="reviewChanges" role="status" aria-live="polite">
+            <span id="reviewSummary">No changes</span>
+            <button type="button" title="Open review workspace">Review changes</button>
+          </div>
+
           <form class="terminal-input" id="terminalForm">
             <label for="command" id="inputPrompt">chat&gt;</label>
             <input id="command" type="text" placeholder="Enter command..." />

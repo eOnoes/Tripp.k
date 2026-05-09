@@ -95,6 +95,11 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/review-changes") {
+    sendJson(response, readReviewChanges());
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/tripp/trials/read-only") {
     sendJson(response, runReadOnlyHarnessTrials());
     return;
@@ -310,6 +315,51 @@ function readMunchHealth() {
     warnings: ["passive mock mode only"],
     recommended_action: "continue_native_tripp_tools",
   };
+}
+
+function readReviewChanges() {
+  const statusLines = safeGit(["status", "--short"]).trim().split(/\r?\n/).filter(Boolean);
+  const numstatLines = safeGit(["diff", "--numstat"]).trim().split(/\r?\n/).filter(Boolean);
+  const files = statusLines.map((line) => ({
+    status: line.slice(0, 2).trim() || "changed",
+    path: line.slice(3).trim(),
+  }));
+  const stats = numstatLines.reduce(
+    (acc, line) => {
+      const [added, removed] = line.split(/\s+/);
+      acc.insertions += Number(added) || 0;
+      acc.deletions += Number(removed) || 0;
+      return acc;
+    },
+    { insertions: 0, deletions: 0 },
+  );
+  const reviewableTasks = taskQueue.filter((task) =>
+    ["patch_ready", "apply_blocked", "applied", "approved"].includes(task.status),
+  );
+
+  return {
+    hasChanges: files.length > 0 || reviewableTasks.length > 0,
+    changedFiles: files.length,
+    insertions: stats.insertions,
+    deletions: stats.deletions,
+    files: files.slice(0, 24),
+    reviewableTasks: reviewableTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      tool: task.tool,
+    })),
+    source: "git-status-readonly",
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+function safeGit(args) {
+  try {
+    return execFileSync("git", args, { cwd: root, encoding: "utf8", timeout: 5000, windowsHide: true });
+  } catch {
+    return "";
+  }
 }
 
 function createMunchRetrieval(payload = {}) {

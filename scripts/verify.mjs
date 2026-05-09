@@ -144,6 +144,7 @@ try {
   const workspaceTree = await getJson("/api/tripp/workspace/tree");
   const workspaceFile = await getJson("/api/tripp/workspace/file?path=README.md");
   const blockedFile = await getJson("/api/tripp/workspace/file?path=.git/config");
+  const reviewChanges = await getJson("/api/tripp/review-changes");
   const appHtml = await getText("/");
   const appScript = await getText("/script.js");
   const workspacePass =
@@ -151,8 +152,12 @@ try {
     workspaceFile.language === "markdown" &&
     workspaceFile.content?.includes("# Tripp.g") &&
     blockedFile.error === "Workspace path is ignored." &&
+    typeof reviewChanges.hasChanges === "boolean" &&
+    reviewChanges.source === "git-status-readonly" &&
     appHtml.includes("cystRoot") &&
+    appHtml.includes("reviewChanges") &&
     appScript.includes("renderCystActivity") &&
+    appScript.includes("renderReviewChanges") &&
     appScript.includes("/api/tripp/cyst/events");
   console.log(`${workspacePass ? "PASS" : "FAIL"} workspace: tree and guarded file read`);
   if (!workspacePass) {
