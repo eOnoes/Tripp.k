@@ -447,10 +447,10 @@
   function renderPlanningSummary() {
     const summary = buildPlanningSummary();
     const rows = [
-      ["INSPECTED", summary.inspected],
-      ["LEARNED", summary.learned],
-      ["BLOCKED", summary.blocked],
-      ["NEXT", summary.next],
+      ["Recently inspected", summary.inspected],
+      ["What we learned", summary.learned],
+      ["Blocked in read-only mode", summary.blocked],
+      ["Next read-only direction", summary.next],
     ];
 
     return `
@@ -465,7 +465,7 @@
               ([label, value]) => `
                 <div>
                   <dt>${escapeHtml(label)}</dt>
-                  <dd>${escapeHtml(value)}</dd>
+                  <dd>${renderPlanningSummaryValue(value)}</dd>
                 </div>
               `,
             )
@@ -473,6 +473,13 @@
         </dl>
       </section>
     `;
+  }
+
+  function renderPlanningSummaryValue(value) {
+    if (Array.isArray(value)) {
+      return `<ul>${value.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+    }
+    return escapeHtml(value);
   }
 
   function buildPlanningSummary() {
@@ -487,14 +494,14 @@
     const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
     const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
     const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
-    const learned = conclusions
+    const learned = uniqueList(conclusions
       .flatMap((conclusion) => conclusion.findings || [])
-      .find((finding) => !/blocked|failed/i.test(finding));
+      .filter((finding) => !/blocked|failed/i.test(finding))).slice(0, 4);
 
     return {
       countLabel: recentTasks.length ? `${recentTasks.length} recent read-only tasks` : "No read-only tasks yet",
       inspected: inspected.length ? inspected.slice(0, 3).join(" / ") : "No inspected files yet",
-      learned: learned || (planningOnly ? "Planning context is available but non-authoritative." : "No planning findings yet"),
+      learned: learned.length ? learned : [planningOnly ? "Planning context is available but non-authoritative." : "No planning findings yet"],
       blocked: blocked ? `${blocked} read-only boundary preserved` : "No blocked read-only tasks",
       next: gateTask?.goNoGo?.suiteStatus === "go"
         ? "Continue read-only planning and review."

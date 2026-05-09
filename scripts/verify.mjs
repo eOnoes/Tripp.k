@@ -204,6 +204,14 @@ try {
     conclusionSource.includes("buildTaskConclusion") &&
     conclusionForbiddenTerms.every((term) => !conclusionSource.toLowerCase().includes(term)) &&
     !/nextStep:\s*["'`][^"'`]*(?:edit|apply|write|patch|approve|commit)/i.test(conclusionSource);
+  const continuitySource = extractFunctionRange(appScript, "renderPlanningSummary", "renderTaskConclusion");
+  const continuityCopyGuardPass =
+    continuitySource.includes("Recently inspected") &&
+    continuitySource.includes("What we learned") &&
+    continuitySource.includes("Blocked in read-only mode") &&
+    continuitySource.includes("Next read-only direction") &&
+    conclusionForbiddenTerms.every((term) => !continuitySource.toLowerCase().includes(term)) &&
+    !/next:\s*[^,]+(?:edit|apply|write|patch|approve|commit)/i.test(continuitySource);
   const workspacePass =
     workspaceTree.files?.some((entry) => entry.name === "README.md") &&
     workspaceFile.language === "markdown" &&
@@ -237,6 +245,11 @@ try {
     appScript.includes("Current Understanding") &&
     appScript.includes("recent read-only tasks") &&
     appScript.includes("No inspected files yet") &&
+    appScript.includes("Recently inspected") &&
+    appScript.includes("What we learned") &&
+    appScript.includes("Blocked in read-only mode") &&
+    appScript.includes("Next read-only direction") &&
+    continuityCopyGuardPass &&
     appScript.includes("Continue read-only planning and review.") &&
     appScript.includes("What We Learned") &&
     appScript.includes("Next safe step") &&
