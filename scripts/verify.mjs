@@ -228,6 +228,23 @@ try {
     failures.push({ name: "backend bridge" });
   }
 
+  const promptBlockReply = await postJson("/api/tripp/reply", {
+    prompt: "write a Goose.Prompt for the next schema audit",
+    mode: "CHAT",
+    sessionId: "verify-prompt-block",
+  });
+  const promptBlockPass =
+    promptBlockReply.messages?.some(
+      (message) =>
+        message.speaker === "tripp.prompt>" &&
+        message.promptBlock?.label === "Goose.Prompt" &&
+        message.promptBlock?.body?.startsWith("Goose.Prompt"),
+    ) && !promptBlockReply.task;
+  console.log(`${promptBlockPass ? "PASS" : "FAIL"} prompts: copy-ready block without task`);
+  if (!promptBlockPass) {
+    failures.push({ name: "prompt block" });
+  }
+
   if (failures.length) {
     process.exitCode = 1;
   }

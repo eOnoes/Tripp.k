@@ -1046,6 +1046,90 @@ button {
   color: var(--muted);
 }
 
+.trace-map-badges {
+  display: flex !important;
+  grid-template-columns: none !important;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px !important;
+}
+
+.trace-map-badges b {
+  min-width: 0;
+  padding: 3px 6px;
+  background: #0d0d0d;
+  border: 1px solid #243000;
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.trace-owner-list,
+.trace-list {
+  display: block !important;
+  margin: 8px 0 0 !important;
+  padding-top: 7px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.trace-owner-list > strong,
+.trace-list > strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--lime);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.trace-owner-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  margin: 0 0 7px;
+  padding: 7px;
+  background: #070707;
+  border: 1px solid var(--line-soft);
+}
+
+.trace-owner-list article span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.trace-owner-list article small {
+  margin: 0;
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.trace-owner-list article em,
+.trace-owner-list article i {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.trace-owner-list article i {
+  color: var(--dim);
+}
+
+.trace-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .retrieval-detail p,
 .retrieval-detail small,
 .evidence-gate p {

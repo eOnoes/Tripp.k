@@ -44,6 +44,11 @@ try {
     mode: "AUTO",
     sessionId: session.session.id,
   });
+  const promptBlockReply = await postJson(`${appUrl}/api/tripp/reply`, {
+    prompt: "write a Goose.Prompt for the next schema audit",
+    mode: "CHAT",
+    sessionId: session.session.id,
+  });
 
   const checks = [
     ["bridge health", bridgeHealth.ok === true && bridgeHealth.goose?.configured === true],
@@ -62,6 +67,15 @@ try {
       ),
     ],
     ["session persisted", reply.session?.transcript?.some((message) => message.speaker === "tripp.bridge>")],
+    [
+      "prompt block handoff",
+      promptBlockReply.messages?.some(
+        (message) =>
+          message.speaker === "tripp.prompt>" &&
+          message.promptBlock?.label === "Goose.Prompt" &&
+          message.promptBlock?.body?.startsWith("Goose.Prompt"),
+      ) && !promptBlockReply.tasks?.length,
+    ],
   ];
 
   for (const [name, pass] of checks) {

@@ -588,10 +588,18 @@
     if (!traceMap) return "";
 
     const verification = traceMap.traceVerification || {};
-    const owners = (traceMap.owners || [])
-      .map((owner) => `${owner.file} (${owner.confidence})`)
-      .join(" / ");
-    const rollback = traceMap.rollback_surface?.files?.join(" / ") || "none";
+    const checks = verification.checks || {};
+    const owners = traceMap.owners || [];
+    const rollbackFiles = traceMap.rollback_surface?.files || [];
+    const tests = traceMap.rollback_surface?.tests || traceMap.tests || [];
+    const warnings = uniqueStrings([...(traceMap.warnings || []), ...(verification.warnings || [])]);
+    const blockers = verification.blocking || [];
+    const auditorNote =
+      checks.docsOnly && isTraceEditIntent(traceMap.task)
+        ? "Docs-only owner surface blocks edit approval."
+        : checks.docsOnly
+          ? "Docs-only surface is acceptable for retrieval, not edits."
+          : "Implementation owner surface is present.";
 
     return `
       <section class="trace-map-detail ${escapeHtml(verification.terminalState || "TRACE_UNRESOLVED")}">
@@ -599,15 +607,74 @@
           <strong>TraceDroneMap</strong>
           <span>${escapeHtml(verification.terminalState || "TRACE_UNRESOLVED")}</span>
         </header>
+        <div class="trace-map-badges">
+          <b>${escapeHtml(traceMap.confidenceLabel || "none")} · ${escapeHtml(traceMap.confidence || 0)}</b>
+          <b>${escapeHtml(traceMap.rollback_surface?.scope || "unresolved")}</b>
+          <b>${escapeHtml(traceMap.trace?.traceId || traceMap.traceId || "trace")}</b>
+        </div>
         <dl>
-          <div><dt>CONF</dt><dd>${escapeHtml(traceMap.confidenceLabel || "none")} · ${escapeHtml(traceMap.confidence || 0)}</dd></div>
-          <div><dt>OWN</dt><dd>${escapeHtml(owners || "none")}</dd></div>
-          <div><dt>ROLL</dt><dd>${escapeHtml(rollback)}</dd></div>
-          <div><dt>WARN</dt><dd>${escapeHtml((verification.warnings || traceMap.warnings || []).join(" / ") || "none")}</dd></div>
-          <div><dt>BLOCK</dt><dd>${escapeHtml((verification.blocking || []).join(" / ") || "none")}</dd></div>
+          <div><dt>SRC</dt><dd>${escapeHtml(traceMap.trace?.source || "trace-drone")}</dd></div>
+          <div><dt>AUDIT</dt><dd>${escapeHtml(auditorNote)}</dd></div>
+          <div><dt>CHECK</dt><dd>${escapeHtml(renderTraceChecks(checks))}</dd></div>
         </dl>
+        ${renderTraceOwners(owners)}
+        ${renderTraceList("Rollback", rollbackFiles)}
+        ${renderTraceList("Tests", tests)}
+        ${renderTraceList("Warnings", warnings)}
+        ${renderTraceList("Blocking", blockers)}
       </section>
     `;
+  }
+
+  function renderTraceOwners(owners) {
+    if (!owners.length) return renderTraceList("Owners", []);
+
+    return `
+      <div class="trace-owner-list">
+        <strong>Owners</strong>
+        ${owners
+          .map(
+            (owner) => `
+              <article>
+                <span>${escapeHtml(owner.file)}</span>
+                <small>${escapeHtml(owner.role || "unknown")} · ${escapeHtml(owner.confidence || 0)}</small>
+                <em>${escapeHtml(owner.reason || "")}</em>
+                <i>${escapeHtml((owner.signals || []).join(" / ") || "no signals")}</i>
+              </article>
+            `,
+          )
+          .join("")}
+      </div>
+    `;
+  }
+
+  function renderTraceList(label, values) {
+    const items = Array.isArray(values) ? values : [];
+    return `
+      <div class="trace-list">
+        <strong>${escapeHtml(label)}</strong>
+        <p>${escapeHtml(items.length ? items.join(" / ") : "none")}</p>
+      </div>
+    `;
+  }
+
+  function renderTraceChecks(checks) {
+    if (!checks) return "none";
+    return [
+      `owners:${checks.ownerCount ?? 0}`,
+      `tests:${checks.testsPresent ? "yes" : "no"}`,
+      `docs:${checks.docsOnly ? "only" : "mixed"}`,
+      `forbidden:${checks.forbiddenHit ? "hit" : "clear"}`,
+      `broad:${checks.broadSurface ? "yes" : "no"}`,
+    ].join(" / ");
+  }
+
+  function isTraceEditIntent(task) {
+    return /\b(edit|modify|patch|write|change|fix|implement|refactor|delete|remove|create|add)\b/.test(String(task || ""));
+  }
+
+  function uniqueStrings(values) {
+    return [...new Set((values || []).filter(Boolean))];
   }
 
   function setMode(mode) {
