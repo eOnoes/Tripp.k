@@ -34,9 +34,14 @@ try {
   const bridgeHealth = await getJson(`${bridgeUrl}/health`);
   const appHealth = await getJson(`${appUrl}/api/tripp/health`);
   const session = await postJson(`${appUrl}/api/tripp/sessions`, {});
-  const reply = await postJson(`${appUrl}/api/tripp/reply`, {
+  const readOnlyReply = await postJson(`${appUrl}/api/tripp/reply`, {
     prompt: "cline style inspect server.mjs through the bridge",
     mode: "AUTO",
+    sessionId: session.session.id,
+  });
+  const chatReply = await postJson(`${appUrl}/api/tripp/reply`, {
+    prompt: "bridge contract smoke",
+    mode: "CHAT",
     sessionId: session.session.id,
   });
   const routingReply = await postJson(`${appUrl}/api/tripp/reply`, {
@@ -53,8 +58,9 @@ try {
   const checks = [
     ["bridge health", bridgeHealth.ok === true && bridgeHealth.goose?.configured === true],
     ["app backend ready", appHealth.backend?.configured === true],
-    ["backend reply", reply.status?.model === "tripp-adapter/backend"],
-    ["bridge task", reply.tasks?.some((task) => task.origin === "backend")],
+    ["backend reply", chatReply.status?.model === "tripp-adapter/backend"],
+    ["local read-only adapter", readOnlyReply.status?.model === "tripp-adapter/mock" && readOnlyReply.task?.adapter?.status === "ok"],
+    ["bridge task", routingReply.tasks?.some((task) => task.origin === "backend")],
     [
       "backend routing",
       routingReply.tasks?.some(
@@ -66,7 +72,7 @@ try {
           task.evidenceGate?.status === "blocked",
       ),
     ],
-    ["session persisted", reply.session?.transcript?.some((message) => message.speaker === "tripp.bridge>")],
+    ["session persisted", chatReply.session?.transcript?.some((message) => message.speaker === "tripp.bridge>")],
     [
       "prompt block handoff",
       promptBlockReply.messages?.some(

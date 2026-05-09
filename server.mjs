@@ -1607,15 +1607,16 @@ function backendContract() {
 }
 
 async function createReply(payload) {
-  if (backendUrl && backendReplyEnabled) {
-    const backendReply = await tryCreateBackendReply(payload);
-    if (backendReply) return backendReply;
-  }
-
   const prompt = String(payload?.prompt || "").trim();
   const mode = String(payload?.mode || "CHAT").toUpperCase();
   const tool = chooseTool(prompt);
   const kind = chooseTaskKind(prompt, tool);
+
+  if (backendUrl && backendReplyEnabled && !shouldKeepLocalAdapterTask(mode, kind, tool)) {
+    const backendReply = await tryCreateBackendReply(payload);
+    if (backendReply) return backendReply;
+  }
+
   const promptBlock = createPromptBlock(prompt);
   const task = !promptBlock && mode === "AUTO" ? createTask({ prompt, tool, kind, sessionId: payload?.sessionId }) : null;
 
@@ -1668,6 +1669,12 @@ async function createReply(payload) {
     messages,
     session,
   };
+}
+
+function shouldKeepLocalAdapterTask(mode, kind, tool) {
+  if (mode !== "AUTO") return false;
+  if (kind === "inspect" || kind === "shell") return true;
+  return kind === "git" && tool === "git_status";
 }
 
 function createTask({ prompt, tool, kind, sessionId }) {
