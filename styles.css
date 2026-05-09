@@ -1802,7 +1802,8 @@ button {
 }
 
 .cyst-evidence-meta b,
-.cyst-evidence-meta span {
+.cyst-evidence-meta span,
+.cyst-evidence-meta i {
   display: block;
 }
 
@@ -1815,6 +1816,13 @@ button {
   margin-top: 2px;
   color: #c9d870;
   font-size: 9px;
+}
+
+.cyst-evidence-meta i {
+  margin-top: 2px;
+  color: var(--dim);
+  font-size: 8px;
+  font-style: normal;
 }
 
 .statusbar {

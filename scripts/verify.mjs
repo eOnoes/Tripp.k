@@ -192,9 +192,13 @@ try {
     appScript.includes("renderCystActivity") &&
     appScript.includes("renderCystEvidenceMeta") &&
     appScript.includes("write_escalation_blocked") &&
+    appScript.includes("WRITE BLOCKED") &&
+    appScript.includes("Mock evidence is planning-only") &&
+    appScript.includes("Approval missing") &&
+    appScript.includes("Warden denied escalation") &&
+    appScript.includes("Adapter blocked write path") &&
     appScript.includes("reasonCode") &&
     appScript.includes("BLOCK") &&
-    appScript.includes("WRITE BLOCKED") &&
     appScript.includes("APPLY BLOCKED") &&
     appScript.includes("renderReviewChanges") &&
     appScript.includes("saveCompactSettings") &&

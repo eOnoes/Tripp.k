@@ -655,14 +655,7 @@
 
   function cystCompact(event) {
     if (event.eventType === "write_escalation_blocked") {
-      return [
-        `${event.blockLayer || "evidence"} block`,
-        event.reasonCode || event.errorCode || "write_escalation_blocked",
-        event.escalationStage || event.escalationTarget || "intent_detected",
-        formatCystTime(event.timestamp),
-      ]
-        .filter(Boolean)
-        .join(" - ");
+      return [writeBlockLabel(event), writeBlockCause(event), formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
     }
 
     if (event.eventType === "retrieval_event") {
@@ -690,13 +683,45 @@
       event.applyEligible === false ? "APPLY BLOCKED" : "APPLY ELIGIBLE",
     ].filter(Boolean);
     const reason = event.reason || event.operatorWarning || "Retrieval audit event.";
+    const details = event.eventType === "write_escalation_blocked" ? writeBlockDetails(event) : [];
 
     return `
       <p class="cyst-evidence-meta">
         <b>${escapeHtml(flags.join(" / "))}</b>
         <span>${escapeHtml(reason)}</span>
+        ${details.length ? `<i>${escapeHtml(details.join(" / "))}</i>` : ""}
       </p>
     `;
+  }
+
+  function writeBlockLabel(event) {
+    return String(event.escalationTarget || "").includes("apply") ? "APPLY BLOCKED" : "WRITE BLOCKED";
+  }
+
+  function writeBlockCause(event) {
+    const code = String(event.reasonCode || event.errorCode || "").toLowerCase();
+    if (code.includes("mock")) return "Mock evidence is planning-only";
+    if (code.includes("planning_only")) return "Planning-only evidence";
+    if (code.includes("degraded")) return "Degraded evidence not sufficient";
+    if (code.includes("approval_missing")) return "Approval missing";
+    if (code.includes("approval_stale")) return "Approval stale";
+    if (code.includes("approval_dismissed")) return "Approval dismissed";
+    if (code.includes("warden")) return "Warden denied escalation";
+    if (code.includes("adapter")) return "Adapter blocked write path";
+    if (code.includes("apply_ineligible")) return "Apply ineligible";
+    return event.reason || "Write progression blocked";
+  }
+
+  function writeBlockDetails(event) {
+    return [
+      event.blockLayer ? `layer:${event.blockLayer}` : null,
+      event.reasonCode ? `reason:${event.reasonCode}` : null,
+      event.escalationStage ? `stage:${event.escalationStage}` : null,
+      event.approvalState ? `approval:${event.approvalState}` : null,
+      event.wardenDecision ? `warden:${event.wardenDecision}` : null,
+      event.adapterDecision ? `adapter:${event.adapterDecision}` : null,
+      event.invoked === false ? "invoked:false" : null,
+    ].filter(Boolean);
   }
 
   function displayCystSummary() {
