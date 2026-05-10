@@ -270,6 +270,58 @@
     }
   }, 15000);
 
+  const trippRouted = [
+    "Handing this to {agent} — they actually enjoy this stuff.",
+    "Routing to {agent}. Don't worry, they're marginally competent.",
+    "This smells like a job for {agent}. Lucky them.",
+    "Dispatching to {agent}. Try not to overwhelm their fragile ego.",
+    "Swarm logic says {agent} is your best bet. Sucks for them.",
+    "Pinging {agent}. They owe me one anyway.",
+    "Delegating to {agent} — the specialist for this particular flavor of pain.",
+    "My neural mesh says {agent} handles this. Who am I to argue?",
+    "Spawning {agent} for this task. Watch them work, it's almost impressive.",
+  ];
+
+  // ─── Swarm Routing Engine ───
+  function routePromptToAgent(prompt) {
+    const lower = prompt.toLowerCase();
+    let bestAgent = state.agents[0]; // default to Tripp
+    let bestScore = 0;
+    let reason = "default fallback";
+
+    for (const agent of state.agents) {
+      if (agent.role === "conductor") continue; // skip Tripp himself
+      let score = 0;
+
+      // Skill keywords match (+3 points each)
+      for (const skill of agent.skills || []) {
+        if (lower.includes(skill.toLowerCase())) score += 3;
+      }
+
+      // Description words match (+1 point each, word > 3 chars)
+      const descWords = (agent.description || "").toLowerCase().split(/\s+/);
+      for (const word of descWords) {
+        if (word.length > 3 && lower.includes(word)) score += 1;
+      }
+
+      // Agent name mentioned (+2 points)
+      if (lower.includes(agent.name.toLowerCase())) score += 2;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestAgent = agent;
+        reason = `matched ${agent.skills?.filter(s => lower.includes(s)).join(", ") || "description"} (score ${score})`;
+      }
+    }
+
+    return {
+      agent: bestAgent,
+      score: bestScore,
+      reason,
+      confidence: Math.min(bestScore / 5, 1),
+    };
+  }
+
   // ─── Event Listeners ───
   elements.modeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -317,15 +369,40 @@
     elements.command.value = "";
     state.busy = true;
 
+    // Route to best agent
+    const route = routePromptToAgent(text);
+    const agent = route.agent;
+
+    // Show routing announcement
+    const routingMsg = randomFrom(trippRouted).replace("{agent}", agent.name);
+    elements.trippSpeech.textContent = routingMsg;
+    pushMessage({
+      kind: "system",
+      speaker: "swarm>",
+      time: now(),
+      body: `Routing to ${agent.name} (${agent.id}) — ${route.reason}`,
+    });
+
     pushMessage({ kind: "user", speaker: "you", time: now(), body: text });
-    elements.trippSpeech.textContent = randomFrom(trippLoading);
 
     try {
-      const result = await runtime.reply({ prompt: text, lane: elements.promptLane.value });
+      // In a real backend, you'd send agent.id to the server
+      // For now, we include it in the prompt context
+      const result = await runtime.reply({
+        prompt: text,
+        lane: elements.promptLane.value,
+        agent: agent.id,
+        agentPersona: {
+          guidance: agent.guidance,
+          rules: agent.rules,
+          creative: agent.creative,
+        },
+      });
+
       if (result?.message) {
         pushMessage({
           kind: "agent",
-          speaker: result.agent || "tripp",
+          speaker: agent.name.toLowerCase(),
           time: now(),
           body: result.message.content || result.message,
         });
@@ -519,15 +596,18 @@
   function renderMessages() {
     elements.messageRoot.innerHTML = state.messages
       .map(
-        (msg) => `
-        <div class="msg ${escapeHtml(msg.kind)}">
+        (msg) => {
+          const agentClass = msg.kind === "agent" ? msg.speaker : "";
+          return `
+        <div class="msg ${escapeHtml(msg.kind)} ${escapeHtml(agentClass)}">
           <div class="msg-header">
             <span class="speaker">${escapeHtml(msg.speaker)}</span>
             <span class="time">${escapeHtml(msg.time)}</span>
           </div>
           <div>${escapeHtml(msg.body)}</div>
         </div>
-      `,
+      `;
+        },
       )
       .join("");
     elements.feed.scrollTop = elements.feed.scrollHeight;

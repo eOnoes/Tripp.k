@@ -932,6 +932,14 @@ button {
   border-left: 2px solid var(--neon);
 }
 
+.msg.agent.coder { border-left-color: var(--neon); }
+.msg.agent.architect { border-left-color: var(--cyan); }
+.msg.agent.debugger { border-left-color: var(--red); }
+.msg.agent.planner { border-left-color: var(--amber); }
+.msg.agent.security { border-left-color: #ff6b35; }
+.msg.agent.optimizer { border-left-color: #c084fc; }
+.msg.agent.docsmith { border-left-color: #38bdf8; }
+
 .msg.system {
   align-self: center;
   font-size: 11px;
@@ -956,6 +964,16 @@ button {
   color: var(--text-dim);
   font-weight: 400;
 }
+
+.msg.user .speaker { color: var(--text); }
+.msg.system .speaker { color: var(--text-dim); }
+.msg.agent.coder .speaker { color: var(--neon); }
+.msg.agent.architect .speaker { color: var(--cyan); }
+.msg.agent.debugger .speaker { color: var(--red); }
+.msg.agent.planner .speaker { color: var(--amber); }
+.msg.agent.security .speaker { color: #ff6b35; }
+.msg.agent.optimizer .speaker { color: #c084fc; }
+.msg.agent.docsmith .speaker { color: #38bdf8; }
 
 /* ─── Workspace Tree ─── */
 .workspace-tree {
