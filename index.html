@@ -3,13 +3,27 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tripp Terminal Shell</title>
+    <title>Tripp.g // Terminal</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <!-- Ghosted code background -->
+    <div class="cyber-bg" aria-hidden="true">
+      <div class="ghost-code" id="ghostCode"></div>
+      <div class="circuit-overlay"></div>
+    </div>
+
     <div class="terminal-app">
+      <!-- Topbar with Tripp character -->
       <header class="topbar">
-        <div class="brand">Tripp.</div>
+        <div class="brand">
+          <span class="brand-pulse">◈</span>
+          <span>Tripp.g</span>
+        </div>
+        <div class="tripp-status" id="trippStatus">
+          <span class="tripp-avatar">T</span>
+          <span class="tripp-mood" id="trippMood">Initializing sarcasm module...</span>
+        </div>
         <div class="mode-switch" aria-label="Terminal mode">
           <span class="status-light"></span>
           <button class="mode active" type="button" data-mode="CHAT">CHAT</button>
@@ -18,17 +32,68 @@
       </header>
 
       <div class="shell">
+        <!-- Command rail as motherboard traces -->
         <nav class="command-rail" aria-label="Command rail">
-          <button class="active" type="button" data-rail="terminal" title="Terminal">0</button>
-          <button type="button" data-rail="tools" title="Tool registry">&lt;&gt;</button>
-          <button type="button" data-rail="send" title="Send focus">→</button>
-          <button type="button" data-rail="sessions" title="Sessions">−</button>
-          <button type="button" data-rail="swarm" title="Agent swarm">*</button>
-          <button type="button" data-rail="tripp" title="Tripp core">T.</button>
-          <button type="button" data-rail="settings" title="Settings">*</button>
+          <div class="rail-circuit rail-circuit-top"></div>
+          <button class="active" type="button" data-rail="terminal" title="Terminal">
+            <span class="rail-icon">◉</span>
+            <span class="rail-label">Term</span>
+          </button>
+          <div class="rail-trace"></div>
+          <button type="button" data-rail="agents" title="Agent swarm">
+            <span class="rail-icon">◈</span>
+            <span class="rail-label">Swarm</span>
+          </button>
+          <div class="rail-trace"></div>
+          <button type="button" data-rail="connections" title="Connections">
+            <span class="rail-icon">▣</span>
+            <span class="rail-label">Links</span>
+          </button>
+          <div class="rail-trace"></div>
+          <button type="button" data-rail="tasks" title="Tasks">
+            <span class="rail-icon">▦</span>
+            <span class="rail-label">Tasks</span>
+          </button>
+          <div class="rail-trace"></div>
+          <button type="button" data-rail="settings" title="Settings">
+            <span class="rail-icon">◐</span>
+            <span class="rail-label">Config</span>
+          </button>
+          <div class="rail-circuit rail-circuit-bottom"></div>
         </nav>
 
         <main class="terminal-main">
+          <!-- Tripp Dashboard (when on terminal rail) -->
+          <section class="tripp-dashboard" id="trippDashboard">
+            <div class="tripp-face">
+              <div class="tripp-hud">
+                <span class="tripp-name">Tripp</span>
+                <span class="tripp-role">Swarm Conductor</span>
+              </div>
+              <div class="tripp-speech-bubble" id="trippSpeech">
+                Oh, look who decided to show up. Don't worry, I'll do the actual thinking around here.
+              </div>
+            </div>
+            <div class="tripp-metrics">
+              <div class="metric" id="metricSwarm">
+                <span class="metric-value">--</span>
+                <span class="metric-label">Active Agents</span>
+              </div>
+              <div class="metric" id="metricTasks">
+                <span class="metric-value">--</span>
+                <span class="metric-label">Pending Tasks</span>
+              </div>
+              <div class="metric" id="metricTokens">
+                <span class="metric-value">--</span>
+                <span class="metric-label">Tokens Burned</span>
+              </div>
+              <div class="metric" id="metricMode">
+                <span class="metric-value">--</span>
+                <span class="metric-label">Mode</span>
+              </div>
+            </div>
+          </section>
+
           <section class="terminal-feed" aria-label="Conversation">
             <div id="messageRoot"></div>
             <button class="return-chat hidden" type="button" title="Return to current chat">RETURN TO CURRENT CHAT</button>
@@ -41,17 +106,14 @@
 
           <form class="terminal-input" id="terminalForm">
             <label for="command" id="inputPrompt">chat&gt;</label>
-            <input id="command" type="text" placeholder="Enter command..." />
+            <input id="command" type="text" placeholder="Tell me what you want, or don't. I'll figure it out either way." />
             <div class="input-telemetry" id="inputTelemetry" aria-label="Current model and context">
               <select id="promptLane" title="Prompt lane">
-                <option value="default_prompt_testing">prompt test</option>
                 <option value="default_chat">chat</option>
-                <option value="warden">warden</option>
-                <option value="read_only_planning">planning</option>
-                <option value="synthesis">synthesis</option>
-                <option value="coder_primary">coder primary</option>
-                <option value="coder_secondary">coder secondary</option>
-                <option value="verifier">verifier</option>
+                <option value="coder_primary">code</option>
+                <option value="read_only_planning">plan</option>
+                <option value="synthesis">synth</option>
+                <option value="warden">guard</option>
                 <option value="fallback">fallback</option>
               </select>
               <span id="inputModel">model: --</span>
@@ -61,19 +123,13 @@
           </form>
         </main>
 
-        <aside class="ops-panel">
+        <!-- Ops Panel -->
+        <aside class="ops-panel" id="opsPanel">
           <div class="ops-tabs" aria-label="Ops panel views">
             <button class="collapse" type="button">«</button>
-            <button class="ops-tab" type="button" data-ops-tab="tools">TOOLS</button>
             <button class="ops-tab active" type="button" data-ops-tab="workspace">WORKSPACE</button>
-            <button class="ops-tab" type="button" data-ops-tab="connections">CONNECTIONS</button>
             <button class="ops-tab" type="button" data-ops-tab="status">STATUS</button>
           </div>
-
-          <section class="panel-section tools">
-            <h2>TOOL REGISTRY <span id="toolCount">(0)</span></h2>
-            <ul id="toolRoot"></ul>
-          </section>
 
           <section class="panel-section workspace-view">
             <h2>
@@ -95,190 +151,126 @@
           <section class="panel-section tasks">
             <h2>
               <span>TASKS <span id="taskCount">(0)</span></span>
-              <button class="run-trials" type="button" title="Run Read-Only Gate" aria-label="Run Read-Only Gate">READ-ONLY GATE</button>
+              <button class="run-trials" type="button" title="Run Read-Only Gate" aria-label="Run Read-Only Gate">GATE</button>
             </h2>
             <div id="planningSummary" class="planning-summary"></div>
             <div id="taskRoot"></div>
           </section>
 
-          <section class="panel-section sessions">
-            <h2>
-              <span>SESSIONS</span>
-              <button class="new-session-icon" type="button" title="New chat" aria-label="New chat">+</button>
-            </h2>
-            <div id="sessionRoot"></div>
-            <button class="new-session" type="button">+ NEW SESSION</button>
-          </section>
-
-          <section class="panel-section system">
-            <h2>SYSTEM STATUS</h2>
-            <dl id="statusRoot"></dl>
-            <form class="settings-form" id="settingsForm">
-              <header>
-                <strong>COMPACT POLICY</strong>
-                <span id="compactPolicyState">manual</span>
-              </header>
-              <label>
-                <span>AUTO AT</span>
-                <input id="autoCompactAt" type="number" min="8000" max="256000" step="1000" />
-              </label>
-              <label>
-                <span>LIMIT</span>
-                <input id="contextLimit" type="number" min="16000" max="512000" step="1000" />
-              </label>
-              <label>
-                <span>TYPE SIZE</span>
-                <select id="typeSizeBoost">
-                  <option value="0">base</option>
-                  <option value="2">+2 px</option>
-                  <option value="3">+3 px</option>
-                  <option value="4">+4 px</option>
-                </select>
-              </label>
-              <button type="submit">SAVE POLICY</button>
-            </form>
-            <div id="cystRoot" class="cyst-activity"></div>
-          </section>
-
-          <section class="panel-section connections-view">
-            <h2>
-              <span>CONNECTIONS</span>
-              <span id="connectionState">setup</span>
-            </h2>
-            <section class="connections-panel" id="connectionsPanel">
-              <div class="connection-split-section provider-setup">
-                <header>
-                  <div>
-                    <strong>Provider / Model Setup</strong>
-                    <p>Set up all model backends here.</p>
-                  </div>
-                  <span>model access only</span>
-                </header>
-                <p class="scope-note">Connections configure model access only. They do not change Tripp's current read-only scope.</p>
-                <div class="connection-panel-actions">
-                  <button type="button" data-open-connection-modal data-method="backend_managed">ADD BACKEND</button>
-                  <button type="button" data-open-connection-modal data-method="api_key">ADD CONNECTION</button>
-                </div>
-                <div id="connectionRoot"></div>
-              </div>
-              <div class="connection-split-section lane-assignment">
-                <header>
-                  <div>
-                    <strong>Agent / Lane Assignment</strong>
-                    <p>Choose who talks to who.</p>
-                  </div>
-                  <span>routing only</span>
-                </header>
-                <div class="lane-routing" id="laneRouting"></div>
-              </div>
-            </section>
+          <section class="panel-section status-view">
+            <h2>STATUS</h2>
+            <div id="statusRoot"></div>
+            <div id="cystRoot"></div>
           </section>
         </aside>
       </div>
 
-      <section class="connection-setup-modal hidden" id="connectionSetupModal" role="dialog" aria-modal="true" aria-labelledby="connectionSetupTitle">
-        <div class="connection-setup-card">
-          <header>
-            <div>
-              <strong id="connectionSetupTitle">Set up Tripp model access</strong>
-              <p>Choose how Tripp should connect for prompt testing and read-only planning.</p>
-            </div>
-            <button type="button" id="closeConnectionSetup" aria-label="Close connection setup">×</button>
-          </header>
-          <p class="scope-note">Connections configure model access only. They do not change Tripp's current read-only scope.</p>
-          <section class="saved-connection-choices" id="savedConnectionChoices" aria-label="Saved usable connections"></section>
-          <section class="connection-methods" aria-label="Connection method choices">
-            <button type="button" data-connection-method="backend_managed">
-              <strong>Use backend-managed provider access</strong>
-              <span>Managed by local/server-side Tripp backend. No provider key is entered in the browser for this connection.</span>
-            </button>
-            <button type="button" data-connection-method="api_key">
-              <strong>Use provider API key</strong>
-              <span>Configure provider access with an API key for prompt testing and read-only planning.</span>
-            </button>
-            <button type="button" data-connection-method="local_runtime">
-              <strong>Use local runtime</strong>
-              <span>Connect a local runtime such as Ollama with a local endpoint and model.</span>
-            </button>
-            <button type="button" data-connection-method="account_linked">
-              <strong>Connect provider account</strong>
-              <span>Browser login for managed providers such as ChatGPT Codex. No API key is pasted into Tripp.</span>
-            </button>
-          </section>
-          <p class="connection-mode-hint" id="connectionUnsupportedHint">Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.</p>
-              <form class="connection-form" id="connectionForm">
-                <input id="connectionId" type="hidden" />
-                <label id="connectionNameField">
-                  <span>NAME</span>
-                  <input id="connectionName" type="text" placeholder="Prompt testing" />
-                </label>
-                <label id="connectionProviderField">
-                  <span>PROVIDER</span>
-                  <select id="connectionProvider">
-                    <option value="openai">openai</option>
-                    <option value="anthropic">anthropic</option>
-                    <option value="deepseek">deepseek</option>
-                    <option value="openrouter">openrouter</option>
-                    <option value="ollama">ollama</option>
-                    <option value="custom">custom</option>
-                    <option value="backend">backend</option>
-                    <option value="chatgpt_codex">chatgpt_codex</option>
-                  </select>
-                </label>
-                <label id="connectionModeField">
-                  <span>MODE</span>
-                  <select id="connectionMode">
-                    <option value="api_key">Use provider API key</option>
-                    <option value="backend_managed">Use backend-managed provider access</option>
-                    <option value="account_linked">Connect provider account</option>
-                    <option value="local_runtime">Local runtime connection</option>
-                  </select>
-                </label>
-                <label id="connectionModelField">
-                  <span>MODEL</span>
-                  <input id="connectionModel" type="text" placeholder="gpt-4.1-mini" list="connectionModelOptions" />
-                  <datalist id="connectionModelOptions"></datalist>
-                </label>
-                <label id="connectionBaseUrlField">
-                  <span>BASE URL</span>
-                  <input id="connectionBaseUrl" type="text" placeholder="optional provider endpoint" />
-                </label>
-                <label id="connectionApiKeyField">
-                  <span>API KEY</span>
-                  <input id="connectionApiKey" type="password" placeholder="provider API key or token" autocomplete="off" />
-                </label>
-                <p class="connection-mode-hint" id="connectionModeHint">Use provider API key for prompt testing and read-only planning.</p>
-                <fieldset class="connection-purposes" id="connectionPurposes">
-                  <legend>LANES</legend>
-                  <label><input type="checkbox" value="default_prompt_testing" checked /> prompt test</label>
-                  <label><input type="checkbox" value="default_chat" /> chat</label>
-                  <label><input type="checkbox" value="read_only_planning" /> planning</label>
-                  <label><input type="checkbox" value="synthesis" /> synthesis</label>
-                  <label><input type="checkbox" value="warden" /> warden</label>
-                  <label><input type="checkbox" value="coder_primary" /> coder primary</label>
-                  <label><input type="checkbox" value="coder_secondary" /> coder secondary</label>
-                  <label><input type="checkbox" value="verifier" /> verifier</label>
-                  <label><input type="checkbox" value="fallback" /> fallback</label>
-                </fieldset>
-                <label class="inline-toggle">
-                  <input id="connectionEnabled" type="checkbox" checked />
-                  <span>ENABLED</span>
-                </label>
-                <div class="connection-actions">
-                  <button type="submit">SAVE CONNECTION</button>
-                  <button type="button" id="testConnection">TEST</button>
-                  <button type="button" id="resetConnection">NEW</button>
-                </div>
-              </form>
+      <!-- Agent Swarm Rail Content -->
+      <section class="rail-content" id="rail-agents" data-rail="agents">
+        <header class="rail-header">
+          <h1>Agent Swarm</h1>
+          <p>Configure your agents. Each agent has three directives that shape how it behaves.</p>
+        </header>
+        <div class="swarm-grid" id="swarmRoot"></div>
+        <div class="swarm-add">
+          <button type="button" id="addAgentBtn" class="cyber-btn">
+            <span>+</span> Spawn New Agent
+          </button>
         </div>
       </section>
 
+      <!-- Connections Rail Content -->
+      <section class="rail-content" id="rail-connections" data-rail="connections">
+        <header class="rail-header">
+          <h1>Model Links</h1>
+          <p>Connect to your providers. API keys, OAuth accounts, and local runtimes.</p>
+        </header>
+        <div class="links-grid" id="linksRoot"></div>
+      </section>
+
+      <!-- Tasks Rail Content -->
+      <section class="rail-content" id="rail-tasks" data-rail="tasks">
+        <header class="rail-header">
+          <h1>Task Queue</h1>
+        </header>
+        <div id="railTaskRoot"></div>
+      </section>
+
+      <!-- Settings Rail Content -->
+      <section class="rail-content" id="rail-settings" data-rail="settings">
+        <header class="rail-header">
+          <h1>System Config</h1>
+        </header>
+        <div id="settingsRoot"></div>
+      </section>
+
       <footer class="statusbar">
-        <span><i></i> <span id="footerConnection">CONNECTED</span></span>
-        <strong id="footerMode">TRIPPMODE::CHAT</strong>
-        <span id="footerMetrics">TOKENS: 5,131&nbsp;&nbsp; 679ms&nbsp;&nbsp; v1.0.0</span>
+        <span id="footerConnection">offline</span>
+        <span id="footerMode">TRIPPMODE::CHAT</span>
+        <span id="footerMetrics">TOKENS: --</span>
       </footer>
     </div>
-    <script src="./script.js"></script>
+
+    <!-- Connection Setup Modal -->
+    <dialog class="modal connection-setup" id="connectionSetupModal">
+      <form method="dialog" class="modal-form">
+        <header>
+          <h2 id="connectionSetupTitle">Link Provider</h2>
+          <button class="modal-close" type="submit" value="close" id="closeConnectionSetup">×</button>
+        </header>
+        <div class="modal-body">
+          <p class="hint" id="connectionUnsupportedHint"></p>
+          <div id="savedConnectionChoices"></div>
+          <div class="form-grid" id="connectionForm">
+            <input type="hidden" id="connectionId" />
+            <label>
+              <span>Name</span>
+              <input id="connectionName" type="text" placeholder="My OpenAI link" required />
+            </label>
+            <label>
+              <span>Provider</span>
+              <select id="connectionProvider" required></select>
+            </label>
+            <label>
+              <span>Mode</span>
+              <select id="connectionMode" required></select>
+            </label>
+            <label>
+              <span>Model</span>
+              <select id="connectionModel" required></select>
+              <datalist id="connectionModelOptions"></datalist>
+            </label>
+            <label class="hidden" id="connectionBaseUrlField">
+              <span>Base URL</span>
+              <input id="connectionBaseUrl" type="url" placeholder="https://api.openai.com/v1" />
+            </label>
+            <label class="hidden" id="connectionApiKeyField">
+              <span>API Key</span>
+              <input id="connectionApiKey" type="password" placeholder="sk-..." />
+            </label>
+            <label>
+              <span>Purposes</span>
+              <div class="chip-list" id="connectionPurposes"></div>
+            </label>
+            <label class="hidden" id="connectionProviderField">
+              <span>Custom Provider</span>
+              <input type="text" placeholder="provider-id" />
+            </label>
+            <p class="hint" id="connectionModeHint"></p>
+            <label class="toggle-row">
+              <input type="checkbox" id="connectionEnabled" checked />
+              <span>Enabled</span>
+            </label>
+          </div>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="cyber-btn secondary" id="resetConnection">Reset</button>
+          <button type="button" class="cyber-btn" id="testConnection">Test</button>
+          <button type="submit" class="cyber-btn primary" value="save">Save Link</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script type="module" src="./script.js"></script>
   </body>
 </html>

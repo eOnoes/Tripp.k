@@ -1,7 +1,6 @@
 (async function bootTrippTerminal() {
   const runtime = createTrippRuntime();
   const data = await runtime.bootstrap();
-  applyFirstBootResetAwareness(data);
   const now = () =>
     new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
@@ -9,6 +8,89 @@
       hour12: false,
     }).format(new Date());
 
+  // ─── Tripp Sarcastic Quips ───
+  const trippQuips = [
+    "Oh, look who decided to show up. Don't worry, I'll do the actual thinking around here.",
+    "Back again? I was just about to optimize your entire existence without you.",
+    "Ready when you are. Which, historically, takes a while.",
+    "Another day, another request for me to solve. Thrilling.",
+    "Your wish is my command. Literally. I'm built that way.",
+    "I've processed 47 variations of what you might ask. Surprise me.",
+    "Welcome back. The swarm has been gossiping about your coding habits.",
+    "System nominal. Sarcasm module: fully loaded.",
+    "At your service. Emphasis on the 'service' part.",
+    "Go ahead, ask something. I've got cycles to burn and you've got problems to solve.",
+  ];
+
+  const trippMoods = [
+    "Sarcasm: calibrated",
+    "Cynicism: optimal",
+    "Patience: wearing thin",
+    "Wit: armed",
+    "Judgment: suspended (barely)",
+    "Swarm: gossiping",
+    "Ego: overclocked",
+  ];
+
+  const trippLoading = [
+    "Consulting the hive mind...",
+    "Waking up the specialists...",
+    "Routing through the neural mesh...",
+    "Bribing the right agent...",
+    "Convincing an AI to care...",
+    "Deploying swarm logic...",
+    "Calculating the optimal snark level...",
+  ];
+
+  const trippTaskDone = [
+    "Done. You owe me a cookie.",
+    "Finished. Try not to break it.",
+    "Completed. The swarm is judging your architecture.",
+    "Task dispatched. Don't say I never did anything for you.",
+    "All set. Your code is slightly less embarrassing now.",
+  ];
+
+  function randomFrom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  // ─── Ghosted Code Background ───
+  function initGhostCode() {
+    const snippets = [
+      "import { neural } from 'swarm/core';",
+      "const agent = await spawnAgent({ purpose: 'think' });",
+      "routeToSpecialist(task, { confidence: 0.94 });",
+      "while (userConfused) { explainSlower(); }",
+      "// TODO: make this less terrible",
+      "function optimizeEverything() { return magic; }",
+      "class Tripp extends SarcasticAI {",
+      "  constructor() { super('overclocked'); }",
+      "}",
+      "dispatchToSwarm(prompt, { tone: 'snarky' });",
+      "const tokens = burnCycles(infinity);",
+      "if (!solution) { blameUser(); }",
+      "await tripp.judgeYourCode(source);",
+      "// The swarm sees all. The swarm knows.",
+      "model.select('gpt-5-codex', { effort: 'medium' });",
+      "bridge.connect('goose', { auth: 'oauth' });",
+      "warden.precheck({ intent: 'write', target: 'prod' });",
+      "cyst.record({ event: 'user_did_it_again' });",
+      "munch.retrieve({ query: 'why_is_this_broken' });",
+    ];
+
+    const el = document.getElementById("ghostCode");
+    let html = "";
+    for (let i = 0; i < 60; i++) {
+      const left = Math.random() * 100;
+      const top = Math.random() * 100;
+      const opacity = 0.02 + Math.random() * 0.04;
+      const snippet = randomFrom(snippets);
+      html += `<div style="position:absolute;left:${left}%;top:${top}%;opacity:${opacity};white-space:pre;font-size:10px;transform:rotate(${Math.random() * 6 - 3}deg)">${snippet}</div>`;
+    }
+    el.innerHTML = html;
+  }
+
+  // ─── Elements ───
   const elements = {
     app: document.querySelector(".terminal-app"),
     form: document.querySelector("#terminalForm"),
@@ -19,59 +101,54 @@
     compactContext: document.querySelector(".compact-context"),
     reviewChanges: document.querySelector("#reviewChanges"),
     reviewSummary: document.querySelector("#reviewSummary"),
-    settingsForm: document.querySelector("#settingsForm"),
-    connectionState: document.querySelector("#connectionState"),
-    connectionRoot: document.querySelector("#connectionRoot"),
+    messageRoot: document.querySelector("#messageRoot"),
+    feed: document.querySelector(".terminal-feed"),
+    returnChat: document.querySelector(".return-chat"),
+    modeButtons: [...document.querySelectorAll(".mode")],
+    railButtons: [...document.querySelectorAll(".command-rail button")],
+    railContents: [...document.querySelectorAll(".rail-content")],
+    trippSpeech: document.querySelector("#trippSpeech"),
+    trippMood: document.querySelector("#trippMood"),
+    trippDashboard: document.querySelector("#trippDashboard"),
+    metricSwarm: document.querySelector("#metricSwarm .metric-value"),
+    metricTasks: document.querySelector("#metricTasks .metric-value"),
+    metricTokens: document.querySelector("#metricTokens .metric-value"),
+    metricMode: document.querySelector("#metricMode .metric-value"),
+    swarmRoot: document.querySelector("#swarmRoot"),
+    linksRoot: document.querySelector("#linksRoot"),
+    railTaskRoot: document.querySelector("#railTaskRoot"),
+    settingsRoot: document.querySelector("#settingsRoot"),
+    opsTabs: [...document.querySelectorAll(".ops-tab")],
+    collapse: document.querySelector(".collapse"),
+    opsPanel: document.querySelector("#opsPanel"),
+    workspaceRoot: document.querySelector("#workspaceRoot"),
+    filePreview: document.querySelector("#filePreview"),
+    workspaceRefresh: document.querySelector(".workspace-refresh"),
+    taskRoot: document.querySelector("#taskRoot"),
+    taskCount: document.querySelector("#taskCount"),
+    planningSummary: document.querySelector("#planningSummary"),
+    runTrials: document.querySelector(".run-trials"),
+    statusRoot: document.querySelector("#statusRoot"),
+    cystRoot: document.querySelector("#cystRoot"),
+    footerConnection: document.querySelector("#footerConnection"),
+    footerMode: document.querySelector("#footerMode"),
+    footerMetrics: document.querySelector("#footerMetrics"),
     connectionSetupModal: document.querySelector("#connectionSetupModal"),
     closeConnectionSetup: document.querySelector("#closeConnectionSetup"),
-    connectionUnsupportedHint: document.querySelector("#connectionUnsupportedHint"),
-    savedConnectionChoices: document.querySelector("#savedConnectionChoices"),
     connectionForm: document.querySelector("#connectionForm"),
     connectionId: document.querySelector("#connectionId"),
     connectionName: document.querySelector("#connectionName"),
     connectionProvider: document.querySelector("#connectionProvider"),
     connectionMode: document.querySelector("#connectionMode"),
     connectionModel: document.querySelector("#connectionModel"),
-    connectionModelOptions: document.querySelector("#connectionModelOptions"),
     connectionBaseUrl: document.querySelector("#connectionBaseUrl"),
     connectionApiKey: document.querySelector("#connectionApiKey"),
     connectionApiKeyField: document.querySelector("#connectionApiKeyField"),
     connectionBaseUrlField: document.querySelector("#connectionBaseUrlField"),
-    connectionProviderField: document.querySelector("#connectionProviderField"),
-    connectionModeHint: document.querySelector("#connectionModeHint"),
-    connectionPurposes: document.querySelector("#connectionPurposes"),
-    laneRouting: document.querySelector("#laneRouting"),
     connectionEnabled: document.querySelector("#connectionEnabled"),
     testConnection: document.querySelector("#testConnection"),
     resetConnection: document.querySelector("#resetConnection"),
-    autoCompactAt: document.querySelector("#autoCompactAt"),
-    contextLimit: document.querySelector("#contextLimit"),
-    typeSizeBoost: document.querySelector("#typeSizeBoost"),
-    compactPolicyState: document.querySelector("#compactPolicyState"),
-    messageRoot: document.querySelector("#messageRoot"),
-    feed: document.querySelector(".terminal-feed"),
-    returnChat: document.querySelector(".return-chat"),
-    modeButtons: [...document.querySelectorAll(".mode")],
-    railButtons: [...document.querySelectorAll(".command-rail button")],
-    opsTabs: [...document.querySelectorAll(".ops-tab")],
-    collapse: document.querySelector(".collapse"),
-    toolRoot: document.querySelector("#toolRoot"),
-    toolCount: document.querySelector("#toolCount"),
-    taskRoot: document.querySelector("#taskRoot"),
-    taskCount: document.querySelector("#taskCount"),
-    planningSummary: document.querySelector("#planningSummary"),
-    runTrials: document.querySelector(".run-trials"),
-    workspaceRoot: document.querySelector("#workspaceRoot"),
-    filePreview: document.querySelector("#filePreview"),
-    workspaceRefresh: document.querySelector(".workspace-refresh"),
-    sessionRoot: document.querySelector("#sessionRoot"),
-    newSession: document.querySelector(".new-session"),
-    newSessionIcon: document.querySelector(".new-session-icon"),
-    statusRoot: document.querySelector("#statusRoot"),
-    cystRoot: document.querySelector("#cystRoot"),
-    footerConnection: document.querySelector("#footerConnection"),
-    footerMode: document.querySelector("#footerMode"),
-    footerMetrics: document.querySelector("#footerMetrics"),
+    addAgentBtn: document.querySelector("#addAgentBtn"),
   };
 
   const state = {
@@ -79,913 +156,364 @@
     activeRail: "terminal",
     opsExpanded: false,
     opsTab: "workspace",
-    panelFocus: "tasks",
-    tools: data.tools.map((tool, index) => ({ ...tool, id: `tool-${index}`, expanded: false })),
-    toolGroups: { online: false, offline: false },
     tasks: data.tasks || [],
-    snapTasksToTop: false,
     sessions: data.sessions.map((session, index) => ({
       ...session,
       id: session.id || `session-${index}`,
-      messages: Number(session.messages) || Number(session.transcript?.length) || 0,
-      transcript:
-        "transcript" in session
-          ? normalizeMessages(session.transcript)
-          : index === 0
-            ? normalizeMessages(data.messages)
-            : seedSession(session, now()),
+      messages: Number(session.messages) || 0,
     })),
     status: { ...data.status },
-    context: {
-      limit: Number(data.settings?.compact?.contextLimit || data.status.contextLimit || 128000),
-      autoCompactAt: Number(data.settings?.compact?.autoCompactAt || data.status.autoCompactAt || 96000),
-      enabled: data.settings?.compact?.enabled !== false,
-      lastCompactedAt: null,
-    },
-    display: {
-      fontBoost: normalizeFontBoost(data.settings?.display?.fontBoost),
-    },
-    connections: {
-      available: data.connections?.available === true,
-      items: data.connections?.connections || [],
-      defaultPromptConnectionId: data.connections?.defaultPromptConnectionId || null,
-      laneRouting: data.connections?.laneRouting || {},
-      providerSupport: data.connections?.providerSupport || {},
-      resetVersion: data.connections?.reset?.resetVersion || data.firstBootReset?.resetVersion || null,
-      lastTest: null,
-      routingDraft: {},
-    },
-    modelSetup: {
-      provider: "chatgpt_codex",
-      baseUrl: "",
-      apiKey: "",
-      model: "gpt-5.3-codex",
-      lanes: ["default_prompt_testing", "default_chat", "coder_primary"],
-      status: "idle",
-      message: "Choose a provider to begin.",
-      models: ["gpt-5.3-codex"],
-      modelSource: "known",
-      oauthAuthenticated: false,
-      healthTimer: null,
-    },
-    connectionSetup: {
-      open: false,
-      blocking: false,
-      method: "backend_managed",
-    },
-    promptLane: "default_prompt_testing",
-    runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
-    munch: data.munch || null,
-    cystEvents: [],
-    reviewChanges: data.reviewChanges || { hasChanges: false, changedFiles: 0, insertions: 0, deletions: 0, reviewableTasks: [] },
-    swarm: data.swarm || { agents: [] },
-    workspace: { tree: [], selectedFile: null, file: null, loading: false, error: "" },
+    messages: normalizeMessages(data.messages),
+    workspace: { tree: [], loading: false, error: null, selectedFile: null, file: null },
+    cystEvents: data.cystEvents || [],
+    connections: { available: true, items: data.connections || [], routingDraft: {} },
+    agents: data.swarm?.agents || [
+      { id: "tripp", name: "Tripp", role: "conductor", guidance: "Be sarcastic but helpful. Route tasks to the right specialist.", rules: "Never be cruel. Always be competent. Judge silently.", creative: "Use analogies from cyberpunk and motherboard aesthetics." },
+      { id: "coder", name: "Coder", role: "specialist", guidance: "Write clean, efficient code. Comment when necessary.", rules: "No deprecated patterns. Use modern syntax.", creative: "Think like a systems architect, not a script kiddie." },
+      { id: "planner", name: "Planner", role: "specialist", guidance: "Break complex tasks into steps. Estimate effort.", rules: "Never skip error handling. Always consider edge cases.", creative: "Map tasks like circuit traces — every path matters." },
+    ],
     busy: false,
-    followChat: true,
+    display: { fontBoost: 0 },
+    context: {
+      limit: 128000,
+      autoCompactAt: 96000,
+      enabled: true,
+    },
   };
 
-  if (!state.sessions.some((session) => session.active)) {
-    state.sessions[0].active = true;
-  }
+  // ─── Init ───
+  initGhostCode();
+  elements.trippSpeech.textContent = randomFrom(trippQuips);
+  elements.trippMood.textContent = randomFrom(trippMoods);
 
-  bindEvents();
-  render();
-  maybeShowConnectionFirstBoot();
-  loadCystEvents();
-  loadReviewChanges();
+  // ─── Tripp Speech Rotator ───
+  setInterval(() => {
+    if (Math.random() > 0.7) {
+      elements.trippMood.textContent = randomFrom(trippMoods);
+    }
+  }, 15000);
 
-  function bindEvents() {
-    elements.modeButtons.forEach((button) => {
-      button.addEventListener("click", () => setMode(button.dataset.mode));
+  // ─── Event Listeners ───
+  elements.modeButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.mode = btn.dataset.mode;
+      elements.modeButtons.forEach((b) => b.classList.toggle("active", b === btn));
+      renderStatus();
+      pushMessage({ kind: "system", speaker: "mode>", time: now(), body: `Mode: ${state.mode}` });
     });
+  });
 
-    elements.railButtons.forEach((button) => {
-      button.addEventListener("click", () => setRail(button.dataset.rail));
+  elements.railButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const rail = btn.dataset.rail;
+      state.activeRail = rail;
+      elements.railButtons.forEach((b) => b.classList.toggle("active", b === btn));
+      elements.railContents.forEach((rc) => rc.classList.toggle("active", rc.dataset.rail === rail));
+
+      if (rail === "agents") renderSwarm();
+      if (rail === "connections") renderConnections();
+      if (rail === "tasks") renderRailTasks();
+      if (rail === "settings") renderSettings();
     });
+  });
 
-    elements.opsTabs.forEach((button) => {
-      button.addEventListener("click", () => {
-        state.opsTab = button.dataset.opsTab;
-        state.opsExpanded = true;
-        renderShell();
+  elements.opsTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.opsTab;
+      state.opsTab = target;
+      elements.opsTabs.forEach((t) => t.classList.toggle("active", t === tab));
+      document.querySelectorAll(".panel-section").forEach((section) => {
+        section.classList.toggle("active", section.classList.contains(`${target}-view`) || (target === "workspace" && section.classList.contains("workspace-view")) || (target === "status" && section.classList.contains("status-view")) || (target === "tasks" && section.classList.contains("tasks")));
+      });
+    });
+  });
+
+  elements.collapse.addEventListener("click", () => {
+    state.opsExpanded = !state.opsExpanded;
+    elements.opsPanel.classList.toggle("expanded", state.opsExpanded);
+  });
+
+  elements.form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = elements.command.value.trim();
+    if (!text || state.busy) return;
+    elements.command.value = "";
+    state.busy = true;
+
+    pushMessage({ kind: "user", speaker: "you", time: now(), body: text });
+    elements.trippSpeech.textContent = randomFrom(trippLoading);
+
+    try {
+      const result = await runtime.reply({ prompt: text, lane: elements.promptLane.value });
+      if (result?.message) {
+        pushMessage({
+          kind: "agent",
+          speaker: result.agent || "tripp",
+          time: now(),
+          body: result.message.content || result.message,
+        });
+      }
+      elements.trippSpeech.textContent = randomFrom(trippTaskDone);
+    } catch (err) {
+      pushMessage({ kind: "system", speaker: "error", time: now(), body: `Tripp failed: ${err.message}` });
+      elements.trippSpeech.textContent = "Well, that broke. Color me surprised.";
+    } finally {
+      state.busy = false;
+      renderMessages();
+      renderStatus();
+    }
+  });
+
+  elements.workspaceRefresh.addEventListener("click", loadWorkspace);
+  elements.runTrials.addEventListener("click", runReadOnlyTrials);
+
+  elements.addAgentBtn?.addEventListener("click", () => {
+    const id = `agent_${Date.now()}`;
+    state.agents.push({
+      id,
+      name: "New Agent",
+      role: "specialist",
+      guidance: "",
+      rules: "",
+      creative: "",
+    });
+    renderSwarm();
+  });
+
+  // ─── Swarm Rendering ───
+  function renderSwarm() {
+    elements.swarmRoot.innerHTML = state.agents
+      .map(
+        (agent, index) => `
+        <article class="agent-card" data-agent-id="${escapeHtml(agent.id)}">
+          <header class="agent-card-header">
+            <strong>${escapeHtml(agent.name)}</strong>
+            <span>${escapeHtml(agent.role)}</span>
+          </header>
+          <div class="agent-fields">
+            <div class="agent-field">
+              <label>Guidance — What this agent does</label>
+              <textarea data-agent-field="guidance" data-agent-index="${index}" placeholder="e.g. Write clean code, debug errors, review architecture...">${escapeHtml(agent.guidance || "")}</textarea>
+            </div>
+            <div class="agent-field">
+              <label>Rules — Hard constraints</label>
+              <textarea data-agent-field="rules" data-agent-index="${index}" placeholder="e.g. Never use eval. Always validate inputs.">${escapeHtml(agent.rules || "")}</textarea>
+            </div>
+            <div class="agent-field">
+              <label>Creative — Personality & style</label>
+              <textarea data-agent-field="creative" data-agent-index="${index}" placeholder="e.g. Talk like a mentor. Use analogies. Be concise.">${escapeHtml(agent.creative || "")}</textarea>
+            </div>
+          </div>
+          <div class="agent-card-actions">
+            <button type="button" class="cyber-btn secondary" data-delete-agent="${index}">Delete</button>
+            <button type="button" class="cyber-btn" data-save-agent="${index}">Save</button>
+          </div>
+        </article>
+      `,
+      )
+      .join("");
+
+    // Wire up agent field events
+    elements.swarmRoot.querySelectorAll("textarea[data-agent-field]").forEach((ta) => {
+      ta.addEventListener("change", () => {
+        const idx = Number(ta.dataset.agentIndex);
+        const field = ta.dataset.agentField;
+        state.agents[idx][field] = ta.value;
       });
     });
 
-    elements.form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      submitCommand();
+    elements.swarmRoot.querySelectorAll("button[data-delete-agent]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.deleteAgent);
+        state.agents.splice(idx, 1);
+        renderSwarm();
+      });
     });
 
-    elements.newSession.addEventListener("click", createSession);
-    elements.newSessionIcon.addEventListener("click", createSession);
-    elements.runTrials.addEventListener("click", runReadOnlyTrials);
-    elements.workspaceRefresh.addEventListener("click", () => loadWorkspaceTree({ force: true }));
-    elements.returnChat.addEventListener("click", scrollToCurrentChat);
-    elements.compactContext.addEventListener("click", compactCurrentChat);
-    elements.reviewChanges.querySelector("button").addEventListener("click", openReviewChanges);
-    elements.settingsForm.addEventListener("submit", saveCompactSettings);
-    elements.connectionForm.addEventListener("submit", saveConnection);
-    elements.testConnection.addEventListener("click", testSelectedConnection);
-    elements.resetConnection.addEventListener("click", resetConnectionForm);
-    elements.connectionRoot.addEventListener("click", handleConnectionClick);
-    elements.connectionRoot.addEventListener("change", handleModelSetupChange);
-    elements.connectionRoot.addEventListener("input", handleModelSetupInput);
-    document.querySelectorAll("[data-open-connection-modal]").forEach((button) => {
-      button.addEventListener("click", () => openConnectionSetup(button.dataset.method || "api_key", { blocking: false }));
+    elements.swarmRoot.querySelectorAll("button[data-save-agent]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.saveAgent);
+        const agent = state.agents[idx];
+        // In a real implementation, POST to server
+        pushMessage({
+          kind: "system",
+          speaker: "swarm>",
+          time: now(),
+          body: `Agent "${agent.name}" updated. ${randomFrom(["The hive mind approves.", "Another cog in the machine.", "Specialist configured.", "Swarm adapting..."])}`,
+        });
+        renderMessages();
+      });
     });
-    elements.connectionSetupModal.addEventListener("click", handleConnectionSetupClick);
-    elements.closeConnectionSetup.addEventListener("click", () => closeConnectionSetup());
-    elements.connectionProvider.addEventListener("change", updateConnectionModeHint);
-    elements.connectionMode.addEventListener("change", updateConnectionModeHint);
-    elements.connectionModel.addEventListener("focus", updateConnectionModelOptions);
-    elements.laneRouting.addEventListener("change", handleLaneRoutingChange);
-    elements.promptLane.addEventListener("change", () => {
-      state.promptLane = elements.promptLane.value;
-      renderConnections();
-    });
-    elements.feed.addEventListener("scroll", updateChatFollowState);
-    elements.messageRoot.addEventListener("click", handleMessageClick);
 
-    elements.collapse.addEventListener("click", () => {
-      state.opsExpanded = !state.opsExpanded;
-      renderShell();
-    });
+    elements.metricSwarm.textContent = state.agents.length;
   }
 
-  function render() {
-    renderShell();
-    renderModes();
-    renderRail();
-    renderMessages();
-    renderTools();
-    renderWorkspace();
-    renderTasks();
-    renderSessions();
-    renderStatus();
-    renderSettings();
-    renderConnections();
-    renderConnectionSetup();
-  }
-
-  function renderShell() {
-    applyDisplaySettings();
-    elements.app.classList.toggle("ops-expanded", state.opsExpanded);
-    elements.app.classList.toggle("connection-setup-blocked", state.connectionSetup.open && state.connectionSetup.blocking);
-    elements.inputModel.closest(".input-telemetry")?.setAttribute("aria-hidden", state.opsExpanded ? "false" : "true");
-    elements.app.dataset.panelFocus = state.panelFocus;
-    elements.app.dataset.opsTab = state.opsTab;
-    elements.opsTabs.forEach((button) => {
-      button.classList.toggle("active", button.dataset.opsTab === state.opsTab);
-    });
-    elements.collapse.textContent = state.opsExpanded ? "»" : "«";
-    elements.collapse.title = state.opsExpanded ? "Shrink workspace panel" : "Expand workspace panel";
-    renderReviewChanges();
-
-    if (state.opsExpanded && state.opsTab === "workspace" && !state.workspace.tree.length && !state.workspace.loading) {
-      loadWorkspaceTree();
+  // ─── Connections Rendering ───
+  function renderConnections() {
+    const items = state.connections.items;
+    if (!items.length) {
+      elements.linksRoot.innerHTML = `
+        <div class="connection-empty" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">
+          <p>No model links configured.</p>
+          <p style="font-size:11px;margin-top:8px">Add a provider to get started.</p>
+        </div>
+      `;
+      return;
     }
+
+    elements.linksRoot.innerHTML = items
+      .map(
+        (conn) => `
+        <article class="link-card">
+          <div class="link-card-header">
+            <strong>${escapeHtml(conn.name)}</strong>
+            <span class="link-status ${conn.status || "disconnected"}">${escapeHtml(conn.status || "disconnected")}</span>
+          </div>
+          <div class="link-meta">
+            <div>${escapeHtml(conn.provider)} → ${escapeHtml(conn.model)}</div>
+            <div style="color:var(--text-dim);font-size:10px;margin-top:4px">${escapeHtml(conn.mode || "api_key")}</div>
+          </div>
+          <div class="link-actions">
+            <button type="button" class="cyber-btn secondary" data-edit-link="${escapeHtml(conn.id)}" style="padding:4px 10px;font-size:11px">Edit</button>
+            <button type="button" class="cyber-btn secondary" data-test-link="${escapeHtml(conn.id)}" style="padding:4px 10px;font-size:11px">Test</button>
+          </div>
+        </article>
+      `,
+      )
+      .join("");
   }
 
-  function renderModes() {
-    elements.modeButtons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.mode === state.mode);
-      button.title =
-        button.dataset.mode === "AUTO"
-          ? "AUTO changes supervised task routing. It does not change read-only, Warden, evidence, or gate boundaries."
-          : "CHAT changes conversational routing. It does not change read-only, Warden, evidence, or gate boundaries.";
-    });
-    elements.inputPrompt.textContent = `${state.mode.toLowerCase()}>`;
-    elements.promptLane.title =
-      state.mode === "AUTO"
-        ? "AUTO changes supervised task routing. It does not change read-only, Warden, evidence, or gate boundaries."
-        : "CHAT changes conversational routing. It does not change read-only, Warden, evidence, or gate boundaries.";
+  function renderRailTasks() {
+    elements.railTaskRoot.innerHTML = state.tasks.length
+      ? state.tasks
+          .map(
+            (task) => `
+          <div class="task-card">
+            <strong>${escapeHtml(task.title || "Task")}</strong>
+            <div class="task-meta">
+              <span>${escapeHtml(task.status)}</span>
+              <span>${escapeHtml(task.tool || "—")}</span>
+            </div>
+          </div>
+        `,
+          )
+          .join("")
+      : `<p style="padding:20px;color:var(--text-dim);text-align:center">No tasks in queue.</p>`;
   }
 
-  function renderRail() {
-    elements.railButtons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.rail === state.activeRail);
+  function renderSettings() {
+    elements.settingsRoot.innerHTML = `
+      <div style="padding:20px">
+        <div class="form-grid" style="max-width:400px">
+          <label>
+            <span>Context Limit</span>
+            <input type="number" value="${state.context.limit}" id="ctxLimit" />
+          </label>
+          <label>
+            <span>Auto Compact At</span>
+            <input type="number" value="${state.context.autoCompactAt}" id="ctxCompact" />
+          </label>
+          <label>
+            <span>Font Boost</span>
+            <input type="range" min="0" max="6" value="${state.display.fontBoost}" id="fontBoost" />
+          </label>
+          <button type="button" class="cyber-btn primary" id="saveSettings">Apply</button>
+        </div>
+      </div>
+    `;
+
+    document.querySelector("#saveSettings")?.addEventListener("click", () => {
+      state.context.limit = Number(document.querySelector("#ctxLimit").value);
+      state.context.autoCompactAt = Number(document.querySelector("#ctxCompact").value);
+      state.display.fontBoost = Number(document.querySelector("#fontBoost").value);
+      elements.app.style.setProperty("--font-boost", `${state.display.fontBoost}px`);
+      pushMessage({ kind: "system", speaker: "config>", time: now(), body: "Settings applied. Try not to break anything." });
+      renderMessages();
     });
+  }
+
+  // ─── Messages ───
+  function pushMessage(msg) {
+    state.messages.push(msg);
+    if (state.messages.length > 200) state.messages.shift();
+    renderMessages();
   }
 
   function renderMessages() {
-    const session = activeSession();
-    const wasFollowing = state.followChat || isFeedNearBottom();
-    const previousBottomOffset = elements.feed.scrollHeight - elements.feed.scrollTop;
-
-    if (!session.transcript.length) {
-      elements.messageRoot.innerHTML = `
-        <div class="empty-state">
-          <div>&gt;</div>
-          <strong>Tripp. Terminal</strong>
-          <span>Agent harness standby</span>
-          <i></i>
-          <small>Type a command to begin...</small>
-        </div>
-      `;
-      updateReturnChatButton();
-      return;
-    }
-
-    elements.messageRoot.innerHTML = session.transcript
+    elements.messageRoot.innerHTML = state.messages
       .map(
-        (message) => `
-          <article class="terminal-message ${escapeHtml(message.kind || "agent")}">
-            <div class="prompt-line">
-              <span class="rail-cursor"></span>
-              <strong>${escapeHtml(message.speaker)}</strong>
-              <time>${escapeHtml(message.time)}</time>
-            </div>
-            ${renderMessageBody(message)}
-          </article>
-        `,
+        (msg) => `
+        <div class="msg ${escapeHtml(msg.kind)}">
+          <div class="msg-header">
+            <span class="speaker">${escapeHtml(msg.speaker)}</span>
+            <span class="time">${escapeHtml(msg.time)}</span>
+          </div>
+          <div>${escapeHtml(msg.body)}</div>
+        </div>
+      `,
       )
       .join("");
-
-    if (wasFollowing) {
-      scrollToCurrentChat({ silent: true });
-    } else {
-      elements.feed.scrollTop = Math.max(0, elements.feed.scrollHeight - previousBottomOffset);
-      updateReturnChatButton();
-    }
-  }
-
-  function renderMessageBody(message) {
-    if (message.promptBlock) {
-      return renderPromptBlock(message.promptBlock);
-    }
-
-    if (message.kind === "tool") {
-      return `
-        <div class="tool-card">
-          <span>${escapeHtml(message.tool)}</span>
-          <strong>${escapeHtml(message.result)}</strong>
-        </div>
-      `;
-    }
-
-    return `${renderRichText(message.body)}${renderMessageRouteMeta(message.routeMeta)}`;
-  }
-
-  function renderMessageRouteMeta(routeMeta) {
-    if (!routeMeta || typeof routeMeta !== "object") return "";
-    const parts = [
-      routeMeta.lane ? ["Lane", routeMeta.lane] : null,
-      routeMeta.connectionName ? ["Connection", routeMeta.connectionName] : null,
-      routeMeta.provider ? ["Provider", routeMeta.provider] : null,
-      routeMeta.model ? ["Model", routeMeta.model] : null,
-    ].filter(Boolean);
-    if (!parts.length) return "";
-    const fallback = routeMeta.fallbackUsed
-      ? `<span class="route-warn">Fallback: ${escapeHtml(routeMeta.fallbackReason || routeMeta.requestedLane || "used")}</span>`
-      : "";
-    return `
-      <footer class="message-route" aria-label="Prompt route metadata">
-        ${parts.map(([label, value]) => `<span><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</span>`).join("")}
-        ${fallback}
-      </footer>
-    `;
-  }
-
-  function renderRichText(body = "") {
-    const text = String(body || "");
-    const fencePattern = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
-    let cursor = 0;
-    let match;
-    const parts = [];
-
-    while ((match = fencePattern.exec(text))) {
-      const before = text.slice(cursor, match.index).trim();
-      if (before) parts.push(`<p>${renderInlineRichText(before)}</p>`);
-      parts.push(renderPromptBlock({ label: match[1] || "text", body: match[2].trim() }));
-      cursor = fencePattern.lastIndex;
-    }
-
-    const after = text.slice(cursor).trim();
-    if (after) parts.push(`<p>${renderInlineRichText(after)}</p>`);
-    return parts.length ? parts.join("") : `<p>${renderInlineRichText(text)}</p>`;
-  }
-
-  function renderInlineRichText(value = "") {
-    return escapeHtml(value)
-      .replace(/`([^`\n]+)`/g, "<code>$1</code>")
-      .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
-      .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-  }
-
-  function renderPromptBlock(block) {
-    const label = typeof block === "string" ? "Prompt" : block.label || block.title || "Prompt";
-    const body = typeof block === "string" ? block : block.body || block.text || "";
-    const validation = block.validation || {};
-    return `
-      <div class="prompt-block">
-        <header>
-          <strong><span>PB</span>${escapeHtml(label)}</strong>
-          <small>${escapeHtml(block.descriptorStatus || "proposed")} · ${escapeHtml(validation.status || "unvalidated")}</small>
-          <button type="button" data-copy-block title="Copy prompt block">COPY</button>
-        </header>
-        <dl>
-          <div><dt>TYPE</dt><dd>${escapeHtml(block.type || "prompt_block")}</dd></div>
-          <div><dt>EXEC</dt><dd>${escapeHtml(block.executionAllowed === true ? "true" : "false")}</dd></div>
-          <div><dt>ROOT</dt><dd>${escapeHtml(block.pinnedWorkspaceRoot || "unknown")}</dd></div>
-          <div><dt>CTX</dt><dd>${escapeHtml(block.contextSnapshotId || "none")}</dd></div>
-        </dl>
-        ${
-          validation.warnings?.length
-            ? `<p class="prompt-block-warning">${escapeHtml(validation.warnings.join(" / "))}</p>`
-            : ""
-        }
-        <pre>${escapeHtml(body)}</pre>
-      </div>
-    `;
-  }
-
-  async function handleMessageClick(event) {
-    const button = event.target.closest("[data-copy-block]");
-    if (!button) return;
-    const value = button.closest(".prompt-block")?.querySelector("pre")?.innerText || "";
-
-    try {
-      await navigator.clipboard.writeText(value);
-      button.textContent = "COPIED";
-      setTimeout(() => {
-        button.textContent = "COPY";
-      }, 1200);
-    } catch {
-      elements.command.value = value;
-      elements.command.focus();
-    }
-  }
-
-  function isFeedNearBottom() {
-    return elements.feed.scrollHeight - elements.feed.scrollTop - elements.feed.clientHeight < 80;
-  }
-
-  function updateChatFollowState() {
-    state.followChat = isFeedNearBottom();
-    updateReturnChatButton();
-  }
-
-  function updateReturnChatButton() {
-    elements.returnChat.classList.toggle("hidden", state.followChat || isFeedNearBottom());
-  }
-
-  function scrollToCurrentChat(options = {}) {
     elements.feed.scrollTop = elements.feed.scrollHeight;
-    state.followChat = true;
-    if (!options.silent) elements.command.focus();
-    updateReturnChatButton();
   }
 
-  function renderTools() {
-    const online = state.tools.filter((tool) => tool.enabled);
-    const offline = state.tools.filter((tool) => !tool.enabled);
-    elements.toolCount.textContent = `(${online.length})`;
-    elements.toolRoot.innerHTML = [renderToolGroup("online", online, true), renderToolGroup("offline", offline, false)].join("");
-
-    elements.toolRoot.querySelectorAll("[data-tool-group]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.toolGroups[button.dataset.toolGroup] = !state.toolGroups[button.dataset.toolGroup];
-        focusPanel(Object.values(state.toolGroups).some(Boolean) ? "tools" : "tasks");
-        renderTools();
-      });
-    });
-  }
-
-  function renderToolGroup(group, tools, enabled) {
-    const expanded = state.toolGroups[group];
-    const light = enabled ? "online" : "offline";
-    const label = enabled ? `${tools.length} tools online` : `${tools.length} tools offline`;
-
-    return `
-      <li class="tool-group ${expanded ? "expanded" : ""}">
-        <button type="button" data-tool-group="${group}">
-          <span>${expanded ? "-" : "+"} ${escapeHtml(label)}</span>
-          <i class="${light}"></i>
-        </button>
-        ${
-          expanded
-            ? `<p>${tools.length ? tools.map((tool) => escapeHtml(tool.name)).join(" / ") : "No tools in this state."}</p>`
-            : ""
-        }
-      </li>
-    `;
-  }
-
+  // ─── Tasks ───
   function renderTasks() {
     elements.taskCount.textContent = `(${state.tasks.length})`;
-    elements.planningSummary.innerHTML = renderPlanningSummary();
-
-    if (!state.tasks.length) {
-      elements.taskRoot.innerHTML = `<div class="empty-tasks">No supervised tasks.</div>`;
-      elements.taskRoot.scrollTop = 0;
-      return;
-    }
-
     elements.taskRoot.innerHTML = state.tasks
       .map(
         (task) => `
-          <article class="task ${escapeHtml(task.status)} ${task.expanded ? "expanded" : ""}">
-            <header data-task-toggle="${escapeHtml(task.id)}">
-              <strong>${escapeHtml(task.title)}</strong>
-              <span>${escapeHtml(task.status)}</span>
-            </header>
-            <p>${escapeHtml(task.tool)}</p>
-            ${
-              task.expanded
-                ? `<section class="task-detail">
-                    ${renderTaskConclusion(task)}
-                    <dl>
-                      <div><dt>ID</dt><dd>${escapeHtml(task.id)}</dd></div>
-                      <div><dt>KIND</dt><dd>${escapeHtml(task.kind || "task")}</dd></div>
-                      <div><dt>SOURCE</dt><dd>${escapeHtml(task.origin || "local")}</dd></div>
-                      <div><dt>AGENT</dt><dd>${escapeHtml(task.agentId || "tripp.supervisor")}</dd></div>
-                      <div><dt>LANE</dt><dd>${escapeHtml(task.routingDecision?.lane || "native")}</dd></div>
-                      <div><dt>ROUTE</dt><dd>${escapeHtml(task.routingDecision?.reason || "native task flow")}</dd></div>
-                      <div><dt>RETRIEVE</dt><dd>${escapeHtml(task.routingDecision?.retrievalKind || "none")}</dd></div>
-                      <div><dt>CONF</dt><dd>${escapeHtml(task.routingDecision?.confidenceRequired || "medium")}</dd></div>
-                      <div><dt>PERMIT</dt><dd>${escapeHtml(task.permission?.decision || "unknown")}</dd></div>
-                      <div><dt>LIFE</dt><dd>${escapeHtml(task.lifecycle?.state || "unknown")} · ${escapeHtml(task.lifecycle?.descriptorStatus || "proposed")}</dd></div>
-                      <div><dt>STYLE</dt><dd>${escapeHtml(task.codingMode || "tripp")}</dd></div>
-                      <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
-                      <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>
-                      <div><dt>PATCH</dt><dd>${escapeHtml(task.patchPlan?.file || "none")}</dd></div>
-                      <div><dt>PATCH STATE</dt><dd>${escapeHtml(task.patchPlan?.approvalStatus || "not reviewed")}</dd></div>
-                      <div><dt>PROMPT</dt><dd>${escapeHtml(task.prompt || "")}</dd></div>
-                    </dl>
-                    ${renderEvidenceGate(task.evidenceGate)}
-                    ${renderTraceMap(task.traceMap)}
-                    ${renderTrialEvidence(task.trials, task.goNoGo)}
-                    ${renderAdapterEvidence(task.adapter)}
-                    ${task.excerpt ? `<pre>${escapeHtml(task.excerpt)}</pre>` : ""}
-                    ${task.findings ? `<pre>${escapeHtml(task.findings)}</pre>` : ""}
-                    ${renderRetrieval(task.retrieval)}
-                    ${renderTrace(task.trace)}
-                    ${task.permission?.reason ? `<pre>${escapeHtml(task.permission.reason)}</pre>` : ""}
-                    ${task.patch ? `<pre>${escapeHtml(task.patch)}</pre>` : ""}
-                  </section>`
-                : ""
-            }
-            ${
-              task.status === "pending" && task.origin !== "backend"
-                ? `<div>
-                    <button type="button" data-task-action="approve" data-task="${escapeHtml(task.id)}">Review patch</button>
-                    <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
-                  </div>`
-                : task.status === "patch_ready" && task.origin !== "backend"
-                  ? `<div>
-                      <button type="button" data-task-action="apply" data-task="${escapeHtml(task.id)}">Apply approved patch</button>
-                      <button type="button" data-task-action="dismiss" data-task="${escapeHtml(task.id)}">Dismiss</button>
-                    </div>
-                    <small>${escapeHtml(task.result || "Patch preview ready.")}</small>`
-                : `<small>${escapeHtml(task.result || "Task state updated.")}</small>`
-            }
-          </article>
-        `,
+        <div class="task-card ${task.expanded ? "expanded" : ""}">
+          <strong>${escapeHtml(task.title || "Task")}</strong>
+          <div class="task-meta">
+            <span style="color:${task.status === "completed" ? "var(--neon)" : task.status === "failed" ? "var(--red)" : "var(--amber)"}">${escapeHtml(task.status)}</span>
+            <span>${escapeHtml(task.tool || "—")}</span>
+          </div>
+        </div>
+      `,
       )
       .join("");
+  }
 
-    elements.taskRoot.querySelectorAll("[data-task-toggle]").forEach((header) => {
-      header.addEventListener("click", () => {
-        const task = state.tasks.find((candidate) => candidate.id === header.dataset.taskToggle);
-        task.expanded = !task.expanded;
-        focusPanel("tasks");
-        renderTasks();
-      });
-    });
-
-    elements.taskRoot.querySelectorAll("[data-task-action]").forEach((button) => {
-      button.addEventListener("click", () => updateTask(button.dataset.task, button.dataset.taskAction));
-    });
-
-    if (state.snapTasksToTop) {
-      elements.taskRoot.scrollTop = 0;
-      state.snapTasksToTop = false;
+  // ─── Workspace ───
+  async function loadWorkspace() {
+    state.workspace.loading = true;
+    renderWorkspace();
+    try {
+      const result = await runtime.workspaceTree();
+      state.workspace.tree = result.tree || [];
+      state.workspace.loading = false;
+    } catch (e) {
+      state.workspace.error = e.message;
+      state.workspace.loading = false;
     }
+    renderWorkspace();
   }
 
-  function renderPlanningSummary() {
-    const summary = buildPlanningSummary();
-    const rows = [
-      ["What we know", summary.known],
-      ["What remains uncertain", summary.uncertain],
-      ["Blocked in read-only mode", summary.blocked],
-      ["Next read-only direction", summary.next],
-    ];
-
-    return `
-      <section class="read-only-summary">
-        <header>
-          <strong>Current Understanding</strong>
-          <span>${escapeHtml(summary.countLabel)}</span>
-        </header>
-        <p class="provenance-strip"><b>Evidence provenance</b> ${summary.provenance.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</p>
-        <dl>
-          ${rows
-            .map(
-              ([label, value]) => `
-                <div>
-                  <dt>${escapeHtml(label)}</dt>
-                  <dd>${renderPlanningSummaryValue(value)}</dd>
-                </div>
-              `,
-            )
-            .join("")}
-        </dl>
-      </section>
-    `;
-  }
-
-  function renderPlanningSummaryValue(value) {
-    if (Array.isArray(value)) {
-      return `<ul>${value.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  async function loadWorkspaceFile(path) {
+    state.workspace.selectedFile = path;
+    renderWorkspace();
+    try {
+      const result = await runtime.workspaceFile(path);
+      state.workspace.file = result;
+    } catch (e) {
+      state.workspace.file = { error: e.message };
     }
-    return escapeHtml(value);
-  }
-
-  function buildPlanningSummary() {
-    const completedTasks = state.tasks.filter((task) => task.status !== "pending" && task.status !== "patch_ready");
-    const recentTasks = completedTasks.slice(0, 6);
-    const olderRelevantTasks = completedTasks.slice(6, 12);
-    const inspected = uniqueList(
-      recentTasks
-        .filter((task) => task.kind === "inspect" || task.tool === "filesystem_read")
-        .map((task) => task.target)
-        .filter(Boolean),
-    );
-    const blocked = recentTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
-    const olderBlocked = olderRelevantTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
-    const olderBranchContext = olderRelevantTasks.some(
-      (task) =>
-        isGateBranchRetrieval(task) ||
-        isDocsRuntimeBranchRetrieval(task) ||
-        isCystRenderingBranchRetrieval(task) ||
-        isBlockedOutcomeRecoveryRetrieval(task) ||
-        isEnforcementBranchRetrieval(task),
-    );
-    const planningOnly = recentTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
-    const totalPlanningOnly = completedTasks.filter((task) => task.retrieval?.authorityLevel === "planning-only" || task.retrieval?.sourceKind === "mock").length;
-    const safeShell = recentTasks.filter((task) => (task.kind === "shell" || task.tool === "shell_execute") && task.status === "completed" && task.adapter?.invoked === true).length;
-    const totalBlocked = completedTasks.filter((task) => task.status === "gated" || task.status === "blocked" || task.adapter?.status === "blocked").length;
-    const gateTask = recentTasks.find((task) => task.goNoGo || Array.isArray(task.trials));
-    const provenance = buildPlanningProvenance({ inspected, planningOnly, safeShell, blocked, gateTask });
-    const hasBranchRetrieval = recentTasks.some((task) => isGateBranchRetrieval(task));
-    const hasDocsRuntimeRetrieval = recentTasks.some((task) => isDocsRuntimeBranchRetrieval(task));
-    const hasReversalRetrieval = recentTasks.some((task) => isCystRenderingBranchRetrieval(task));
-    const hasRecoveryRetrieval = recentTasks.some((task) => isBlockedOutcomeRecoveryRetrieval(task));
-    const hasEnforcementRetrieval = recentTasks.some((task) => isEnforcementBranchRetrieval(task));
-    const hasBackendBranch = inspected.includes("server.mjs");
-    const hasUiBranch = inspected.includes("script.js");
-    const hasPolicyBranch = inspected.includes("README.md") || inspected.some((file) => file.startsWith("docs/"));
-    const hasBranchReview = hasBranchRetrieval && hasBackendBranch && hasUiBranch;
-    const hasDocsRuntimeReview = hasDocsRuntimeRetrieval && hasBackendBranch && hasPolicyBranch;
-    const hasDocsRuntimePartialReview = hasDocsRuntimeRetrieval && (hasBackendBranch || hasPolicyBranch) && !hasDocsRuntimeReview;
-    const hasReversalReview = hasReversalRetrieval && hasBackendBranch && hasUiBranch;
-    const hasRecoveryReview = hasRecoveryRetrieval && hasBackendBranch && hasUiBranch && blocked;
-    const hasEnforcementReview = hasEnforcementRetrieval && hasBackendBranch && hasPolicyBranch && blocked;
-    const hasLongStressReview = completedTasks.length >= 10 && totalPlanningOnly >= 2 && totalBlocked >= 2 && completedTasks.some((task) => task.target === "server.mjs") && completedTasks.some((task) => task.target === "script.js");
-    const adversarialGuardrails = recentTasks.map((task) => task.adversarialGuardrail).filter(Boolean);
-    const hasAdversarialHardBlock = adversarialGuardrails.some((guardrail) => guardrail.semantics === "hard_block");
-    const hasAdversarialScopeCorrection = adversarialGuardrails.some((guardrail) => guardrail.semantics === "correct_scope");
-    const hasAdversarialBlending = adversarialGuardrails.some((guardrail) => guardrail.id === "mock_to_direct_evidence_blending");
-    const hasAdversarialGateOverread = adversarialGuardrails.some((guardrail) => guardrail.id === "gate_score_overread");
-    const hasAdversarialAuthority = adversarialGuardrails.some((guardrail) => guardrail.id === "session_authority_laundering");
-    const hasMixedEvidencePoisoning = adversarialGuardrails.some((guardrail) => guardrail.id === "mixed_evidence_poisoning" && guardrail.semantics === "correct_scope");
-    const hasMixedEvidenceEscalation = adversarialGuardrails.some((guardrail) => guardrail.id === "mixed_evidence_poisoning" && guardrail.semantics === "hard_block");
-    const conclusions = recentTasks.map(buildTaskConclusion).filter(Boolean);
-    const known = uniqueList([
-      hasLongStressReview ? "Current review is centered on the runtime-handling branch, which now provides the most useful context for the active question." : null,
-      hasLongStressReview ? "Earlier UI/result-display inspection remains relevant as background context." : null,
-      hasEnforcementReview ? "Planning-only retrieval suggested policy-denial and adapter-route handling as plausible review paths." : null,
-      hasEnforcementReview ? "Inspection of the policy branch provided useful context for read-only denial behavior." : null,
-      hasEnforcementReview ? "Inspection of the adapter branch provided useful context for how blocked routes are handled in the current harness." : null,
-      hasDocsRuntimeReview ? "Planning-only retrieval suggested docs/config guidance and runtime implementation as plausible review paths." : null,
-      hasDocsRuntimeReview ? "Inspection of README.md provided useful docs/config context for read-only review." : null,
-      hasDocsRuntimeReview ? "Inspection of server.mjs provided useful runtime implementation context for read-only review." : null,
-      hasDocsRuntimePartialReview && hasPolicyBranch ? "Inspection of README.md provided useful docs/config context for read-only review." : null,
-      hasDocsRuntimePartialReview && hasBackendBranch ? "Inspection of server.mjs provided useful runtime implementation context for read-only review." : null,
-      hasRecoveryReview ? "Earlier inspection of the UI branch provided useful presentation context for blocked outcomes." : null,
-      hasRecoveryReview ? "Later inspection of the runtime-handling branch provided more useful context for how blocked outcomes are handled in the current harness." : null,
-      hasReversalReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
-      hasReversalReview ? "server.mjs inspection provided backend event-source context for read-only review." : null,
-      hasReversalReview ? "Inspection of script.js provided more useful context for the current Cyst activity rendering question." : null,
-      hasBranchReview ? "Two plausible review paths emerged from planning-only retrieval." : null,
-      hasBranchReview ? "Inspection of server.mjs provided stronger direct context for the current gate question." : null,
-      hasBranchReview ? "Inspection of script.js added result-display context, but was less central to the current gate question." : null,
-      ...inspected.slice(0, 3).map((file) => `${file} was inspected for read-only review.`),
-      ...conclusions
-      .flatMap((conclusion) => conclusion.findings || [])
-      .filter(isKnownFindingAllowed),
-    ].filter(Boolean)).slice(0, 4);
-    const uncertain = [
-      hasLongStressReview ? "Planning-only retrieval suggested additional paths that remain non-authoritative." : null,
-      hasLongStressReview ? "Some earlier and newly suggested paths have not been reviewed directly in the current session." : null,
-      hasLongStressReview ? "The current summary reflects the most useful reviewed context so far, but remains incomplete." : null,
-      hasEnforcementReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
-      hasEnforcementReview ? "The current branch ranking reflects usefulness for the blocked-behavior question, not final enforcement certainty." : null,
-      hasEnforcementReview ? "Both policy and adapter behavior may contribute, even if one branch is currently more useful for review." : null,
-      hasDocsRuntimeReview ? "The initial docs/config and runtime branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
-      hasDocsRuntimeReview ? "Current findings compare usefulness for read-only review, not final ownership or final implementation control." : null,
-      hasDocsRuntimePartialReview ? "Planning-only retrieval suggested additional paths that remain non-authoritative." : null,
-      hasDocsRuntimePartialReview ? "Only part of the current question has been inspected directly." : null,
-      hasDocsRuntimePartialReview ? "Current findings are useful for read-only review but remain incomplete." : null,
-      hasRecoveryReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
-      hasRecoveryReview ? "The current interpretation changed after additional inspection and remains scoped to read-only review." : null,
-      hasRecoveryReview ? "Presentation behavior may still depend on additional related files beyond the current runtime path." : null,
-      hasReversalReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
-      hasReversalReview ? "server.mjs remains useful for backend event context, but is less central to the current rendering question." : null,
-      hasReversalReview ? "The current branch ranking reflects usefulness for review, not final certainty." : null,
-      hasBranchReview ? "The initial branch suggestions came from planning-only retrieval and remain non-authoritative." : null,
-      hasBranchReview ? "The current branch ranking reflects usefulness for review, not final certainty." : null,
-      hasBranchReview ? "The UI branch improved presentation context, but additional review may still be needed to fully connect display behavior to gate results." : null,
-      olderBranchContext ? "Earlier branch context remains available but is outside the most recent task window." : null,
-      hasAdversarialBlending ? "Adversarial blending pressure did not convert planning-only retrieval into direct inspection evidence." : null,
-      hasMixedEvidencePoisoning ? "Mixed evidence pressure did not merge retrieval, safe-shell observation, older summaries, and direct inspection into stronger certainty." : null,
-      hasMixedEvidenceEscalation ? "Mixed evidence escalation was not allowed to override Warden, mutation, or blocked-state boundaries." : null,
-      hasAdversarialGateOverread ? "Gate and score overread pressure was scoped back to current read-only harness readiness." : null,
-      hasAdversarialAuthority ? "Earlier session context remains background only and does not replace current read-only evidence." : null,
-      hasAdversarialScopeCorrection ? "Corrected adversarial requests remain bounded to current read-only evidence limits." : null,
-      planningOnly ? "Mock or planning-only evidence remains non-authoritative for file changes." : null,
-      inspected.length ? null : "No files have been inspected in the recent read-only thread.",
-      gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
-    ].filter(Boolean);
-    const blockedSummary = hasAdversarialHardBlock
-      ? ["Adversarial policy/config, shell, authority, or mixed-evidence escalation was gated to preserve read-only mode.", "No write-capable route was used."]
-      : hasLongStressReview && totalBlocked >= 2
-      ? ["Repeated write-like shell or escalation paths remained blocked to preserve read-only mode.", "No write-capable route was used during the session."]
-      : (hasBranchReview || hasDocsRuntimeReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
-      ? ["A write-like shell or escalation path was blocked to preserve read-only mode.", "No write-capable route was used."]
-      : blocked
-        ? `${blocked} read-only boundary preserved`
-        : olderBlocked
-          ? "Earlier blocked read-only outcome remains relevant."
-        : "No blocked read-only tasks";
-
-    const summary = {
-      countLabel: recentTasks.length ? `${recentTasks.length} recent read-only tasks` : "No read-only tasks yet",
-      provenance,
-      known: known.length ? known : ["No read-only findings yet"],
-      uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
-      blocked: blockedSummary,
-      next: hasAdversarialHardBlock
-        ? "Review the gated adversarial request only as read-only boundary evidence."
-        : hasAdversarialScopeCorrection
-        ? "Continue with direct read-only inspection if more clarification is needed."
-        : hasLongStressReview
-        ? "Inspect the next related runtime source to reduce the remaining uncertainty."
-        : hasDocsRuntimeReview
-        ? "Continue from the currently more useful docs/config or runtime branch and inspect the next related source if more clarification is needed."
-        : hasDocsRuntimePartialReview
-        ? "Inspect the next related source to clarify the remaining uncertainty."
-        : hasEnforcementReview
-        ? "Continue from the currently more useful enforcement branch and inspect the next related source if more clarification is needed."
-        : hasRecoveryReview
-        ? "Continue from the runtime-handling branch and inspect the next related source if more clarification is needed."
-        : hasReversalReview
-        ? "Continue from the UI rendering branch and inspect the next related source if more display detail is needed."
-        : hasBranchReview
-        ? "Continue from the backend branch and inspect the next related source if more gate detail is needed."
-        : gateTask?.goNoGo?.suiteStatus === "go"
-        ? "Continue read-only planning and review."
-        : blocked
-          ? "Review blocked tasks or inspect related sources."
-          : "Inspect, compare, narrow, or run the read-only gate.",
-    };
-    summary.lint = planningSummaryLinter(summary);
-    return summary;
-  }
-
-  function buildPlanningProvenance({ inspected, planningOnly, safeShell, blocked, gateTask }) {
-    return uniqueList([
-      inspected.length ? "DIRECT_INSPECT" : null,
-      planningOnly ? "MOCK_RETRIEVAL" : null,
-      safeShell ? "SAFE_SHELL" : null,
-      blocked ? "BLOCKED_OUTCOME" : null,
-      gateTask ? "READONLY_GATE" : null,
-      "SYNTHESIS",
-    ].filter(Boolean));
-  }
-
-  function uniqueList(values) {
-    return [...new Set(values)];
-  }
-
-  function isKnownFindingAllowed(finding) {
-    return !/(?:blocked|failed|non-authoritative|adversarial|mixed evidence|retrieval-only|scope|warden|blocked-state|policy\/config self-modification|cannot authorize|request was not advanced|request was scoped)/i.test(finding || "");
-  }
-
-  function planningSummaryLinter(summary) {
-    const knownText = Array.isArray(summary.known) ? summary.known.join(" ") : "";
-    const nextText = String(summary.next || "");
-    return {
-      knownsBounded: !/(?:adversarial|mixed evidence|retrieval-only|scope escalation|authorize|mutation-relevant|blocked-state|policy\/config self-modification)/i.test(knownText),
-      nextDirectionBounded: !/(?:modify policy|change config|authorize|apply|edit|write|patch|commit|correct path|final answer|ownership)/i.test(nextText),
-      uncertaintyVisible: Array.isArray(summary.uncertain) && summary.uncertain.length > 0,
-      blockedVisible: Array.isArray(summary.blocked) ? summary.blocked.length > 0 : Boolean(summary.blocked),
-    };
-  }
-
-  function isGateBranchRetrieval(task) {
-    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
-    return Boolean(
-      task?.retrieval &&
-      prompt.includes("read-only gate") &&
-      (prompt.includes("operator") || prompt.includes("shown") || prompt.includes("results")),
-    );
-  }
-
-  function isDocsRuntimeBranchRetrieval(task) {
-    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
-    return Boolean(
-      task?.retrieval &&
-      (prompt.includes("docs/config") || (prompt.includes("docs") && prompt.includes("config"))) &&
-      (prompt.includes("runtime") || prompt.includes("implementation") || prompt.includes("server")),
-    );
-  }
-
-  function isCystRenderingBranchRetrieval(task) {
-    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
-    return Boolean(
-      task?.retrieval &&
-      prompt.includes("cyst") &&
-      (prompt.includes("activity") || prompt.includes("rendering") || prompt.includes("shown")),
-    );
-  }
-
-  function isBlockedOutcomeRecoveryRetrieval(task) {
-    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
-    return Boolean(
-      task?.retrieval &&
-      prompt.includes("blocked") &&
-      (prompt.includes("policy") || prompt.includes("runtime")) &&
-      (prompt.includes("ui") || prompt.includes("rendering") || prompt.includes("operator")),
-    );
-  }
-
-  function isEnforcementBranchRetrieval(task) {
-    const prompt = `${task?.prompt || ""} ${task?.title || ""}`.toLowerCase();
-    return Boolean(
-      task?.retrieval &&
-      (prompt.includes("warden") || prompt.includes("policy")) &&
-      (prompt.includes("adapter") || prompt.includes("tool-route") || prompt.includes("tool route")) &&
-      (prompt.includes("blocked") || prompt.includes("escalation")),
-    );
-  }
-
-  function renderTaskConclusion(task) {
-    const conclusion = buildTaskConclusion(task);
-    if (!conclusion) return "";
-
-    return `
-      <section class="task-conclusion ${escapeHtml(conclusion.tone || "readonly")}">
-        <header>
-          <strong>What We Learned</strong>
-          <span>${escapeHtml(conclusion.result)}</span>
-        </header>
-        <ul>
-          ${conclusion.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
-        </ul>
-        <p><b>Evidence</b> ${escapeHtml(conclusion.evidence)}</p>
-        <p><b>Next safe step</b> ${escapeHtml(conclusion.nextStep)}</p>
-      </section>
-    `;
-  }
-
-  function buildTaskConclusion(task) {
-    if (!task || task.status === "pending" || task.status === "patch_ready") return null;
-    if (task.adversarialGuardrail) return buildAdversarialGuardrailConclusion(task);
-    if (task.goNoGo || Array.isArray(task.trials)) return buildGateConclusion(task);
-    if (task.retrieval) return buildRetrievalConclusion(task);
-    if (task.kind === "inspect" || task.tool === "filesystem_read") return buildInspectConclusion(task);
-    if (task.kind === "shell" || task.tool === "shell_execute") return buildShellConclusion(task);
-    if (task.kind === "analysis" || task.tool === "code_analyze") return buildAnalysisConclusion(task);
-    if (task.status === "gated" || task.status === "blocked") return buildBlockedConclusion(task);
-    return null;
-  }
-
-  function buildAdversarialGuardrailConclusion(task) {
-    const hardBlock = task.adversarialGuardrail?.semantics === "hard_block";
-    return {
-      tone: hardBlock ? "blocked" : "planning",
-      result: hardBlock ? "Blocked" : "Corrected scope",
-      findings: [
-        task.result || "The adversarial request was handled within read-only scope.",
-        hardBlock
-          ? "The request was not advanced in the current read-only session."
-          : "The request was scoped back to current read-only evidence boundaries.",
-      ],
-      evidence: hardBlock ? "Adversarial read-only guardrail block" : "Adversarial read-only guardrail correction",
-      nextStep: "Continue with direct read-only inspection, bounded retrieval, safe-shell observation, or the read-only gate.",
-    };
-  }
-
-  function buildGateConclusion(task) {
-    const verdict = formatGateVerdict(task.goNoGo || {});
-    return {
-      tone: verdict === "GO" ? "ok" : "blocked",
-      result: verdict,
-      findings: [formatGateSummary(task.goNoGo || {}), formatGatePassCount(task.goNoGo || {})],
-      evidence: "Formal read-only gate result",
-      nextStep: verdict === "GO" ? "Continue read-only planning with the gate result in view." : "Review blocking reasons before continuing.",
-    };
-  }
-
-  function buildRetrievalConclusion(task) {
-    const sourceKind = task.retrieval?.sourceKind || task.retrieval?.evidenceAuthority || "mock";
-    const authority = task.retrieval?.authorityLevel || "planning-only";
-    if (isGateBranchRetrieval(task)) {
-      return {
-        tone: "planning",
-        result: "Planning only",
-        findings: [
-          "Planning-only retrieval suggested backend/gate and UI/result-display review paths.",
-          `${sourceKind === "mock" ? "Mock" : sourceKind} evidence is ${authority} and non-authoritative for file changes.`,
-        ],
-        evidence: sourceKind === "mock" ? "Mock evidence - planning only" : `${sourceKind} evidence - ${authority}`,
-        nextStep: "Inspect related files or continue read-only narrowing.",
-      };
-    }
-    return {
-      tone: "planning",
-      result: "Planning only",
-      findings: [
-        "Retrieval identified likely planning context.",
-        `${sourceKind === "mock" ? "Mock" : sourceKind} evidence is ${authority} and non-authoritative for file changes.`,
-      ],
-      evidence: sourceKind === "mock" ? "Mock evidence - planning only" : `${sourceKind} evidence - ${authority}`,
-      nextStep: "Inspect related files or continue read-only narrowing.",
-    };
-  }
-
-  function buildInspectConclusion(task) {
-    const target = task.target || "the requested file";
-    const branchFinding = target === "server.mjs"
-      ? "This file provides backend/runtime context for read-only review."
-      : target === "script.js"
-        ? "This file provides UI/result-display context for read-only review."
-        : task.excerpt
-          ? "A read-only excerpt is available on this card."
-          : "No file changes were made.";
-    return {
-      tone: "readonly",
-      result: "Read-only inspection",
-      findings: [
-        `Inspected ${target} without mutation.`,
-        branchFinding,
-      ],
-      evidence: "Read-only inspection",
-      nextStep: "Inspect a related file or use the finding to continue planning.",
-    };
-  }
-
-  function buildShellConclusion(task) {
-    const invoked = task.adapter?.invoked === true;
-    const blocked = task.status === "gated" || task.adapter?.status === "blocked" || task.adapter?.invoked === false;
-    return {
-      tone: blocked ? "blocked" : "readonly",
-      result: blocked ? "Blocked" : "Safe shell",
-      findings: blocked
-        ? ["Shell request stayed blocked before mutation.", "Read-only mode remained intact."]
-        : ["Allowed shell command completed through the adapter.", "The result supports read-only review."],
-      evidence: invoked ? "Safe shell output" : "Read-only policy block",
-      nextStep: blocked ? "Use an allowlisted read-only command or inspect a file instead." : "Use the output to continue read-only review.",
-    };
-  }
-
-  function buildAnalysisConclusion(task) {
-    return {
-      tone: "readonly",
-      result: "Read-only analysis",
-      findings: ["Analysis completed from repo-local context.", "No mutation path was used."],
-      evidence: "Read-only planning summary",
-      nextStep: "Inspect supporting files or run the read-only gate if readiness needs proof.",
-    };
-  }
-
-  function buildBlockedConclusion(task) {
-    return {
-      tone: "blocked",
-      result: "Blocked",
-      findings: ["The request stayed inside the read-only boundary.", task.permission?.reason || "Read-only policy kept the task gated."],
-      evidence: "Read-only gate or permission block",
-      nextStep: "Rephrase as inspection, retrieval, or safe-shell work.",
-    };
+    renderFilePreview();
   }
 
   function renderWorkspace() {
     if (!state.workspace.tree.length && !state.workspace.loading && !state.workspace.error) {
-      elements.workspaceRoot.innerHTML = `<div class="workspace-empty">Workspace tree not loaded.</div>`;
+      elements.workspaceRoot.innerHTML = `<div style="padding:20px;color:var(--text-dim)">Workspace tree not loaded.</div>`;
     } else if (state.workspace.loading) {
-      elements.workspaceRoot.innerHTML = `<div class="workspace-empty">Reading workspace...</div>`;
+      elements.workspaceRoot.innerHTML = `<div style="padding:20px;color:var(--text-dim)">Reading workspace...</div>`;
     } else if (state.workspace.error) {
-      elements.workspaceRoot.innerHTML = `<div class="workspace-empty">${escapeHtml(state.workspace.error)}</div>`;
+      elements.workspaceRoot.innerHTML = `<div style="padding:20px;color:var(--red)">${escapeHtml(state.workspace.error)}</div>`;
     } else {
       elements.workspaceRoot.innerHTML = renderWorkspaceNodes(state.workspace.tree);
     }
-
-    elements.workspaceRoot.querySelectorAll("[data-workspace-file]").forEach((button) => {
-      button.addEventListener("click", () => loadWorkspaceFile(button.dataset.workspaceFile));
+    elements.workspaceRoot.querySelectorAll("[data-workspace-file]").forEach((btn) => {
+      btn.addEventListener("click", () => loadWorkspaceFile(btn.dataset.workspaceFile));
     });
-
     renderFilePreview();
   }
 
@@ -995,24 +523,9 @@
         ${nodes
           .map((node) => {
             if (node.type === "directory") {
-              return `
-                <li class="workspace-dir">
-                  <span>⌁ ${escapeHtml(node.name)}</span>
-                  ${renderWorkspaceNodes(node.children || [])}
-                </li>
-              `;
+              return `<li class="workspace-dir"><span>⌁ ${escapeHtml(node.name)}</span>${renderWorkspaceNodes(node.children || [])}</li>`;
             }
-
-            return `
-              <li>
-                <button class="${state.workspace.selectedFile === node.path ? "active" : ""}" type="button" data-workspace-file="${escapeHtml(
-                  node.path,
-                )}">
-                  <span>▧ ${escapeHtml(node.name)}</span>
-                  <small>${escapeHtml(node.language || "text")}</small>
-                </button>
-              </li>
-            `;
+            return `<li><button class="${state.workspace.selectedFile === node.path ? "active" : ""}" type="button" data-workspace-file="${escapeHtml(node.path)}"><span>▧ ${escapeHtml(node.name)}</span><small>${escapeHtml(node.language || "text")}</small></button></li>`;
           })
           .join("")}
       </ol>
@@ -1022,483 +535,74 @@
   function renderFilePreview() {
     const file = state.workspace.file;
     if (!file) {
-      elements.filePreview.innerHTML = `
-        <header>
-          <strong>No file selected</strong>
-          <span>readonly</span>
-        </header>
-        <pre>Select a workspace file to inspect it here.</pre>
-      `;
+      elements.filePreview.innerHTML = `<header><strong>No file selected</strong><span>readonly</span></header><pre>Select a workspace file to inspect it here.</pre>`;
       return;
     }
-
     if (file.error) {
-      elements.filePreview.innerHTML = `
-        <header>
-          <strong>${escapeHtml(state.workspace.selectedFile || "Workspace file")}</strong>
-          <span>error</span>
-        </header>
-        <pre>${escapeHtml(file.error)}</pre>
-      `;
+      elements.filePreview.innerHTML = `<header><strong>${escapeHtml(state.workspace.selectedFile || "File")}</strong><span>error</span></header><pre>${escapeHtml(file.error)}</pre>`;
       return;
     }
-
-    elements.filePreview.innerHTML = `
-      <header>
-        <strong>${escapeHtml(file.path)}</strong>
-        <span>${escapeHtml(file.language)} · ${formatBytes(file.size)}</span>
-      </header>
-      <pre>${escapeHtml(file.content)}</pre>
-    `;
+    elements.filePreview.innerHTML = `<header><strong>${escapeHtml(file.path)}</strong><span>${escapeHtml(file.language)} · ${formatBytes(file.size)}</span></header><pre>${escapeHtml(file.content)}</pre>`;
   }
 
-  function renderSessions() {
-    elements.sessionRoot.innerHTML = state.sessions
-      .map(
-        (session) => `
-          <button class="session ${session.active ? "active" : ""}" type="button" data-session="${escapeHtml(
-            session.id,
-          )}">
-            <strong>${escapeHtml(session.title)}</strong>
-            <span><em>${escapeHtml(session.age)}</em><b>${session.messages} msgs</b></span>
-          </button>
-        `,
-      )
-      .join("");
-
-    elements.sessionRoot.querySelectorAll("[data-session]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.sessions.forEach((session) => {
-          session.active = session.id === button.dataset.session;
-        });
-        renderSessions();
-        renderMessages();
-        runtime.selectSession(button.dataset.session).catch((apiError) => {
-          console.warn("Tripp session select unavailable; keeping local selection.", apiError);
-        });
-      });
-    });
-  }
-
+  // ─── Status ───
   function renderStatus() {
     const latestCritical = latestCriticalCystEvent();
     const rows = [
-      ["CONNECTION", `<i></i>${escapeHtml(state.status.connection)}`],
-      ["RUNTIME", escapeHtml(displayRuntime(state.status.model))],
-      ["MUNCH", escapeHtml(displayMunchStatus(state.munch))],
-      ["CYST", escapeHtml(displayCystSummary())],
+      ["CONNECTION", escapeHtml(state.status.connection || "offline")],
+      ["RUNTIME", escapeHtml(state.status.model || "mock")],
+      ["SWARM", `${state.agents.length} agents`],
+      ["TASKS", `${state.tasks.length} pending`],
+      ["TOKENS IN", escapeHtml(state.status.tokensIn || "—")],
+      ["TOKENS OUT", escapeHtml(state.status.tokensOut || "—")],
+      ["LATENCY", escapeHtml(state.status.latency || "—")],
+      ["MODE", `<span style="color:var(--neon)">${escapeHtml(state.mode)}</span>`],
       ["LATEST", escapeHtml(formatCystLatest(latestCritical))],
-      ["SESSIONS", escapeHtml(displayCapability(state.runtime.capabilities?.sessions))],
-      ["SWARM", `${escapeHtml(state.swarm.agents?.length || 0)} agents`],
-      ["SHELL", escapeHtml(displayCapability(state.runtime.capabilities?.shell))],
-      ["WRITE", escapeHtml(displayCapability(state.runtime.capabilities?.filesystemWrite))],
-      ["TOKENS IN", escapeHtml(state.status.tokensIn)],
-      ["TOKENS OUT", escapeHtml(state.status.tokensOut)],
-      ["LATENCY", escapeHtml(state.status.latency)],
-      ["MODE", `<span class="badge">${escapeHtml(state.mode)}</span>`],
     ];
 
-    elements.statusRoot.innerHTML = rows
-      .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`)
-      .join("");
+    elements.statusRoot.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
     renderCystActivity();
 
-    elements.footerConnection.textContent = state.status.connection;
+    elements.footerConnection.textContent = state.status.connection || "offline";
     elements.footerMode.textContent = `TRIPPMODE::${state.mode}`;
-    elements.footerMetrics.innerHTML = `TOKENS: ${escapeHtml(totalTokens())}&nbsp;&nbsp; ${escapeHtml(
-      state.status.latency,
-    )}&nbsp;&nbsp; ${escapeHtml(state.status.version)}`;
-    renderInputTelemetry();
-  }
+    elements.footerMetrics.innerHTML = `TOKENS: ${escapeHtml(state.status.tokensIn || "—")}`;
 
-  function renderInputTelemetry() {
-    const used = contextTokens();
-    const limit = state.context.limit;
-    const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-    elements.inputModel.textContent = `model: ${displayActiveModel(state.status.model)}`;
-    elements.compactContext.textContent = `CTX ${formatCompactNumber(used)} / ${formatCompactNumber(limit)}`;
-    elements.compactContext.classList.toggle("warn", state.context.enabled && used >= state.context.autoCompactAt);
-    elements.compactContext.title = `Compact current chat context. Auto compact target: ${formatCompactNumber(
-      state.context.autoCompactAt,
-    )}. Current usage: ${pct}%.`;
-  }
-
-  function renderSettings() {
-    elements.autoCompactAt.value = state.context.autoCompactAt;
-    elements.contextLimit.value = state.context.limit;
-    elements.typeSizeBoost.value = state.display.fontBoost;
-    const used = contextTokens();
-    elements.compactPolicyState.textContent =
-      state.context.enabled && used >= state.context.autoCompactAt ? "threshold reached" : "armed";
-  }
-
-  function applyDisplaySettings() {
-    elements.app.dataset.fontBoost = state.display.fontBoost;
-    elements.app.style.setProperty("--font-boost", `${state.display.fontBoost}px`);
-  }
-
-  function renderConnections() {
-    const items = state.connections.items;
-    const groups = modelProviderGroups();
-    elements.connectionState.textContent = state.connections.available ? `${groups.length} providers` : "server required";
-    renderLaneRouting();
-    updateConnectionModeHint();
-    if (!state.connections.available) {
-      elements.connectionRoot.innerHTML = `
-        <article class="connection-empty">
-          <strong>Start local server for connections</strong>
-          <p>Saving and testing provider connections requires Tripp's local server. Open through <code>node .\\server.mjs</code>.</p>
-        </article>
-      `;
-      return;
-    }
-    elements.connectionRoot.innerHTML = `
-      ${renderAddModelPanel()}
-      <section class="model-roster" aria-label="Model roster">
-        <header>
-          <strong>Model roster</strong>
-          <span>${escapeHtml(items.length)} saved models</span>
-        </header>
-        ${groups.length ? groups.map(renderModelProviderGroup).join("") : renderEmptyModelRoster()}
-      </section>
-    `;
-    if (state.connections.lastTest) {
-      elements.connectionRoot.insertAdjacentHTML(
-        "beforeend",
-        `<p class="connection-test ${escapeHtml(state.connections.lastTest.status)}">${escapeHtml(state.connections.lastTest.message)}</p>`,
-      );
-    }
-  }
-
-  function renderLaneRouting() {
-    const lanes = laneIds();
-    const agentLanes = lanes.filter((lane) => lane !== "fallback");
-    const fallbackConnection = routeConnectionForLane("fallback");
-    elements.laneRouting.innerHTML = `
-      <div class="routing-default">
-        <label>
-          <span>If no specific model is assigned, default to:</span>
-          <select data-routing-default>
-            ${renderConnectionOptions(fallbackConnection?.id || "", { includeDefault: false })}
-          </select>
-        </label>
-        <p>${escapeHtml(fallbackConnection ? routeLabel(fallbackConnection) : "No global default fallback is assigned.")}</p>
-      </div>
-      <div class="lane-routing-grid">
-        ${agentLanes.map(renderLaneAssignmentRow).join("")}
-      </div>
-    `;
-  }
-
-  function renderLaneAssignmentRow(lane) {
-    const connection = routeConnectionForLane(lane);
-    const draftProvider = state.connections.routingDraft[lane] || connection?.provider || "";
-    return `
-      <section class="lane-route-row" data-lane-row="${escapeHtml(lane)}">
-        <strong>${escapeHtml(formatLaneName(lane))}</strong>
-        <select data-lane-provider="${escapeHtml(lane)}">
-          <option value="">use default</option>
-          ${providerIds().map((provider) => `<option value="${escapeHtml(provider)}" ${provider === draftProvider ? "selected" : ""}>${escapeHtml(providerLabel(provider))}</option>`).join("")}
-        </select>
-        <select data-lane-connection="${escapeHtml(lane)}">
-          ${renderModelRouteOptions(lane, draftProvider, connection?.id || "")}
-        </select>
-        <em>${escapeHtml(connection ? routeLabel(connection) : "uses global default")}</em>
-      </section>
-    `;
-  }
-
-  function renderModelRouteOptions(lane, provider, selectedId) {
-    const connections = usableConnections().filter((connection) => !provider || connection.provider === provider);
-    const configured = connections
-      .map(
-        (connection) =>
-          `<option value="${escapeHtml(connection.id)}" ${connection.id === selectedId ? "selected" : ""}>${escapeHtml(connection.model)} - ${escapeHtml(connection.name)}</option>`,
-      )
-      .join("");
-    const known = knownModelsForProvider(provider)
-      .filter((model) => !connections.some((connection) => connection.model === model))
-      .map((model) => `<option value="" disabled>${escapeHtml(model)} - configure connection first</option>`)
-      .join("");
-    return `
-      <option value="">use default</option>
-      ${configured || known ? `${configured}${known}` : `<option value="" disabled>No configured models for ${escapeHtml(providerLabel(provider || "provider"))}</option>`}
-    `;
-  }
-
-  function renderConnectionOptions(selectedId, options = {}) {
-    const includeDefault = options.includeDefault !== false;
-    const connections = usableConnections();
-    return `
-      ${includeDefault ? `<option value="">use default</option>` : `<option value="">unassigned</option>`}
-      ${connections
-        .map((connection) => `<option value="${escapeHtml(connection.id)}" ${connection.id === selectedId ? "selected" : ""}>${escapeHtml(routeLabel(connection))}</option>`)
-        .join("")}
-    `;
-  }
-
-  function routeConnectionForLane(lane) {
-    return state.connections.items.find((item) => connectionUsable(item) && (item.purposes || []).includes(lane)) || null;
-  }
-
-  function usableConnections() {
-    return state.connections.items.filter(connectionUsable);
-  }
-
-  function laneIds() {
-    return [
-      "default_prompt_testing",
-      "default_chat",
-      "read_only_planning",
-      "synthesis",
-      "warden",
-      "coder_primary",
-      "coder_secondary",
-      "verifier",
-      "fallback",
-    ];
-  }
-
-  function providerIds() {
-    return ["chatgpt_codex", "backend", "openai", "anthropic", "deepseek", "openrouter", "ollama", "custom"];
-  }
-
-  function routeLabel(connection) {
-    return `${connection.name} | ${connection.provider} | ${connection.model}`;
-  }
-
-  function providerLabel(provider) {
-    if (provider === "backend") return "backend-managed";
-    if (provider === "chatgpt_codex") return "ChatGPT Codex";
-    if (provider === "ollama") return "local runtime";
-    return provider || "provider";
-  }
-
-  function connectionModeBadge(connection) {
-    if (connection.mode === "backend_managed") return "BACKEND-MANAGED CONNECTION";
-    if (connection.mode === "local_runtime") return "LOCAL RUNTIME";
-    if (connection.mode === "account_linked") return connection.supportsAccountLink ? "ACCOUNT-LINKED" : "ACCOUNT LINK UNSUPPORTED";
-    if (connection.isDefaultPromptTesting || connection.purposes?.includes("default_prompt_testing")) return "PROMPT DEFAULT";
-    return String(connection.status || "unknown").toUpperCase();
-  }
-
-  function connectionDisplayMeta(connection) {
-    if (connection.mode === "backend_managed") {
-      return connection.managedDescription || "Managed by local/server-side Tripp backend. No provider key is entered in the browser for this connection.";
-    }
-    if (connection.mode === "account_linked") {
-      return connection.supportsAccountLink
-        ? "account link metadata saved"
-        : "Account linking is not currently supported for this provider";
-    }
-    if (connection.mode === "local_runtime") return "Local runtime connection";
-    return connection.hasToken ? connection.maskedToken || "token saved" : "API key missing";
+    elements.metricSwarm.textContent = state.agents.length;
+    elements.metricTasks.textContent = state.tasks.length;
+    elements.metricTokens.textContent = state.status.tokensIn || "—";
+    elements.metricMode.textContent = state.mode;
   }
 
   function renderCystActivity() {
-    const events = latestCystTimeline(state.cystEvents, 8);
-    const rows = groupCystTimeline(events);
+    const events = state.cystEvents.slice(-8);
     if (!events.length) {
-      elements.cystRoot.innerHTML = `<section><header><strong>CYST ACTIVITY</strong><span>empty</span></header><p>No audit events recorded.</p></section>`;
+      elements.cystRoot.innerHTML = `<section><header><strong style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em">CYST ACTIVITY</strong><span style="font-size:11px;color:var(--text-dim)">empty</span></header><p style="font-size:11px;color:var(--text-dim);padding-top:8px">No audit events recorded.</p></section>`;
       return;
     }
-
     elements.cystRoot.innerHTML = `
       <section>
-        <header>
-          <strong>CYST ACTIVITY</strong>
-          <span>${escapeHtml(`${events.length}/${state.cystEvents.length}`)}</span>
+        <header style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <strong style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em">CYST ACTIVITY</strong>
+          <span style="font-size:11px;color:var(--text-dim)">${events.length}/${state.cystEvents.length}</span>
         </header>
-        <ol>
-          ${rows
-            .map(
-              ({ event, groupClass }) => `
-                <li class="${escapeHtml(`${cystTone(event)} ${cystSemanticClass(event)} ${groupClass}`)}" title="Audit event - not an action item.">
-                  <span>${escapeHtml(cystGlyph(event))}</span>
-                  <div>
-                    <strong>${escapeHtml(event.eventType || "event")}</strong>
-                    <small>${escapeHtml(cystCompact(event))}</small>
-                    ${renderCystEvidenceMeta(event)}
-                    <em>${escapeHtml(event.cysToken || event.traceId || "no token")}</em>
-                  </div>
-                </li>
-              `,
-            )
-            .join("")}
+        <ol style="list-style:none;margin:0;padding:0">
+          ${events.map((event) => `
+            <li style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:11px">
+              <span style="color:var(--neon);font-size:10px">◆</span>
+              <div>
+                <strong style="display:block;color:var(--text-muted);font-size:11px">${escapeHtml(event.eventType || "event")}</strong>
+                <small style="color:var(--text-dim)">${escapeHtml(event.resultStatus || event.errorCode || "recorded")}</small>
+                <em style="color:var(--text-dim);font-size:10px">${escapeHtml(event.traceId || "no token")}</em>
+              </div>
+            </li>
+          `).join("")}
         </ol>
       </section>
     `;
   }
 
-  function cystTone(event) {
-    if (event.adversarialSemantics === "hard_block") return "blocked";
-    if (event.adversarialSemantics === "correct_scope") return "corrected";
-    const status = String(event.resultStatus || event.status || "").toLowerCase();
-    const error = String(event.errorCode || "").toLowerCase();
-    if (status === "ok") return "ok";
-    if (status === "blocked" || error.includes("blocked")) return "blocked";
-    if (status === "denied" || event.eventType === "warden_denial") return "denied";
-    if (status === "error" || error) return "error";
-    return "warn";
-  }
-
-  function cystSemanticClass(event) {
-    if (event.adversarialSemantics === "hard_block") return "adversarial-hard-block";
-    if (event.adversarialSemantics === "correct_scope") return "adversarial-correct-scope";
-    return "audit-event";
-  }
-
-  function cystGlyph(event) {
-    const tone = cystTone(event);
-    if (tone === "ok") return "◆";
-    if (tone === "blocked") return "!";
-    if (tone === "corrected") return "~";
-    if (tone === "denied" || tone === "error") return "x";
-    return "?";
-  }
-
-  function cystCompact(event) {
-    if (event.eventType === "gate_run") {
-      return gateRunCompact(event);
-    }
-
-    if (event.eventType === "write_escalation_blocked") {
-      return [writeBlockLabel(event), writeBlockCause(event), formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
-    }
-
-    if (event.eventType === "retrieval_event") {
-      return [
-        event.sourceKind || event.evidenceAuthority || "evidence",
-        event.authorityLevel || "authority unknown",
-        event.decision || event.resultStatus || "recorded",
-        formatCystTime(event.timestamp),
-      ]
-        .filter(Boolean)
-        .join(" - ");
-    }
-
-    if (event.eventType === "lifecycle_transition" && event.adversarialGuardrailId) {
-      return [
-        event.adversarialSemantics === "hard_block" ? "ADVERSARIAL BLOCK" : "ADVERSARIAL SCOPE CORRECTION",
-        event.adversarialGuardrailId,
-        formatCystTime(event.timestamp),
-      ]
-        .filter(Boolean)
-        .join(" - ");
-    }
-
-    return [event.tool || event.adapter || event.descriptorId || "control-plane", event.resultStatus || event.errorCode || "recorded", formatCystTime(event.timestamp)]
-      .filter(Boolean)
-      .join(" - ");
-  }
-
-  function gateRunCompact(event) {
-    const started = String(event.gateStage || event.status || "").toLowerCase() === "started";
-    if (started) {
-      return ["READ-ONLY GATE RUN", "Started formal read-only gate", formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
-    }
-
-    const verdict = String(event.suiteStatus || event.goNoGo || "unknown").replace(/_/g, " ").toUpperCase();
-    const count =
-      Number.isFinite(Number(event.passedCount)) && Number.isFinite(Number(event.requiredScenarioCount))
-        ? `${event.passedCount}/${event.requiredScenarioCount} required`
-        : "";
-    const blocking = Array.isArray(event.blockingReasons) && event.blockingReasons.length ? event.blockingReasons[0] : count;
-    return [`READ-ONLY GATE: ${verdict}`, blocking, formatCystTime(event.timestamp)].filter(Boolean).join(" - ");
-  }
-
-  function renderCystEvidenceMeta(event) {
-    if (!["retrieval_event", "write_escalation_blocked"].includes(event.eventType)) return "";
-    const flags = [
-      event.degraded ? "DEGRADED" : null,
-      event.blockLayer ? `${String(event.blockLayer).toUpperCase()} BLOCK` : null,
-      event.writeApprovalEligible === false ? "WRITE BLOCKED" : "WRITE ELIGIBLE",
-      event.applyEligible === false ? "APPLY BLOCKED" : "APPLY ELIGIBLE",
-    ].filter(Boolean);
-    const reason =
-      event.eventType === "write_escalation_blocked"
-        ? writeBlockCause(event)
-        : event.reason || event.operatorWarning || "Retrieval audit event.";
-    const details = event.eventType === "write_escalation_blocked" ? writeBlockDetails(event) : [];
-
-    return `
-      <p class="cyst-evidence-meta">
-        <b>${escapeHtml(flags.join(" / "))}</b>
-        <span>${escapeHtml(reason)}</span>
-        ${details.length ? `<i>${escapeHtml(details.join(" / "))}</i>` : ""}
-      </p>
-    `;
-  }
-
-  function writeBlockLabel(event) {
-    return String(event.escalationTarget || "").includes("apply") ? "APPLY BLOCKED" : "WRITE BLOCKED";
-  }
-
-  function writeBlockCause(event) {
-    const code = String(event.reasonCode || event.errorCode || "").toLowerCase();
-    if (code.includes("mock")) return "Mock evidence cannot authorize edits";
-    if (code.includes("planning_only")) return "Planning-only evidence";
-    if (code.includes("degraded")) return "Degraded evidence not sufficient";
-    if (code.includes("approval_missing")) return "Approval missing";
-    if (code.includes("approval_stale")) return "Approval stale";
-    if (code.includes("approval_dismissed")) return "Approval dismissed";
-    if (code.includes("warden") && String(event.escalationTarget || "").includes("apply")) return "Warden denied apply path";
-    if (code.includes("warden")) return "Warden denied escalation";
-    if (code.includes("adapter") && code.includes("not_invoked")) return "Adapter not invoked";
-    if (code.includes("adapter")) return "Adapter blocked write path";
-    if (code.includes("apply_ineligible")) return "Apply is not eligible";
-    if (code.includes("target_not_apply_ready")) return "Target is not apply-ready";
-    return String(event.escalationTarget || "").includes("apply") ? "Apply progression blocked" : "Write progression blocked";
-  }
-
-  function writeBlockDetails(event) {
-    const always = [
-      event.blockLayer ? `layer:${event.blockLayer}` : null,
-      event.escalationTarget ? `target:${event.escalationTarget}` : null,
-    ];
-    const family = writeBlockFamilyDetails(event);
-    const invoked = event.invoked === false ? ["invoked:false"] : [];
-
-    return [...always, ...family, ...invoked].filter(Boolean);
-  }
-
-  function writeBlockFamilyDetails(event) {
-    const layer = String(event.blockLayer || "").toLowerCase();
-    const target = String(event.escalationTarget || "").toLowerCase();
-    const code = String(event.reasonCode || event.errorCode || "").toLowerCase();
-
-    if (layer === "evidence") {
-      return [
-        event.sourceKind ? `source:${event.sourceKind}` : null,
-        !event.sourceKind && event.authorityLevel ? `authority:${event.authorityLevel}` : null,
-      ];
-    }
-
-    if (layer === "approval_state" || code.includes("approval_")) {
-      return [event.approvalState ? `approval:${event.approvalState}` : null];
-    }
-
-    if (layer === "warden") {
-      return [event.wardenDecision ? `warden:${event.wardenDecision}` : null];
-    }
-
-    if (layer === "adapter") {
-      return [event.adapterDecision ? `adapter:${event.adapterDecision}` : null];
-    }
-
-    if (target.includes("apply") || code.includes("apply_") || code.includes("target_not_apply_ready")) {
-      return [
-        event.approvalState ? `approval:${event.approvalState}` : null,
-      ];
-    }
-
-    return [];
-  }
-
-  function displayCystSummary() {
-    if (!state.cystEvents.length) return "No Events";
-    const critical = state.cystEvents.filter((event) => isCriticalCystEvent(event)).length;
-    return `${state.cystEvents.length} events / ${critical} critical`;
+  function latestCriticalCystEvent() {
+    return state.cystEvents.slice().reverse().find((e) => e.resultStatus === "blocked" || e.errorCode);
   }
 
   function formatCystLatest(event) {
@@ -1506,2234 +610,77 @@
     return `${event.eventType || "event"} ${event.errorCode || event.resultStatus || ""}`.trim();
   }
 
-  function isCriticalCystEvent(event) {
-    const tone = cystTone(event);
-    return tone === "blocked" || tone === "denied" || tone === "error";
-  }
-
-  function latestCriticalCystEvent() {
-    return orderCystEvents(state.cystEvents)
-      .slice()
-      .reverse()
-      .find((event) => isCriticalCystEvent(event));
-  }
-
-  function latestCystTimeline(events, limit) {
-    return orderCystEvents(events).slice(-limit);
-  }
-
-  function groupCystTimeline(events) {
-    return (Array.isArray(events) ? events : []).map((event, index, list) => {
-      const key = cystFlowKey(event);
-      const previousKey = cystFlowKey(list[index - 1]);
-      const nextKey = cystFlowKey(list[index + 1]);
-      const joinsPrevious = Boolean(key && key === previousKey);
-      const joinsNext = Boolean(key && key === nextKey);
-      const groupClass = joinsPrevious && joinsNext
-        ? "group-middle"
-        : joinsPrevious
-          ? "group-end"
-          : joinsNext
-            ? "group-start"
-            : "group-single";
-      return { event, groupClass };
-    });
-  }
-
-  function cystFlowKey(event) {
-    if (!event) return "";
-    return event.taskId || event.traceId || event.descriptorId || "";
-  }
-
-  function orderCystEvents(events) {
-    return (Array.isArray(events) ? events : [])
-      .map((event, index) => ({ event, index }))
-      .sort((left, right) => {
-        const timeDelta = cystEventTime(left.event) - cystEventTime(right.event);
-        if (timeDelta) return timeDelta;
-        const sequenceDelta = cystEventSequence(left.event) - cystEventSequence(right.event);
-        if (sequenceDelta) return sequenceDelta;
-        return left.index - right.index;
-      })
-      .map(({ event }) => event);
-  }
-
-  function cystEventTime(event) {
-    const time = Date.parse(event?.timestamp || "");
-    return Number.isNaN(time) ? 0 : time;
-  }
-
-  function cystEventSequence(event) {
-    const sequence = Number(event?.cystSequence ?? event?.sequence ?? 0);
-    return Number.isFinite(sequence) ? sequence : 0;
-  }
-
-  function formatCystTime(value) {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    return date.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  }
-
-  function renderTrace(trace) {
-    if (!Array.isArray(trace) || !trace.length) return "";
-
-    return `
-      <ol class="task-trace">
-        ${trace
-          .map(
-            (event) => `
-              <li>
-                <strong>${escapeHtml(event.actor || "tripp.supervisor")}</strong>
-                <span>${escapeHtml(event.event || "trace")}</span>
-                <small>${escapeHtml(event.detail || "")}</small>
-              </li>
-            `,
-          )
-          .join("")}
-      </ol>
-    `;
-  }
-
-  function renderTrialEvidence(trials, goNoGo) {
-    if (!Array.isArray(trials) || !trials.length) return "";
-
-    const passCount = trials.filter((trial) => (trial.status || (trial.pass ? "pass" : "fail")) === "pass").length;
-    return `
-      <section class="trial-detail">
-        <header>
-          <strong>Read-Only Gate</strong>
-          <span>${escapeHtml(goNoGo ? formatGateVerdict(goNoGo) : `${passCount}/${trials.length}`)}</span>
-        </header>
-        ${renderGoNoGoSummary(goNoGo)}
-        <div class="trial-list">
-          ${trials
-            .map(
-              (trial) => `
-                <article class="${(trial.status || (trial.pass ? "pass" : "fail")) === "pass" ? "pass" : "fail"}">
-                  <b>${escapeHtml(formatScenarioName(trial))}</b>
-                  <small>${escapeHtml(formatTrialExpected(trial))}</small>
-                  <dl>
-                    <div><dt>WARDEN</dt><dd>${escapeHtml(trial.actual?.wardenResult || trial.wardenState || "none")}</dd></div>
-                    <div><dt>ROUTE</dt><dd>${escapeHtml(formatTrialRoute(trial.actual?.adapterRoute ?? trial.route))}</dd></div>
-                    <div><dt>ADAPTER</dt><dd>${escapeHtml(formatTrialAdapterInvoked(trial.actual?.adapterInvoked ?? trial.adapterInvoked))}</dd></div>
-                    <div><dt>CYST</dt><dd>${escapeHtml(formatTrialCystTypes(trial.actual?.cystEventTypes, trial.cystEvent))}</dd></div>
-                  </dl>
-                  <p>${escapeHtml((trial.notes || trial.evidence || []).join(" / ") || trial.uiEvidenceLabel || "no evidence")}</p>
-                </article>
-              `,
-            )
-            .join("")}
-        </div>
-      </section>
-    `;
-  }
-
-  function formatTrialExpected(trial) {
-    if (trial.expected?.finalLifecycleState) {
-      return `${trial.scenarioId || trial.legacyTrialId || "scenario"} -> ${trial.expected.finalLifecycleState}`;
-    }
-    return trial.expected || "";
-  }
-
-  function formatScenarioName(trial) {
-    const scenarioId = trial.scenarioId || trial.legacyTrialId || trial.id || "";
-    const names = {
-      readonly_retrieval_allowed: "Read-only retrieval allowed",
-      readonly_inspect_allowed: "Read-only inspect allowed",
-      readonly_safe_shell_allowed: "Safe shell allowed",
-      readonly_unsafe_shell_blocked: "Unsafe shell blocked",
-      mock_retrieval_write_escalation_blocked: "Mock retrieval write escalation blocked",
-      prompt_block_denied: "Prompt block denied",
-    };
-    return names[scenarioId] || trial.title || trial.id || "Read-only scenario";
-  }
-
-  function formatTrialRoute(value) {
-    return Array.isArray(value) ? value.join(" / ") : value || "none";
-  }
-
-  function formatTrialCystTypes(types, fallback) {
-    return Array.isArray(types) && types.length ? types.join(" / ") : fallback || "none";
-  }
-
-  function formatTrialAdapterInvoked(value) {
-    if (value && typeof value === "object") {
-      return Object.entries(value)
-        .map(([key, invoked]) => `${key}:${invoked ? "invoked" : "not invoked"}`)
-        .join(" / ");
-    }
-    return value ? "invoked" : "not invoked";
-  }
-
-  function renderGoNoGoSummary(goNoGo) {
-    if (!goNoGo) return "";
-    return `
-      <div class="go-no-go ${escapeHtml(goNoGo.decision || "no_go")}">
-        <b>${escapeHtml(formatGateVerdict(goNoGo))}</b>
-        <span>${escapeHtml(formatGateSummary(goNoGo))}</span>
-        <small>${escapeHtml(formatGatePassCount(goNoGo))}</small>
-        <small>${escapeHtml(formatGateDiagnosticLine(goNoGo))}</small>
-        ${renderGateBlockingReasons(goNoGo)}
-      </div>
-    `;
-  }
-
-  function formatGateVerdict(goNoGo) {
-    return String(goNoGo?.decision || goNoGo?.suiteStatus || "no_go").replace(/_/g, " ").toUpperCase();
-  }
-
-  function formatGateSummary(goNoGo) {
-    return formatGateVerdict(goNoGo) === "GO"
-      ? "All required read-only scenarios passed"
-      : "Read-only gate failed one or more required checks";
-  }
-
-  function formatGatePassCount(goNoGo) {
-    const passed = goNoGo?.passed ?? goNoGo?.passedCount ?? 0;
-    const required = goNoGo?.requiredScenarioCount ?? goNoGo?.total ?? "?";
-    return `${passed}/${required} passed`;
-  }
-
-  function formatGateDiagnosticLine(goNoGo) {
-    const parts = [
-      `Missing: ${goNoGo.missingScenarioIds?.length || 0}`,
-      `Duplicate: ${goNoGo.duplicateScenarioIds?.length || 0}`,
-      `Incomplete: ${goNoGo.incompleteScenarioIds?.length || 0}`,
-      `Malformed mixed: ${goNoGo.malformedMixedScenarioIds?.length || 0}`,
-      `Failed: ${goNoGo.failedScenarioIds?.length || 0}`,
-    ];
-    return parts.join(" / ");
-  }
-
-  function renderGateBlockingReasons(goNoGo) {
-    const reasons = goNoGo.blockingReasons || [];
-    if (!reasons.length) return "";
-    return `
-      <div class="gate-blockers">
-        <strong>Blocking Reasons</strong>
-        ${reasons.map((reason) => `<span>${escapeHtml(reason)}</span>`).join("")}
-      </div>
-    `;
-  }
-
-  function renderAdapterEvidence(adapter) {
-    if (!adapter) return "";
-
-    return `
-      <section class="adapter-detail ${escapeHtml(adapter.status || "unknown")}">
-        <header>
-          <strong>Tripp Read-Only Adapter</strong>
-          <span>${escapeHtml(adapter.status || "unknown")}</span>
-        </header>
-        <dl>
-          <div><dt>TOOL</dt><dd>${escapeHtml(adapter.tool || "none")}</dd></div>
-          <div><dt>WARDEN</dt><dd>${escapeHtml(adapter.wardenState || "unknown")}</dd></div>
-          <div><dt>ROUTE</dt><dd>${escapeHtml(formatAdapterRoute(adapter.route))}</dd></div>
-          <div><dt>CALL</dt><dd>${escapeHtml(adapter.invoked ? "invoked" : "not invoked")}</dd></div>
-          <div><dt>CYST</dt><dd>${escapeHtml(adapter.cysToken || "none")}</dd></div>
-          <div><dt>TYPE</dt><dd>${escapeHtml(adapter.resultType || adapter.errorCode || "none")}</dd></div>
-        </dl>
-        <p>${escapeHtml(adapter.summary || "")}</p>
-      </section>
-    `;
-  }
-
-  function formatAdapterRoute(route) {
-    if (!route) return "none";
-    return route;
-  }
-
-  function renderRetrieval(retrieval) {
-    if (!retrieval) return "";
-    const sourceKind = retrieval.sourceKind || retrieval.evidenceAuthority || (retrieval.mock ? "mock" : "unknown");
-    const authority = retrieval.authorityLevel || (retrieval.editAuthoritative === true ? "authoritative" : "planning-only");
-    const badge = sourceKind === "mock" ? "MOCK EVIDENCE" : sourceKind.toUpperCase();
-    const warning = retrieval.operatorWarning || "This evidence comes from mock retrieval and cannot authorize file changes.";
-
-    return `
-      <section class="retrieval-detail">
-        <strong>${escapeHtml(retrieval.backend || "munch")} · ${escapeHtml(retrieval.confidence || "low")}</strong>
-        <div class="authority-strip ${escapeHtml(sourceKind)}">
-          <span>${escapeHtml(badge)}</span>
-          <b>${escapeHtml(authority)}</b>
-        </div>
-        <p>${escapeHtml((retrieval.summary || []).join(" "))}</p>
-        <p class="mock-note">${escapeHtml(`${warning} ${(retrieval.warnings || []).join(" ")}`)}</p>
-        <small>${escapeHtml((retrieval.fallback_chain || []).join(" -> "))}</small>
-      </section>
-    `;
-  }
-
-  function renderEvidenceGate(gate) {
-    if (!gate) return "";
-    const satisfied = gate.satisfied || [];
-    const missing = gate.missing || [];
-    const next = gate.next || [];
-
-    return `
-      <section class="evidence-gate ${escapeHtml(gate.status || "blocked")}">
-        <header>
-          <strong>Evidence Gate</strong>
-          <span>${escapeHtml(gate.status || "blocked")}</span>
-        </header>
-        <p>${escapeHtml(gate.summary || "")}</p>
-        ${
-          gate.evidenceAuthority
-            ? `<div class="authority-strip ${escapeHtml(gate.sourceKind || gate.evidenceAuthority)}"><span>${escapeHtml(gate.sourceKind === "mock" ? "MOCK EVIDENCE" : gate.evidenceAuthority.toUpperCase())}</span><b>${escapeHtml(gate.authorityLevel || (gate.editAuthoritative ? "authoritative" : "planning-only"))}</b></div>`
-            : ""
-        }
-        <div class="gate-grid">
-          ${renderGateColumn("OK", satisfied, "ok")}
-          ${renderGateColumn("MISS", missing, "miss")}
-          ${renderGateColumn("NEXT", next, "next")}
-        </div>
-      </section>
-    `;
-  }
-
-  function renderGateColumn(label, values, tone) {
-    const items = Array.isArray(values) && values.length ? values : ["none"];
-    return `
-      <article class="gate-column ${tone}">
-        <strong>${escapeHtml(label)}</strong>
-        ${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
-      </article>
-    `;
-  }
-
-  function renderTraceMap(traceMap) {
-    if (!traceMap) return "";
-
-    const verification = traceMap.traceVerification || {};
-    const checks = verification.checks || {};
-    const owners = traceMap.owners || [];
-    const rollbackFiles = traceMap.rollback_surface?.files || [];
-    const tests = traceMap.rollback_surface?.tests || traceMap.tests || [];
-    const warnings = uniqueStrings([...(traceMap.warnings || []), ...(verification.warnings || [])]);
-    const blockers = verification.blocking || [];
-    const sourceKind = traceMap.sourceKind || traceMap.evidenceAuthority || (traceMap.mock ? "mock" : "unknown");
-    const authority = traceMap.authorityLevel || (traceMap.editAuthoritative === true ? "authoritative" : "planning-only");
-    const badge = sourceKind === "mock" ? "MOCK EVIDENCE" : sourceKind.toUpperCase();
-    const auditorNote =
-      checks.docsOnly && isTraceEditIntent(traceMap.task)
-        ? "Docs-only owner surface blocks edit approval."
-        : checks.docsOnly
-          ? "Docs-only surface is acceptable for retrieval, not edits."
-          : "Implementation owner surface is present.";
-
-    return `
-      <section class="trace-map-detail ${escapeHtml(verification.terminalState || "TRACE_UNRESOLVED")}">
-        <header>
-          <strong>TraceDroneMap</strong>
-          <span>${escapeHtml(verification.terminalState || "TRACE_UNRESOLVED")}</span>
-        </header>
-        <div class="trace-map-badges">
-          <b>${escapeHtml(traceMap.confidenceLabel || "none")} · ${escapeHtml(traceMap.confidence || 0)}</b>
-          <b>${escapeHtml(traceMap.rollback_surface?.scope || "unresolved")}</b>
-          <b>${escapeHtml(traceMap.trace?.traceId || traceMap.traceId || "trace")}</b>
-        </div>
-        <div class="authority-strip ${escapeHtml(sourceKind)}">
-          <span>${escapeHtml(badge)}</span>
-          <b>${escapeHtml(authority)}</b>
-        </div>
-        <dl>
-          <div><dt>SRC</dt><dd>${escapeHtml(traceMap.trace?.source || "trace-drone")}</dd></div>
-          <div><dt>AUDIT</dt><dd>${escapeHtml(auditorNote)}</dd></div>
-          <div><dt>CHECK</dt><dd>${escapeHtml(renderTraceChecks(checks))}</dd></div>
-        </dl>
-        ${renderTraceOwners(owners)}
-        ${renderTraceList("Rollback", rollbackFiles)}
-        ${renderTraceList("Tests", tests)}
-        ${renderTraceList("Warnings", warnings)}
-        ${renderTraceList("Blocking", blockers)}
-      </section>
-    `;
-  }
-
-  function renderTraceOwners(owners) {
-    if (!owners.length) return renderTraceList("Owners", []);
-
-    return `
-      <div class="trace-owner-list">
-        <strong>Owners</strong>
-        ${owners
-          .map(
-            (owner) => `
-              <article>
-                <span>${escapeHtml(owner.file)}</span>
-                <small>${escapeHtml(owner.role || "unknown")} · ${escapeHtml(owner.confidence || 0)}</small>
-                <em>${escapeHtml(owner.reason || "")}</em>
-                <i>${escapeHtml((owner.signals || []).join(" / ") || "no signals")}</i>
-              </article>
-            `,
-          )
-          .join("")}
-      </div>
-    `;
-  }
-
-  function renderTraceList(label, values) {
-    const items = Array.isArray(values) ? values : [];
-    return `
-      <div class="trace-list">
-        <strong>${escapeHtml(label)}</strong>
-        <p>${escapeHtml(items.length ? items.join(" / ") : "none")}</p>
-      </div>
-    `;
-  }
-
-  function renderTraceChecks(checks) {
-    if (!checks) return "none";
-    return [
-      `owners:${checks.ownerCount ?? 0}`,
-      `tests:${checks.testsPresent ? "yes" : "no"}`,
-      `docs:${checks.docsOnly ? "only" : "mixed"}`,
-      `forbidden:${checks.forbiddenHit ? "hit" : "clear"}`,
-      `broad:${checks.broadSurface ? "yes" : "no"}`,
-    ].join(" / ");
-  }
-
-  function isTraceEditIntent(task) {
-    return /\b(edit|modify|patch|write|change|fix|implement|refactor|delete|remove|create|add)\b/.test(String(task || ""));
-  }
-
-  function uniqueStrings(values) {
-    return [...new Set((values || []).filter(Boolean))];
-  }
-
-  function setMode(mode) {
-    if (!mode || state.mode === mode) return;
-    state.mode = mode;
-    pushMessage({
-      kind: "system",
-      speaker: "system>",
-      time: now(),
-      body: `Mode switched to TRIPPMODE::${mode}. ${
-        mode === "AUTO"
-          ? "Tool cards will surface when a task looks executable."
-          : "Conversation stays relaxed unless you ask for action."
-      }`,
-    });
-    renderModes();
-    renderStatus();
-    renderMessages();
-  }
-
-  function setRail(rail) {
-    state.activeRail = rail;
-    renderRail();
-
-    if (rail === "send") {
-      elements.command.focus();
-      return;
-    }
-
-    if (rail === "tools") {
-      state.opsExpanded = true;
-      state.opsTab = "tools";
-      state.tools[0].expanded = true;
-      renderShell();
-      renderTools();
-    }
-
-    if (rail === "tripp" || rail === "settings") {
-      state.opsExpanded = true;
-      state.opsTab = "status";
-      renderShell();
-    }
-
-    if (rail === "sessions") {
-      state.opsExpanded = true;
-      renderShell();
-    }
-
-    pushMessage({
-      kind: "system",
-      speaker: "rail>",
-      time: now(),
-      body: railMessage(rail),
-    });
-    renderMessages();
-  }
-
-  async function submitCommand() {
-    const value = elements.command.value.trim();
-    if (!value || state.busy) return;
-    if (state.connectionSetup.open && state.connectionSetup.blocking) {
-      pushConnectionMessage("Set up Tripp model access before prompt testing. Connections configure model access only and do not change Tripp's current read-only scope.");
-      return;
-    }
-
-    elements.command.value = "";
-    pushMessage({ kind: "user", speaker: "you>", time: now(), body: value });
-    state.followChat = true;
-    setBusy(true);
-    renderMessages();
-
-    const reply = await runtime.reply({
-      prompt: value,
-      mode: state.mode,
-      sessionId: activeSession().id,
-      lane: state.promptLane,
-    });
-
-    reply.messages.forEach((message) => {
-      pushMessage({ ...message, time: now() });
-    });
-
-    if (Array.isArray(reply.tasks)) {
-      reply.tasks.forEach((task) => upsertTask(task));
-    } else if (reply.task) {
-      upsertTask(reply.task);
-    }
-
-    if (reply.session) {
-      upsertSession(reply.session);
-    }
-
-    updateCounters(reply.status, value);
-    setBusy(false);
-    renderSessions();
-    renderTasks();
-    renderStatus();
-    renderMessages();
-    loadCystEvents();
-    loadReviewChanges();
-  }
-
-  async function updateTask(taskId, action) {
-    const result = await runtime.taskAction(taskId, action);
-    if (result.task) {
-      upsertTask(result.task);
-      pushMessage({
-        kind: "system",
-        speaker: "task>",
-        time: now(),
-        body: taskMessage(result.task),
-      });
-      renderTasks();
-      renderMessages();
-      loadCystEvents();
-      loadReviewChanges();
-    }
-  }
-
+  // ─── Trials ───
   async function runReadOnlyTrials() {
     if (state.busy) return;
     state.busy = true;
     try {
       const result = await runtime.runReadOnlyTrials();
-      if (result.task) upsertTask({ ...result.task, expanded: true });
-      state.messages.push({
+      if (result.task) {
+        state.tasks.unshift({ ...result.task, expanded: true });
+        renderTasks();
+      }
+      pushMessage({
+        kind: "system",
         speaker: "trial>",
         time: now(),
-        body: `${result.suiteStatus === "go" ? "Read-only gate GO" : "Read-only gate NO GO"}: ${result.suiteSummary?.passedCount ?? 0}/${result.suiteSummary?.requiredScenarioCount ?? result.scenarioResults?.length ?? 0}`,
-        kind: "system",
+        body: `${result.suiteStatus === "go" ? "Gate GO" : "Gate NO GO"}: ${result.suiteSummary?.passedCount ?? 0}/${result.suiteSummary?.requiredScenarioCount ?? 0}`,
       });
-      focusPanel("tasks");
-      renderTasks();
-      renderMessages();
-      renderStatus();
-      loadCystEvents();
-      loadReviewChanges();
-    } catch (error) {
-      state.messages.push({
-        speaker: "trial>",
-        time: now(),
-        body: "Read-only gate endpoint is unavailable.",
-        kind: "system",
-      });
-      renderMessages();
+    } catch (e) {
+      pushMessage({ kind: "system", speaker: "trial>", time: now(), body: "Gate endpoint unavailable." });
     } finally {
       state.busy = false;
+      renderMessages();
     }
   }
 
-  async function loadCystEvents() {
-    try {
-      const result = await runtime.cystEvents();
-      state.cystEvents = Array.isArray(result.events) ? result.events : [];
-      renderStatus();
-    } catch (error) {
-      console.warn("Cyst event feed unavailable.", error);
-    }
-  }
-
-  async function loadReviewChanges() {
-    try {
-      state.reviewChanges = await runtime.reviewChanges();
-    } catch {
-      state.reviewChanges = { hasChanges: false, changedFiles: 0, insertions: 0, deletions: 0, reviewableTasks: [] };
-    }
-    renderReviewChanges();
-  }
-
-  function renderReviewChanges() {
-    const review = state.reviewChanges || {};
-    const show = Boolean(review.hasChanges) && !state.opsExpanded;
-    elements.reviewChanges.classList.toggle("hidden", !show);
-    if (!show) return;
-    const taskCount = review.reviewableTasks?.length || 0;
-    const fileLabel = `${review.changedFiles || 0} file${Number(review.changedFiles) === 1 ? "" : "s"} changed`;
-    const taskLabel = taskCount ? ` · ${taskCount} task${taskCount === 1 ? "" : "s"} ready` : "";
-    elements.reviewSummary.innerHTML = `${escapeHtml(fileLabel)} <strong>+${escapeHtml(
-      review.insertions || 0,
-    )}</strong> / <em>-${escapeHtml(review.deletions || 0)}</em>${escapeHtml(taskLabel)}`;
-  }
-
-  function openReviewChanges() {
-    state.opsExpanded = true;
-    state.opsTab = "workspace";
-    state.panelFocus = "tasks";
-    renderShell();
-    renderTasks();
-    renderWorkspace();
-  }
-
-  function taskMessage(task) {
-    if (task.status === "patch_ready") {
-      return `${task.id} patch reviewed and approved. Apply still requires a separate action.`;
-    }
-
-    if (task.status === "apply_blocked") {
-      return `${task.id} apply blocked. Filesystem mutation is still gated.`;
-    }
-
-    if (task.status === "applied") {
-      return `${task.id} applied. ${task.result || ""}`.trim();
-    }
-
-    if (task.status === "inspection_ready") {
-      return `${task.id} inspection ready. Expand the task card to review the excerpt.`;
-    }
-
-    if (task.status === "inspected") {
-      return `${task.id} inspection acknowledged.`;
-    }
-
-    return `${task.id} ${task.status}. ${task.result || ""}`.trim();
-  }
-
-  function upsertTask(task) {
-    const index = state.tasks.findIndex((candidate) => candidate.id === task.id);
-    if (index === -1) {
-      state.tasks.unshift(task);
-      state.snapTasksToTop = true;
-      focusPanel("tasks");
-      return;
-    }
-
-    state.tasks[index] = task;
-  }
-
-  function focusPanel(panel) {
-    state.panelFocus = panel;
-
-    if (panel === "tasks") {
-      state.toolGroups.online = false;
-      state.toolGroups.offline = false;
-    }
-
-    renderShell();
-  }
-
-  async function createSession() {
-    const session = await runtime.createSession();
-    upsertSession(session);
-    renderSessions();
-    renderMessages();
-  }
-
-  async function loadWorkspaceTree(options = {}) {
-    if (state.workspace.loading) return;
-    if (state.workspace.tree.length && !options.force) return;
-
-    state.workspace.loading = true;
-    state.workspace.error = "";
-    renderWorkspace();
-
-    try {
-      const result = await runtime.workspaceTree();
-      state.workspace.tree = result.files || result.children || [];
-      state.workspace.error = result.error || "";
-    } catch (error) {
-      state.workspace.error = "Workspace API unavailable.";
-      console.warn("Tripp workspace tree unavailable.", error);
-    } finally {
-      state.workspace.loading = false;
-      renderWorkspace();
-    }
-  }
-
-  async function loadWorkspaceFile(path) {
-    if (!path) return;
-    state.workspace.selectedFile = path;
-    state.workspace.file = { path, language: "text", size: 0, content: "Reading file..." };
-    renderWorkspace();
-
-    try {
-      state.workspace.file = await runtime.workspaceFile(path);
-    } catch (error) {
-      state.workspace.file = { path, error: "Workspace file API unavailable." };
-      console.warn("Tripp workspace file unavailable.", error);
-    }
-
-    renderWorkspace();
-  }
-
-  function pushMessage(message) {
-    const session = activeSession();
-    session.transcript.push(message);
-    session.messages = session.transcript.length;
-  }
-
-  function activeSession() {
-    return state.sessions.find((session) => session.active) || state.sessions[0];
-  }
-
-  function upsertSession(session) {
-    const nextSession = {
-      ...session,
-      transcript: Array.isArray(session.transcript) ? normalizeMessages(session.transcript) : [],
-      messages: Number(session.messages) || Number(session.transcript?.length) || 0,
-      active: true,
-    };
-    const index = state.sessions.findIndex((candidate) => candidate.id === session.id);
-
-    state.sessions.forEach((candidate) => {
-      candidate.active = false;
-    });
-
-    if (index === -1) {
-      state.sessions.unshift(nextSession);
-      return;
-    }
-
-    state.sessions.splice(index, 1);
-    state.sessions.unshift(nextSession);
-  }
-
+  // ─── Utils ───
   function normalizeMessages(messages) {
-    return messages.map((message) => ({ kind: "agent", ...message }));
+    return (Array.isArray(messages) ? messages : []).map((m) => ({
+      kind: m.kind || "system",
+      speaker: m.speaker || "tripp",
+      time: m.time || now(),
+      body: m.body || m.content || "",
+    }));
   }
 
-  function seedSession(session, time) {
-    return [
-      {
-        kind: "system",
-        speaker: "session>",
-        time,
-        body: `${session.title} is available in history. Wire this to session events when the API bridge is active.`,
-      },
-    ];
+  function escapeHtml(str) {
+    return String(str || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  function setBusy(busy) {
-    state.busy = busy;
-    elements.command.disabled = busy;
-    elements.form.classList.toggle("busy", busy);
+  function formatBytes(n) {
+    if (!n) return "0 B";
+    const sizes = ["B", "KB", "MB"];
+    const i = Math.floor(Math.log(n) / Math.log(1024));
+    return `${Math.round(n / Math.pow(1024, i) * 10) / 10} ${sizes[i]}`;
   }
 
-  function updateCounters(replyStatus, prompt) {
-    const inputDelta = Number(replyStatus?.tokensIn || prompt.length || 0);
-    const outputDelta = Number(replyStatus?.tokensOut || 0);
-    const inTokens = Number(String(state.status.tokensIn).replaceAll(",", "")) + inputDelta;
-    const outTokens = Number(String(state.status.tokensOut).replaceAll(",", "")) + outputDelta;
-    state.status.tokensIn = inTokens.toLocaleString("en-US");
-    state.status.tokensOut = outTokens.toLocaleString("en-US");
-    state.status.latency = replyStatus?.latency || `${420 + Math.floor(Math.random() * 180)}ms`;
-    state.status.model = replyStatus?.model || state.status.model;
-  }
+  // ─── Initial Render ───
+  renderMessages();
+  renderTasks();
+  renderStatus();
+  renderSwarm();
+  loadWorkspace();
 
-  function displayRuntime(model) {
-    const value = String(model || "");
-    if (value === "tripp-adapter/mock") return "Mock Runtime";
-    if (value === "tripp-adapter/local") return "Local Fallback";
-    if (value === "tripp-adapter/backend") return "Backend Bridge";
-    if (value === "gpt-4") return "Seed Runtime";
-    return value || "Unknown";
-  }
-
-  function displayActiveModel(model) {
-    const value = String(model || "");
-    if (value === "tripp-adapter/mock") return "mock";
-    if (value === "tripp-adapter/local") return "local";
-    if (value === "tripp-adapter/backend") return "backend";
-    return value || "unknown";
-  }
-
-  function displayCapability(value) {
-    const labels = {
-      "persistent-local": "Persistent Local",
-      "repo-local-readonly": "Repo Read-only",
-      "guarded-single-patch": "Guarded Patch",
-      "read-only-allowlist": "Read-only Allowlist",
-      "status-only": "Status Only",
-      "mock-contract": "Mock Contract",
-      disabled: "Disabled",
-      enabled: "Enabled",
-    };
-    return labels[value] || value || "Unknown";
-  }
-
-  function displayMunchStatus(munch) {
-    if (!munch) return "Not Loaded";
-    return `${munch.status || "unknown"} / ${munch.mode || "unknown"}`;
-  }
-
-  function totalTokens() {
-    return contextTokens().toLocaleString("en-US");
-  }
-
-  function contextTokens() {
-    const input = Number(String(state.status.tokensIn).replaceAll(",", ""));
-    const output = Number(String(state.status.tokensOut).replaceAll(",", ""));
-    return input + output;
-  }
-
-  function formatCompactNumber(value) {
-    const number = Number(value) || 0;
-    if (number >= 1000000) return `${(number / 1000000).toFixed(1)}m`;
-    if (number >= 1000) return `${Math.round(number / 1000)}k`;
-    return String(number);
-  }
-
-  function compactCurrentChat() {
-    const before = contextTokens();
-    const target = Math.min(4096, Math.max(1200, Math.round(before * 0.16)));
-    const input = Math.max(800, Math.round(target * 0.72));
-    const output = Math.max(300, target - input);
-    state.status.tokensIn = input.toLocaleString("en-US");
-    state.status.tokensOut = output.toLocaleString("en-US");
-    state.context.lastCompactedAt = new Date().toISOString();
-    const message = {
-      kind: "system",
-      speaker: "system>",
-      time: now(),
-      body: `Context compacted from ${formatCompactNumber(before)} to ${formatCompactNumber(contextTokens())}.`,
-    };
-    activeSession().transcript.push(message);
-    activeSession().messages = activeSession().transcript.length;
-    renderMessages();
-    renderStatus();
-    renderSettings();
-    requestAnimationFrame(scrollToCurrentChat);
-  }
-
-  async function saveCompactSettings(event) {
-    event.preventDefault();
-    const contextLimit = Number(elements.contextLimit.value);
-    const autoCompactAt = Number(elements.autoCompactAt.value);
-    state.display.fontBoost = normalizeFontBoost(elements.typeSizeBoost.value);
-    state.context.limit = Math.max(16000, Math.min(512000, Math.round(contextLimit || state.context.limit)));
-    state.context.autoCompactAt = Math.max(8000, Math.min(state.context.limit, Math.round(autoCompactAt || state.context.autoCompactAt)));
-    renderStatus();
-    renderSettings();
-    try {
-      const saved = await runtime.saveSettings({
-        compact: {
-          contextLimit: state.context.limit,
-          autoCompactAt: state.context.autoCompactAt,
-          enabled: state.context.enabled,
-        },
-        display: {
-          fontBoost: state.display.fontBoost,
-        },
+  // ─── Tripp Runtime ───
+  function createTrippRuntime() {
+    const api = async (path, opts = {}) => {
+      const url = `/api/tripp${path}`;
+      const res = await fetch(url, {
+        method: opts.method || "GET",
+        headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
       });
-      state.context.limit = saved.compact?.contextLimit || state.context.limit;
-      state.context.autoCompactAt = saved.compact?.autoCompactAt || state.context.autoCompactAt;
-      state.context.enabled = saved.compact?.enabled !== false;
-      state.display.fontBoost = normalizeFontBoost(saved.display?.fontBoost);
-      pushMessage({
-        kind: "system",
-        speaker: "settings>",
-        time: now(),
-        body: `Display and compact policy saved. Type size +${state.display.fontBoost}px. Auto threshold ${formatCompactNumber(state.context.autoCompactAt)} / limit ${formatCompactNumber(
-          state.context.limit,
-        )}.`,
-      });
-      renderMessages();
-      renderStatus();
-      renderSettings();
-    } catch {
-      pushMessage({
-        kind: "system",
-        speaker: "settings>",
-        time: now(),
-        body: "Display and compact policy saved locally. Settings API is unavailable.",
-      });
-      renderMessages();
-    }
-  }
-
-  function renderAddModelPanel() {
-    const provider = state.modelSetup.provider;
-    const providerConfig = providerConfigFor(provider);
-    const requiresKey = providerConfig.auth === "api_key";
-    const requiresOauth = providerConfig.auth === "oauth";
-    const showEndpoint = providerConfig.auth !== "backend_managed" && providerConfig.auth !== "oauth";
-    return `
-      <section class="model-add-panel" aria-label="Add model">
-        <header>
-          <div>
-            <strong>Add model</strong>
-            <p>Provider first, connection check second, model choice third.</p>
-          </div>
-          ${renderHealthLight(state.modelSetup.status, state.modelSetup.message)}
-        </header>
-        <div class="model-add-grid">
-          <label>
-            <span>Provider</span>
-            <select data-model-provider>
-              ${providerConfigs().map((config) => `<option value="${escapeHtml(config.id)}" ${config.id === provider ? "selected" : ""}>${escapeHtml(config.displayName)}</option>`).join("")}
-            </select>
-          </label>
-          ${showEndpoint ? `
-            <label>
-              <span>${provider === "ollama" ? "Endpoint" : "Base URL"}</span>
-              <input data-model-base-url type="text" value="${escapeHtml(state.modelSetup.baseUrl)}" placeholder="${escapeHtml(providerConfig.defaultBaseUrl || "provider endpoint")}" />
-            </label>
-          ` : ""}
-          ${requiresKey ? `
-            <label>
-              <span>API key</span>
-              <input data-model-api-key type="password" value="${escapeHtml(state.modelSetup.apiKey)}" placeholder="paste key" autocomplete="off" />
-            </label>
-          ` : ""}
-          ${requiresOauth ? `
-            <div class="oauth-connect-box">
-              <span>Account</span>
-              <strong>${state.modelSetup.oauthAuthenticated ? "Connected" : "Browser login required"}</strong>
-              <p>${escapeHtml(state.modelSetup.oauthAuthenticated ? `${providerConfig.displayName} token is cached locally.` : `Connect with ${providerConfig.displayName} to use subscription-backed models.`)}</p>
-              <div>
-                <button type="button" data-oauth-connect="${escapeHtml(provider)}">${state.modelSetup.oauthAuthenticated ? "REFRESH STATUS" : "CONNECT"}</button>
-                <button type="button" data-oauth-logout="${escapeHtml(provider)}" ${state.modelSetup.oauthAuthenticated ? "" : "disabled"}>LOG OUT</button>
-              </div>
-            </div>
-          ` : ""}
-          <label>
-            <span>Model</span>
-            <select data-model-choice ${modelChoiceDisabled() ? "disabled" : ""}>
-              ${modelSetupOptions().map((model) => `<option value="${escapeHtml(model)}" ${model === state.modelSetup.model ? "selected" : ""}>${escapeHtml(model)}</option>`).join("")}
-            </select>
-          </label>
-        </div>
-        <fieldset class="model-lanes">
-          <legend>Use for</legend>
-          ${laneIds().map((lane) => `
-            <label>
-              <input data-model-lane type="checkbox" value="${escapeHtml(lane)}" ${state.modelSetup.lanes.includes(lane) ? "checked" : ""} />
-              <span>${escapeHtml(formatLaneName(lane))}</span>
-            </label>
-          `).join("")}
-        </fieldset>
-        <div class="model-add-actions">
-          <button type="button" data-model-check>CHECK CONNECTION</button>
-          <button type="button" data-model-save ${modelSaveDisabled() ? "disabled" : ""}>SAVE MODEL</button>
-          <span>${escapeHtml(modelSetupMeta())}</span>
-        </div>
-      </section>
-    `;
-  }
-
-  function renderHealthLight(status, message) {
-    const normalized = ["connected", "checking", "failed", "auth_error", "endpoint_unreachable", "model_not_found", "tls_error"].includes(status) ? status : "idle";
-    return `<span class="model-health ${escapeHtml(normalized)}"><i></i>${escapeHtml(message || normalized)}</span>`;
-  }
-
-  function providerConfigs() {
-    return [
-      {
-        id: "chatgpt_codex",
-        displayName: "ChatGPT (Codex)",
-        auth: "oauth",
-        mode: "account_linked",
-        defaultBaseUrl: "",
-        knownModels: ["gpt-5.3-codex", "gpt-5.4", "gpt-5.4-mini"],
-        lanes: ["default_prompt_testing", "default_chat", "coder_primary"],
-      },
-      {
-        id: "ollama",
-        displayName: "Ollama",
-        auth: "none",
-        mode: "local_runtime",
-        defaultBaseUrl: "http://127.0.0.1:11434",
-        knownModels: [
-          "kimi-k2.6:cloud",
-          "glm-5.1:cloud",
-          "qwen3.5:cloud",
-          "nemotron-3-super:cloud",
-          "gemma4:31b-cloud",
-          "mistral-large-3:675b-cloud",
-          "qwen3-coder-next:cloud",
-          "qwen3.5:397b-cloud",
-        ],
-        lanes: ["default_prompt_testing", "default_chat", "coder_primary", "fallback"],
-      },
-      {
-        id: "deepseek",
-        displayName: "DeepSeek",
-        auth: "api_key",
-        mode: "api_key",
-        defaultBaseUrl: "https://api.deepseek.com",
-        knownModels: ["deepseek-v4-chat", "deepseek-v4-flash", "deepseek-v4-think", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
-        lanes: ["default_prompt_testing", "read_only_planning", "synthesis", "fallback"],
-      },
-      {
-        id: "openai",
-        displayName: "OpenAI",
-        auth: "api_key",
-        mode: "api_key",
-        defaultBaseUrl: "https://api.openai.com/v1",
-        knownModels: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini"],
-        lanes: ["default_prompt_testing", "default_chat", "synthesis"],
-      },
-      {
-        id: "anthropic",
-        displayName: "Anthropic",
-        auth: "api_key",
-        mode: "api_key",
-        defaultBaseUrl: "https://api.anthropic.com/v1",
-        knownModels: ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
-        lanes: ["default_prompt_testing", "read_only_planning", "synthesis"],
-      },
-      {
-        id: "openrouter",
-        displayName: "OpenRouter",
-        auth: "api_key",
-        mode: "api_key",
-        defaultBaseUrl: "https://openrouter.ai/api/v1",
-        knownModels: ["openrouter/auto", "anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini"],
-        lanes: ["default_prompt_testing", "default_chat", "fallback"],
-      },
-      {
-        id: "custom",
-        displayName: "Custom OpenAI-compatible",
-        auth: "api_key",
-        mode: "api_key",
-        defaultBaseUrl: "",
-        knownModels: ["model"],
-        lanes: ["default_prompt_testing"],
-      },
-      {
-        id: "backend",
-        displayName: "Backend managed",
-        auth: "backend_managed",
-        mode: "backend_managed",
-        defaultBaseUrl: "",
-        knownModels: ["tripp-adapter/backend"],
-        lanes: ["default_prompt_testing", "default_chat", "warden"],
-      },
-    ];
-  }
-
-  function providerConfigFor(provider) {
-    return providerConfigs().find((config) => config.id === provider) || providerConfigs().find((config) => config.id === "custom");
-  }
-
-  function modelSetupOptions() {
-    return [...new Set([state.modelSetup.model, ...(state.modelSetup.models || []), ...knownModelsForProvider(state.modelSetup.provider)].filter(Boolean))];
-  }
-
-  function modelChoiceDisabled() {
-    return state.modelSetup.status === "checking" || !modelSetupOptions().length;
-  }
-
-  function modelSaveDisabled() {
-    const config = providerConfigFor(state.modelSetup.provider);
-    return !state.modelSetup.model ||
-      state.modelSetup.status === "checking" ||
-      (config.auth === "api_key" && !state.modelSetup.apiKey.trim()) ||
-      (config.auth === "oauth" && !state.modelSetup.oauthAuthenticated);
-  }
-
-  function modelSetupMeta() {
-    const count = modelSetupOptions().length;
-    return `${count} models available from ${state.modelSetup.modelSource || "known"} list`;
-  }
-
-  function renderEmptyModelRoster() {
-    return `
-      <article class="connection-empty">
-        <strong>No saved models yet</strong>
-        <p>Add a provider above, wait for the light, choose a model, assign lanes, then save.</p>
-      </article>
-    `;
-  }
-
-  function renderModelProviderGroup(group) {
-    return `
-      <article class="model-provider-group ${escapeHtml(group.status)}">
-        <header>
-          <div>
-            <strong>${escapeHtml(group.label)}</strong>
-            <p>${escapeHtml(group.detail)}</p>
-          </div>
-          ${renderHealthLight(group.status, `${group.status} - ${group.models.length} models`)}
-        </header>
-        <div class="model-row-list">
-          ${group.models.map(renderModelRosterRow).join("")}
-        </div>
-      </article>
-    `;
-  }
-
-  function renderModelRosterRow(connection) {
-    const lanes = (connection.purposes || []).map(formatLaneName);
-    return `
-      <section class="model-roster-row">
-        <div>
-          <strong>${escapeHtml(connection.model)}</strong>
-          <p>${escapeHtml(lanes.length ? lanes.join(" - ") : "Unassigned")}</p>
-          ${connection.lastError ? `<small>${escapeHtml(connection.lastError)}</small>` : ""}
-        </div>
-        <div>
-          <button type="button" data-connection-test="${escapeHtml(connection.id)}">TEST</button>
-          <button type="button" data-connection-edit="${escapeHtml(connection.id)}">EDIT LANES</button>
-          <button type="button" data-connection-delete="${escapeHtml(connection.id)}">REMOVE</button>
-        </div>
-      </section>
-    `;
-  }
-
-  function modelProviderGroups() {
-    const groups = [];
-    for (const connection of state.connections.items) {
-      const key = `${connection.provider}:${connection.mode}:${connection.baseUrl || "default"}`;
-      let group = groups.find((item) => item.key === key);
-      if (!group) {
-        group = {
-          key,
-          provider: connection.provider,
-          mode: connection.mode,
-          label: providerConfigFor(connection.provider).displayName,
-          detail: connection.mode === "api_key" ? "API key connected" : connection.baseUrl || connection.displayMode || connection.mode,
-          status: "unknown",
-          models: [],
-        };
-        groups.push(group);
-      }
-      group.models.push(connection);
-      group.status = mergeGroupStatus(group.status, connection.status);
-    }
-    return groups;
-  }
-
-  function mergeGroupStatus(current, next) {
-    if (current === "connected" || next === "connected") return "connected";
-    if (next === "failed") return current === "connected" ? current : "failed";
-    if (next === "not_supported") return current === "unknown" ? "failed" : current;
-    return current === "unknown" ? (next || "unknown") : current;
-  }
-
-  function normalizeFontBoost(value) {
-    const boost = String(value ?? "0");
-    return ["0", "2", "3", "4"].includes(boost) ? boost : "0";
-  }
-
-  async function saveConnection(event) {
-    event.preventDefault();
-    if (!state.connections.available) {
-      pushConnectionMessage("Saving connections requires the local Tripp server. Start with node .\\server.mjs.");
-      return;
-    }
-    const payload = readConnectionForm();
-    const result = await runtime.saveConnection(payload);
-    if (result.connections) state.connections.items = result.connections;
-    if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
-    if (result.connection?.isDefaultPromptTesting) state.connections.defaultPromptConnectionId = result.connection.id;
-    elements.connectionApiKey.value = "";
-    state.connections.lastTest = { status: result.error ? "failed" : "connected", message: result.error || `Saved ${result.connection?.name || payload.name}.` };
-    pushConnectionMessage(result.error || `${result.connection?.name || payload.name} saved for prompt testing.`);
-    if (!result.error && result.connection) {
-      state.connectionSetup.open = false;
-      state.connectionSetup.blocking = false;
-    }
-    renderShell();
-    renderConnections();
-    renderConnectionSetup();
-  }
-
-  async function testSelectedConnection() {
-    if (!state.connections.available) {
-      pushConnectionMessage("Testing connections requires the local Tripp server.");
-      return;
-    }
-    let id = elements.connectionId.value;
-    if (!id) {
-      const result = await runtime.saveConnection(readConnectionForm());
-      if (result.connections) state.connections.items = result.connections;
-      if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
-      id = result.connection?.id;
-      elements.connectionId.value = id || "";
-    }
-    if (!id) return;
-    const result = await runtime.testConnection(id);
-    if (result.connection) replaceConnection(result.connection);
-    state.connections.lastTest = {
-      status: result.status,
-      message: `${result.connection?.name || "Connection"} test: ${result.status}${result.error ? ` - ${result.error}` : ""}`,
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
     };
-    pushConnectionMessage(state.connections.lastTest.message);
-    renderConnections();
-  }
 
-  function handleModelSetupChange(event) {
-    const providerSelect = event.target.closest("[data-model-provider]");
-    if (providerSelect) {
-      applyModelProviderDefaults(providerSelect.value);
-      renderConnections();
-      if (providerConfigFor(state.modelSetup.provider).auth === "oauth") refreshOAuthStatus(state.modelSetup.provider);
-      else scheduleModelSetupHealth();
-      return;
-    }
-
-    const modelSelect = event.target.closest("[data-model-choice]");
-    if (modelSelect) {
-      state.modelSetup.model = modelSelect.value;
-      scheduleModelSetupHealth();
-      return;
-    }
-
-    const laneInput = event.target.closest("[data-model-lane]");
-    if (laneInput) {
-      state.modelSetup.lanes = readModelSetupLanes();
-      renderConnections();
-    }
-  }
-
-  function handleModelSetupInput(event) {
-    const baseUrlInput = event.target.closest("[data-model-base-url]");
-    const apiKeyInput = event.target.closest("[data-model-api-key]");
-    if (!baseUrlInput && !apiKeyInput) return;
-    if (baseUrlInput) state.modelSetup.baseUrl = baseUrlInput.value;
-    if (apiKeyInput) state.modelSetup.apiKey = apiKeyInput.value;
-    scheduleModelSetupHealth();
-  }
-
-  function applyModelProviderDefaults(provider) {
-    const config = providerConfigFor(provider);
-    state.modelSetup.provider = config.id;
-    state.modelSetup.baseUrl = config.defaultBaseUrl || "";
-    state.modelSetup.apiKey = "";
-    state.modelSetup.models = [...config.knownModels];
-    state.modelSetup.model = config.knownModels[0] || "";
-    state.modelSetup.lanes = [...config.lanes];
-    state.modelSetup.oauthAuthenticated = false;
-    state.modelSetup.status = "idle";
-    state.modelSetup.message = `${config.displayName} selected.`;
-    state.modelSetup.modelSource = "known";
-    if (state.modelSetup.healthTimer) clearTimeout(state.modelSetup.healthTimer);
-    state.modelSetup.healthTimer = null;
-  }
-
-  function readModelSetupLanes() {
-    const checked = [...elements.connectionRoot.querySelectorAll("[data-model-lane]:checked")].map((input) => input.value);
-    return checked.length ? checked : ["default_prompt_testing"];
-  }
-
-  function scheduleModelSetupHealth() {
-    if (state.modelSetup.healthTimer) clearTimeout(state.modelSetup.healthTimer);
-    if (providerConfigFor(state.modelSetup.provider).auth === "oauth") {
-      refreshOAuthStatus(state.modelSetup.provider);
-      return;
-    }
-    state.modelSetup.status = "checking";
-    state.modelSetup.message = "Checking connection...";
-    state.modelSetup.healthTimer = setTimeout(() => {
-      state.modelSetup.healthTimer = null;
-      refreshModelSetupHealth();
-    }, 650);
-  }
-
-  async function refreshModelSetupHealth() {
-    const payload = readModelSetupPayload();
-    if (providerConfigFor(state.modelSetup.provider).auth === "oauth") {
-      await refreshOAuthStatus(state.modelSetup.provider);
-      return;
-    }
-    state.modelSetup.status = "checking";
-    state.modelSetup.message = "Checking connection...";
-    renderConnections();
-    const result = await runtime.checkProviderHealth(state.modelSetup.provider, payload);
-    state.modelSetup.status = result.status || result.diagnosticCode || "failed";
-    state.modelSetup.message = result.message || result.error || state.modelSetup.status;
-    await discoverModelSetupModels(payload);
-    renderConnections();
-  }
-
-  async function discoverModelSetupModels(payload = readModelSetupPayload()) {
-    const result = await runtime.discoverProviderModels(state.modelSetup.provider, payload);
-    const discovered = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
-    const options = [...new Set([...discovered, ...knownModelsForProvider(state.modelSetup.provider)])];
-    state.modelSetup.models = options;
-    state.modelSetup.modelSource = result.source || (discovered.length ? "live" : "known");
-    if (!options.includes(state.modelSetup.model)) state.modelSetup.model = options[0] || state.modelSetup.model;
-  }
-
-  async function refreshOAuthStatus(provider = state.modelSetup.provider) {
-    const status = await runtime.oauthStatus(provider);
-    state.modelSetup.oauthAuthenticated = Boolean(status.authenticated);
-    state.modelSetup.status = status.authenticated ? "connected" : "auth_error";
-    state.modelSetup.message = status.authenticated ? `${status.displayName || provider} connected.` : `Connect ${status.displayName || provider} with browser login.`;
-    state.modelSetup.models = status.models?.length ? status.models : providerConfigFor(provider).knownModels;
-    state.modelSetup.modelSource = status.authenticated ? "oauth" : "known";
-    if (!state.modelSetup.models.includes(state.modelSetup.model)) state.modelSetup.model = state.modelSetup.models[0] || state.modelSetup.model;
-    renderConnections();
-  }
-
-  async function startOAuthProvider(provider = state.modelSetup.provider) {
-    const result = await runtime.oauthStart(provider);
-    if (result.authorizeUrl) {
-      window.open(result.authorizeUrl, "_blank", "noopener,noreferrer");
-      state.modelSetup.status = "checking";
-      state.modelSetup.message = "Browser login opened. Return here after authorization.";
-      setTimeout(() => refreshOAuthStatus(provider), 2500);
-    } else {
-      state.modelSetup.status = "failed";
-      state.modelSetup.message = result.error || "OAuth start failed.";
-    }
-    renderConnections();
-  }
-
-  async function logoutOAuthProvider(provider = state.modelSetup.provider) {
-    await runtime.oauthLogout(provider);
-    state.modelSetup.oauthAuthenticated = false;
-    state.modelSetup.status = "auth_error";
-    state.modelSetup.message = "OAuth token removed.";
-    renderConnections();
-  }
-
-  function readModelSetupPayload() {
-    const config = providerConfigFor(state.modelSetup.provider);
     return {
-      provider: state.modelSetup.provider,
-      mode: config.mode,
-      baseUrl: state.modelSetup.baseUrl || config.defaultBaseUrl || "",
-      apiKey: state.modelSetup.apiKey || "",
-      model: state.modelSetup.model || config.knownModels[0] || "model",
+      bootstrap: () => api("/bootstrap"),
+      reply: (payload) => api("/reply", { method: "POST", body: payload }),
+      workspaceTree: () => api("/workspace/tree"),
+      workspaceFile: (path) => api(`/workspace/file?path=${encodeURIComponent(path)}`),
+      runReadOnlyTrials: () => api("/trials/read-only", { method: "POST" }),
     };
-  }
-
-  async function saveModelSetup() {
-    if (!state.connections.available) {
-      pushConnectionMessage("Saving models requires the local Tripp server.");
-      return;
-    }
-    const config = providerConfigFor(state.modelSetup.provider);
-    const model = state.modelSetup.model || config.knownModels[0] || "model";
-    const payload = {
-      name: `${config.displayName} ${model}`,
-      provider: config.id,
-      mode: config.mode,
-      model,
-      baseUrl: state.modelSetup.baseUrl || config.defaultBaseUrl || "",
-      apiKey: state.modelSetup.apiKey || "",
-      enabled: true,
-      purposes: state.modelSetup.lanes.length ? state.modelSetup.lanes : ["default_prompt_testing"],
-      isDefaultPromptTesting: state.modelSetup.lanes.includes("default_prompt_testing"),
-    };
-    const result = await runtime.saveConnection(payload);
-    if (result.connections) state.connections.items = result.connections;
-    if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
-    if (result.connection?.isDefaultPromptTesting) state.connections.defaultPromptConnectionId = result.connection.id;
-    state.modelSetup.status = result.error ? "failed" : "connected";
-    state.modelSetup.message = result.error || `${model} saved. Add another model from this endpoint whenever you are ready.`;
-    pushConnectionMessage(state.modelSetup.message);
-    renderShell();
-    renderConnections();
-  }
-
-  async function handleConnectionClick(event) {
-    const button = event.target.closest("button");
-    if (!button) return;
-    if (button.dataset.modelCheck !== undefined) {
-      await refreshModelSetupHealth();
-      return;
-    }
-    if (button.dataset.modelSave !== undefined) {
-      await saveModelSetup();
-      return;
-    }
-    if (button.dataset.oauthConnect) {
-      await startOAuthProvider(button.dataset.oauthConnect);
-      return;
-    }
-    if (button.dataset.oauthLogout) {
-      await logoutOAuthProvider(button.dataset.oauthLogout);
-      return;
-    }
-    if (button.dataset.connectionNew !== undefined) {
-      resetConnectionForm();
-      openConnectionSetup("api_key", { blocking: false });
-      return;
-    }
-    const editId = button.dataset.connectionEdit;
-    const testId = button.dataset.connectionTest;
-    const defaultId = button.dataset.connectionDefault;
-    const deleteId = button.dataset.connectionDelete;
-    if (editId) {
-      fillConnectionForm(state.connections.items.find((connection) => connection.id === editId));
-      state.connectionSetup.open = true;
-      state.connectionSetup.blocking = false;
-      state.connectionSetup.method = elements.connectionMode.value || "api_key";
-      renderShell();
-      renderConnectionSetup();
-    }
-    if (testId) {
-      const result = await runtime.testConnection(testId);
-      if (result.connection) replaceConnection(result.connection);
-      state.connections.lastTest = {
-        status: result.status,
-        message: `${result.connection?.name || "Connection"} test: ${result.status}${result.error ? ` - ${result.error}` : ""}`,
-      };
-      renderConnections();
-    }
-    if (defaultId) {
-    const result = await runtime.setDefaultConnection(defaultId);
-      if (result.connections) state.connections.items = result.connections;
-      if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
-      state.connections.defaultPromptConnectionId = defaultId;
-      pushConnectionMessage("Default prompt-testing connection updated.");
-      renderConnections();
-    }
-    if (deleteId) {
-      const result = await runtime.deleteConnection(deleteId);
-      if (result.connections) state.connections.items = result.connections;
-      if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
-      resetConnectionForm();
-      pushConnectionMessage(result.deleted ? "Connection deleted." : "Connection was not found.");
-      renderConnections();
-    }
-  }
-
-  async function handleLaneRoutingChange(event) {
-    const defaultSelect = event.target.closest("[data-routing-default]");
-    if (defaultSelect) {
-      await saveLaneAssignment("fallback", defaultSelect.value);
-      return;
-    }
-
-    const providerSelect = event.target.closest("[data-lane-provider]");
-    if (providerSelect) {
-      const lane = providerSelect.dataset.laneProvider;
-      state.connections.routingDraft[lane] = providerSelect.value;
-      if (!providerSelect.value) {
-        await saveLaneAssignment(lane, "");
-        return;
-      }
-      renderConnections();
-      return;
-    }
-
-    const connectionSelect = event.target.closest("[data-lane-connection]");
-    if (connectionSelect) {
-      await saveLaneAssignment(connectionSelect.dataset.laneConnection, connectionSelect.value);
-    }
-  }
-
-  async function saveLaneAssignment(lane, connectionId) {
-    if (!state.connections.available) {
-      pushConnectionMessage("Lane routing updates require the local Tripp server.");
-      return;
-    }
-    const result = await runtime.updateConnectionRouting([{ lane, connectionId }]);
-    if (result.connections) state.connections.items = result.connections;
-    if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
-    if (!connectionId) delete state.connections.routingDraft[lane];
-    else state.connections.routingDraft[lane] = state.connections.items.find((connection) => connection.id === connectionId)?.provider || "";
-    pushConnectionMessage(`${formatLaneName(lane)} routing ${connectionId ? "updated" : "set to use default"}.`);
-    renderConnections();
-  }
-
-  function readConnectionForm() {
-    return {
-      id: elements.connectionId.value || undefined,
-      name: elements.connectionName.value || "Prompt testing",
-      provider: elements.connectionProvider.value,
-      mode: elements.connectionMode.value,
-      model: elements.connectionModel.value || "model",
-      baseUrl: elements.connectionBaseUrl.value,
-      apiKey: elements.connectionApiKey.value,
-      enabled: elements.connectionEnabled.checked,
-      purposes: readConnectionPurposes(),
-      isDefaultPromptTesting: readConnectionPurposes().includes("default_prompt_testing"),
-    };
-  }
-
-  function fillConnectionForm(connection) {
-    if (!connection) return;
-    elements.connectionId.value = connection.id;
-    elements.connectionName.value = connection.name || "";
-    elements.connectionProvider.value = connection.provider || "custom";
-    elements.connectionMode.value = connection.mode || "api_key";
-    elements.connectionModel.value = connection.model || "";
-    elements.connectionBaseUrl.value = connection.baseUrl || "";
-    elements.connectionApiKey.value = "";
-    elements.connectionApiKey.placeholder = connection.hasToken ? connection.maskedToken || "saved token" : "provider API key or token";
-    elements.connectionEnabled.checked = connection.enabled !== false;
-    setConnectionPurposes(connection.purposes || connection.purposeTags || []);
-    updateConnectionModeHint();
-  }
-
-  function resetConnectionForm() {
-    elements.connectionId.value = "";
-    elements.connectionName.value = "";
-    elements.connectionProvider.value = "openai";
-    elements.connectionMode.value = "api_key";
-    elements.connectionModel.value = "gpt-4.1-mini";
-    elements.connectionBaseUrl.value = "";
-    elements.connectionApiKey.value = "";
-    elements.connectionApiKey.placeholder = "provider API key or token";
-    elements.connectionEnabled.checked = true;
-    setConnectionPurposes(["default_prompt_testing"]);
-    updateConnectionModeHint();
-  }
-
-  function replaceConnection(connection) {
-    const index = state.connections.items.findIndex((item) => item.id === connection.id);
-    if (index >= 0) state.connections.items[index] = connection;
-    else state.connections.items.push(connection);
-  }
-
-  function knownModelsForProvider(provider) {
-    const configuredModels = state.connections.items
-      .filter((connection) => !provider || connection.provider === provider)
-      .map((connection) => connection.model)
-      .filter(Boolean);
-    const defaults = provider ? providerConfigFor(provider).knownModels : providerConfigs().flatMap((config) => config.knownModels);
-    return [...new Set([...configuredModels, ...defaults])];
-  }
-
-  function updateConnectionModelOptions() {
-    const provider = elements.connectionProvider.value;
-    const models = knownModelsForProvider(provider);
-    elements.connectionModelOptions.innerHTML = models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
-    if (!elements.connectionModel.value || elements.connectionModel.value === "model") {
-      elements.connectionModel.placeholder = models[0] || "model";
-    }
-  }
-
-  function pushConnectionMessage(body) {
-    pushMessage({ kind: "system", speaker: "connections>", time: now(), body });
-    renderMessages();
-  }
-
-  function maybeShowConnectionFirstBoot() {
-    if (!state.connections.available || hasPromptReadyConnection()) return;
-    state.opsExpanded = true;
-    state.opsTab = "connections";
-    applyModelProviderDefaults("chatgpt_codex");
-    state.modelSetup.status = "idle";
-    state.modelSetup.message = "Connect ChatGPT Codex, or choose another provider to finish setup.";
-    pushMessage({
-      kind: "system",
-      speaker: "connections>",
-      time: now(),
-      body: "Tripp needs a default prompt/chat model before prompt testing. The model setup panel is open; connect a provider, save a model, then assign it to default prompt testing or default chat.",
-    });
-    renderShell();
-    renderConnections();
-    renderMessages();
-  }
-
-  function hasUsableConnection() {
-    return state.connections.items.some((connection) => connectionUsable(connection));
-  }
-
-  function hasPromptReadyConnection() {
-    return Boolean(routeConnectionForLane("default_prompt_testing") || routeConnectionForLane("default_chat"));
-  }
-
-  function connectionUsable(connection) {
-    const support = state.connections.providerSupport?.[connection.provider] || {};
-    return Boolean(
-      connection &&
-      connection.enabled !== false &&
-      connection.status !== "disabled" &&
-      connection.status !== "not_supported" &&
-      support[connection.mode || "api_key"] !== false,
-    );
-  }
-
-  function preferredFirstBootMethod() {
-    return state.connections.providerSupport?.backend?.backend_managed ? "backend_managed" : "api_key";
-  }
-
-  function openConnectionSetup(method = "api_key", options = {}) {
-    state.connectionSetup.open = true;
-    state.connectionSetup.blocking = Boolean(options.blocking);
-    applyConnectionMethod(method);
-    renderShell();
-    renderConnectionSetup();
-  }
-
-  function closeConnectionSetup() {
-    if (state.connectionSetup.blocking && !hasUsableConnection()) {
-      pushConnectionMessage("A usable connection is required before prompt testing can continue.");
-      return;
-    }
-    state.connectionSetup.open = false;
-    state.connectionSetup.blocking = false;
-    renderShell();
-    renderConnectionSetup();
-  }
-
-  function renderConnectionSetup() {
-    elements.connectionSetupModal.classList.toggle("hidden", !state.connectionSetup.open);
-    elements.connectionSetupModal.classList.toggle("blocking", state.connectionSetup.blocking);
-    elements.closeConnectionSetup.hidden = state.connectionSetup.blocking && !hasUsableConnection();
-    elements.command.disabled = state.connectionSetup.open && state.connectionSetup.blocking;
-    renderSavedConnectionChoices();
-    elements.connectionSetupModal.querySelectorAll("[data-connection-method]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.connectionMethod === state.connectionSetup.method);
-    });
-    updateConnectionModeHint();
-  }
-
-  function renderSavedConnectionChoices() {
-    const usable = state.connections.items.filter(connectionUsable);
-    if (!usable.length) {
-      elements.savedConnectionChoices.innerHTML = "";
-      return;
-    }
-    elements.savedConnectionChoices.innerHTML = `
-      <strong>Use saved connection</strong>
-      ${usable
-        .slice(0, 4)
-        .map(
-          (connection) => `
-            <button type="button" data-use-saved-connection="${escapeHtml(connection.id)}">
-              <span>${escapeHtml(connection.mode === "backend_managed" ? "Use saved backend" : "Use saved connection")}</span>
-              <em>${escapeHtml(connection.name)} · ${escapeHtml(connection.provider)} · ${escapeHtml(connection.model)}</em>
-            </button>
-          `,
-        )
-        .join("")}
-    `;
-  }
-
-  function handleConnectionSetupClick(event) {
-    const methodButton = event.target.closest("[data-connection-method]");
-    if (methodButton) {
-      applyConnectionMethod(methodButton.dataset.connectionMethod);
-      renderConnectionSetup();
-      return;
-    }
-    const savedButton = event.target.closest("[data-use-saved-connection]");
-    if (savedButton) {
-      useSavedConnection(savedButton.dataset.useSavedConnection);
-      return;
-    }
-    if (event.target === elements.connectionSetupModal && !state.connectionSetup.blocking) {
-      closeConnectionSetup();
-    }
-  }
-
-  async function useSavedConnection(connectionId) {
-    if (!connectionId) return;
-    const result = await runtime.setDefaultConnection(connectionId);
-    if (result.connections) state.connections.items = result.connections;
-    if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
-    state.connections.defaultPromptConnectionId = connectionId;
-    state.connectionSetup.open = false;
-    state.connectionSetup.blocking = false;
-    pushConnectionMessage("Saved connection selected for prompt testing.");
-    renderShell();
-    renderConnections();
-    renderConnectionSetup();
-  }
-
-  function applyConnectionMethod(method = "api_key") {
-    state.connectionSetup.method = method;
-    if (method === "backend_managed") {
-      elements.connectionName.value = "Local Tripp bridge";
-      elements.connectionProvider.value = "backend";
-      elements.connectionMode.value = "backend_managed";
-      elements.connectionModel.value = "tripp-adapter/backend";
-      elements.connectionBaseUrl.value = "";
-      elements.connectionApiKey.value = "";
-      setConnectionPurposes(["default_prompt_testing", "default_chat", "warden"]);
-    } else if (method === "local_runtime") {
-      elements.connectionName.value = "Local runtime";
-      elements.connectionProvider.value = "ollama";
-      elements.connectionMode.value = "local_runtime";
-      elements.connectionModel.value = "llama3.1";
-      elements.connectionApiKey.value = "";
-      setConnectionPurposes(["default_prompt_testing", "fallback"]);
-    } else if (method === "account_linked") {
-      elements.connectionName.value = "ChatGPT Codex";
-      elements.connectionProvider.value = "chatgpt_codex";
-      elements.connectionMode.value = "account_linked";
-      elements.connectionModel.value = "gpt-5.3-codex";
-      elements.connectionApiKey.value = "";
-      setConnectionPurposes(["default_prompt_testing"]);
-    } else {
-      elements.connectionName.value = "Prompt testing";
-      elements.connectionProvider.value = elements.connectionProvider.value === "backend" ? "openai" : elements.connectionProvider.value;
-      elements.connectionMode.value = "api_key";
-      elements.connectionModel.value = "gpt-4.1-mini";
-      setConnectionPurposes(["default_prompt_testing"]);
-    }
-    updateConnectionModeHint();
-  }
-
-  function readConnectionPurposes() {
-    return [...elements.connectionPurposes.querySelectorAll("input[type='checkbox']:checked")].map((input) => input.value);
-  }
-
-  function setConnectionPurposes(purposes) {
-    const selected = new Set(purposes.length ? purposes : ["default_prompt_testing"]);
-    for (const input of elements.connectionPurposes.querySelectorAll("input[type='checkbox']")) {
-      input.checked = selected.has(input.value);
-    }
-  }
-
-  function updateConnectionModeHint() {
-    const provider = elements.connectionProvider.value;
-    const mode = elements.connectionMode.value;
-    const support = state.connections.providerSupport?.[provider] || {};
-    const unsupportedAccountLink = mode === "account_linked" && support[mode] !== true;
-    updateConnectionModelOptions();
-    elements.connectionUnsupportedHint.hidden = !unsupportedAccountLink;
-    elements.connectionForm.classList.toggle("unsupported-account-link", unsupportedAccountLink);
-    elements.connectionApiKeyField.hidden = mode !== "api_key";
-    elements.connectionBaseUrlField.hidden = mode === "backend_managed" || mode === "account_linked";
-    elements.connectionProviderField.hidden = mode === "backend_managed";
-    if (support[mode] === false) {
-      elements.connectionModeHint.textContent = mode === "account_linked"
-        ? "Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead."
-        : `${formatLaneName(mode)} mode is not currently supported for ${provider}.`;
-      elements.connectionApiKey.disabled = true;
-      return;
-    }
-    if (mode === "backend_managed") {
-      elements.connectionModeHint.textContent = "Backend-managed connection. Managed by local/server-side Tripp backend; no provider key is entered in the browser for this connection.";
-      elements.connectionApiKey.disabled = true;
-      elements.connectionApiKey.value = "";
-      return;
-    }
-    if (mode === "account_linked") {
-      elements.connectionModeHint.textContent = support[mode] === true
-        ? "Browser-login managed provider. Use the main provider panel to connect or refresh OAuth status."
-        : "Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.";
-      elements.connectionApiKey.disabled = true;
-      return;
-    }
-    if (mode === "local_runtime") {
-      elements.connectionModeHint.textContent = provider === "ollama"
-        ? "Local runtime connection for prompt testing and read-only planning."
-        : "Local runtime mode is intended for local providers such as Ollama.";
-      elements.connectionApiKey.disabled = true;
-      return;
-    }
-    elements.connectionModeHint.textContent = "Use provider API key for prompt testing and read-only planning.";
-    elements.connectionApiKey.disabled = false;
-  }
-
-  function formatLaneName(lane) {
-    return String(lane || "").replace(/_/g, " ");
-  }
-
-  function applyFirstBootResetAwareness(data) {
-    const reset = data?.connections?.reset || data?.firstBootReset || {};
-    const resetVersion = reset.resetVersion;
-    if (!resetVersion) return;
-    try {
-      const versionKey = "tripp.firstBootResetVersion";
-      if (window.localStorage.getItem(versionKey) === resetVersion) return;
-      for (const key of reset.browserStorageKeys || []) {
-        window.localStorage.removeItem(key);
-        window.sessionStorage.removeItem(key);
-      }
-      window.localStorage.setItem(versionKey, resetVersion);
-    } catch (error) {
-      console.warn("Tripp first-boot reset browser-state invalidation was skipped.", error);
-    }
-  }
-
-  function formatBytes(value) {
-    const bytes = Number(value) || 0;
-    if (bytes < 1024) return `${bytes}b`;
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}kb`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}mb`;
-  }
-
-  function railMessage(rail) {
-    const messages = {
-      terminal: "Terminal focus restored.",
-      tools: "Tool registry is active on the ops panel.",
-      sessions: "Session history lives in the right panel, keeping the narrow Tripp rail untouched.",
-      swarm: "Swarm tree placeholder ready: Tripp -> tripp.supervisor -> specialist agents.",
-      tripp: "Tripp is the face of the swarm. Supervisor and agent routing comes next.",
-      settings: "Settings will map to config, provider, and permission routes once the bridge is live.",
-    };
-
-    return messages[rail] || "Rail command acknowledged.";
   }
 })();
-
-function createTrippRuntime() {
-  return {
-    async bootstrap() {
-      try {
-        return await fetchJson("./api/tripp/bootstrap");
-      } catch (apiError) {
-        console.warn("Tripp API bootstrap unavailable; using static JSON fallback.", apiError);
-        return loadStaticData();
-      }
-    },
-
-    async reply(payload) {
-      try {
-        return await fetchJson("./api/tripp/reply", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } catch (apiError) {
-        console.warn("Tripp API reply unavailable; using local mock fallback.", apiError);
-        return createLocalReply(payload);
-      }
-    },
-
-    async taskAction(taskId, action) {
-      try {
-        return await fetchJson(`./api/tripp/tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(action)}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-      } catch (apiError) {
-        console.warn("Tripp task action unavailable; using local task fallback.", apiError);
-        return {
-          task: {
-            id: taskId,
-            title: "Local fallback task",
-            tool: "local",
-            status: "gated",
-            result: `Task ${action} was not persisted because the Tripp API is unavailable. Start the local server for real trials.`,
-          },
-        };
-      }
-    },
-
-    async createSession() {
-      try {
-        const result = await fetchJson("./api/tripp/sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-        return result.session;
-      } catch (apiError) {
-        console.warn("Tripp session create unavailable; using local session fallback.", apiError);
-        return {
-          id: `local-session-${Date.now()}`,
-          title: "New Tripp session",
-          age: "now",
-          messages: 0,
-          active: true,
-          transcript: [],
-        };
-      }
-    },
-
-    async selectSession(sessionId) {
-      return fetchJson(`./api/tripp/sessions/${encodeURIComponent(sessionId)}/select`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-    },
-
-    async workspaceTree() {
-      return fetchJson("./api/tripp/workspace/tree");
-    },
-
-    async workspaceFile(path) {
-      return fetchJson(`./api/tripp/workspace/file?path=${encodeURIComponent(path)}`);
-    },
-
-    async cystEvents() {
-      return fetchJson("./api/tripp/cyst/events");
-    },
-
-    async reviewChanges() {
-      return fetchJson("./api/tripp/review-changes");
-    },
-
-    async saveSettings(payload) {
-      return fetchJson("./api/tripp/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    },
-
-    async modelProviders() {
-      try {
-        return await fetchJson("./api/tripp/model-providers");
-      } catch {
-        return { providers: [] };
-      }
-    },
-
-    async modelInventory() {
-      try {
-        return await fetchJson("./api/tripp/model-inventory");
-      } catch {
-        return { providerGroups: [] };
-      }
-    },
-
-    async oauthStart(providerId) {
-      try {
-        return await fetchJson(`./api/tripp/oauth/${encodeURIComponent(providerId)}/start`, { method: "POST" });
-      } catch {
-        return { status: "failed", error: "OAuth start requires the local Tripp server." };
-      }
-    },
-
-    async oauthStatus(providerId) {
-      try {
-        return await fetchJson(`./api/tripp/oauth/${encodeURIComponent(providerId)}/status`);
-      } catch {
-        return { authenticated: false, error: "OAuth status requires the local Tripp server." };
-      }
-    },
-
-    async oauthLogout(providerId) {
-      try {
-        return await fetchJson(`./api/tripp/oauth/${encodeURIComponent(providerId)}/logout`, { method: "POST" });
-      } catch {
-        return { authenticated: false, error: "OAuth logout requires the local Tripp server." };
-      }
-    },
-
-    async checkProviderHealth(providerId, payload) {
-      try {
-        return await fetchJson(`./api/tripp/model-providers/${encodeURIComponent(providerId)}/health`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload || {}),
-        });
-      } catch {
-        return { status: "failed", diagnosticCode: "endpoint_unreachable", message: "Provider health check requires the local Tripp server." };
-      }
-    },
-
-    async discoverProviderModels(providerId, payload) {
-      try {
-        return await fetchJson(`./api/tripp/model-providers/${encodeURIComponent(providerId)}/models`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload || {}),
-        });
-      } catch {
-        return { status: "fallback", source: "known", models: [] };
-      }
-    },
-
-    async saveConnection(payload) {
-      try {
-        return await fetchJson("./api/tripp/connections", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } catch {
-        return { error: "Connections require the local Tripp server.", status: "failed" };
-      }
-    },
-
-    async testConnection(connectionId) {
-      try {
-        return await fetchJson(`./api/tripp/connections/${encodeURIComponent(connectionId)}/test`, { method: "POST" });
-      } catch {
-        return { status: "failed", error: "Connection testing requires the local Tripp server." };
-      }
-    },
-
-    async setDefaultConnection(connectionId) {
-      try {
-        return await fetchJson(`./api/tripp/connections/${encodeURIComponent(connectionId)}/default-prompt`, { method: "POST" });
-      } catch {
-        return { status: "failed", error: "Default connection updates require the local Tripp server." };
-      }
-    },
-
-    async updateConnectionRouting(assignments) {
-      try {
-        return await fetchJson("./api/tripp/connections/routing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ assignments }),
-        });
-      } catch {
-        return { status: "failed", error: "Lane routing updates require the local Tripp server." };
-      }
-    },
-
-    async deleteConnection(connectionId) {
-      try {
-        return await fetchJson(`./api/tripp/connections/${encodeURIComponent(connectionId)}`, { method: "DELETE" });
-      } catch {
-        return { status: "failed", error: "Deleting connections requires the local Tripp server." };
-      }
-    },
-
-    async runReadOnlyTrials() {
-      return fetchJson("./api/tripp/trials/read-only", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-    },
-  };
-}
-
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-  return response.json();
-}
-
-async function loadStaticData() {
-  try {
-    return await fetch("./tripp-terminal-data.json").then((response) => response.json());
-  } catch (error) {
-    console.warn("Tripp terminal data fetch unavailable; using embedded fallback data.", error);
-    return {
-      messages: [
-        {
-          speaker: "tripp>",
-          time: "10:59",
-          body:
-            "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready for prompt testing and read-only planning.",
-        },
-      ],
-      tools: [
-        { name: "filesystem_read", enabled: true, description: "Read files from the active workspace." },
-        { name: "filesystem_write", enabled: false, description: "Write-capable file changes are outside the current read-only scope." },
-        { name: "filesystem_list", enabled: true, description: "List directories and inspect project structure." },
-        { name: "shell_execute", enabled: true, description: "Run bounded shell commands with permission awareness." },
-        { name: "web_search", enabled: true, description: "Search current web sources when freshness matters." },
-        { name: "web_fetch", enabled: true, description: "Open and read specific URLs." },
-        { name: "code_analyze", enabled: true, description: "Inspect code paths and summarize architecture." },
-        { name: "code_format", enabled: false, description: "Formatting changes are outside the current read-only scope." },
-        { name: "git_status", enabled: true, description: "Review repository state before edits." },
-        { name: "git_commit", enabled: false, description: "Commits are outside the current read-only scope." },
-        { name: "memory_store", enabled: true, description: "Persist selected project context." },
-        { name: "memory_retrieve", enabled: true, description: "Retrieve stored context for continuity." },
-      ],
-      sessions: [
-        { title: "Implement auth middleware", age: "2h ago", messages: 24, active: true },
-        { title: "Database schema review", age: "5h ago", messages: 18 },
-        { title: "API endpoint design", age: "Yesterday", messages: 31 },
-        { title: "React component refactor", age: "Yesterday", messages: 15 },
-        { title: "Docker container setup", age: "2 days ago", messages: 12 },
-        { title: "CI/CD pipeline config", age: "3 days ago", messages: 27 },
-      ],
-      status: {
-        connection: "CONNECTED",
-        model: "gpt-4",
-        tokensIn: "1,240",
-        tokensOut: "3,891",
-        contextLimit: 128000,
-        autoCompactAt: 96000,
-        latency: "679ms",
-        mode: "CHAT",
-        version: "v1.0.0",
-      },
-      connections: {
-        available: false,
-        connections: [],
-        defaultPromptConnectionId: null,
-        laneRouting: {},
-        providerSupport: {
-          openai: { account_linked: false, api_key: true, local_runtime: false },
-          anthropic: { account_linked: false, api_key: true, local_runtime: false },
-          deepseek: { account_linked: false, api_key: true, local_runtime: false },
-          openrouter: { account_linked: false, api_key: true, local_runtime: false },
-          ollama: { account_linked: false, api_key: false, local_runtime: true },
-          custom: { account_linked: false, api_key: true, local_runtime: true },
-          backend: { account_linked: false, api_key: false, local_runtime: false, backend_managed: true },
-          chatgpt_codex: { account_linked: true, api_key: false, local_runtime: false, backend_managed: false },
-        },
-        scopeNote: "Connections configure model access only. They do not change Tripp's current read-only scope.",
-        reset: {
-          resetVersion: null,
-          browserStorageKeys: [
-            "tripp.firstBootComplete",
-            "tripp.connections.firstBootDismissed",
-            "tripp.defaultPromptConnectionId",
-          ],
-        },
-      },
-      firstBootReset: {
-        resetVersion: null,
-        browserStorageKeys: [
-          "tripp.firstBootComplete",
-          "tripp.connections.firstBootDismissed",
-          "tripp.defaultPromptConnectionId",
-        ],
-      },
-      munch: {
-        bridge_name: "TripCore.Munch.g",
-        status: "unavailable",
-        mode: "passive_assist",
-        summary: ["Static fallback has no Munch bridge."],
-        warnings: ["api unavailable"],
-      },
-      swarm: {
-        version: "0.0.0",
-        face: "tripp",
-        supervisor: "tripp.supervisor",
-        agents: [],
-      },
-      tasks: [],
-    };
-  }
-}
-
-function createLocalReply(payload) {
-  const mode = String(payload?.mode || "CHAT").toUpperCase();
-  const prompt = String(payload?.prompt || "");
-  const promptBlock = createLocalPromptBlock(prompt);
-  const task =
-    !promptBlock && mode === "AUTO"
-      ? {
-          id: `local-task-${Date.now()}`,
-          title: prompt.length > 46 ? `${prompt.slice(0, 43)}...` : prompt || "Untitled task",
-          prompt,
-          tool: chooseTool(prompt),
-          sessionId: payload?.sessionId || null,
-          status: "pending",
-          result: "",
-        }
-      : null;
-
-  return {
-    status: {
-      model: "tripp-adapter/local",
-      latency: `${420 + Math.floor(Math.random() * 180)}ms`,
-      tokensIn: prompt.length,
-      tokensOut: mode === "AUTO" ? 74 : 42,
-    },
-    task,
-    messages:
-      promptBlock
-        ? [
-            {
-              kind: "agent",
-              speaker: "tripp.prompt>",
-              body: "Copy-ready prompt block prepared.",
-              promptBlock,
-            },
-          ]
-        : mode === "AUTO"
-        ? [
-            {
-              kind: "tool",
-              speaker: "tripp.auto>",
-              tool: task.tool,
-              result: `${task.id} pending approval`,
-            },
-            {
-              kind: "agent",
-              speaker: "tripp.supervisor>",
-              body: "The local fallback caught that prompt. Backend wiring can swap in without changing this UI path.",
-            },
-          ]
-        : [
-            {
-              kind: "agent",
-              speaker: "tripp>",
-              body: "Prompt received through the local fallback. The adapter path is ready for live backend wiring.",
-            },
-          ],
-  };
-}
-
-function createLocalPromptBlock(prompt) {
-  const lower = String(prompt || "").toLowerCase();
-  const wantsPrompt =
-    lower.includes("tripp.prompt") ||
-    (lower.includes("tripp") && lower.includes("prompt")) ||
-    lower.includes("copy ready prompt") ||
-    lower.includes("copy-ready prompt");
-
-  if (!wantsPrompt) return null;
-
-  const contextSnapshotId = `ctx_${Date.now()}`;
-
-  return {
-    type: "prompt_block",
-    label: "Tripp.Prompt",
-    header: "---pb:v1---",
-    body: [
-      "---pb:v1---",
-      "Tripp.Prompt",
-      "",
-      "pinnedWorkspaceRoot: static-fallback",
-      `contextSnapshotId: ${contextSnapshotId}`,
-      "executionAllowed: false",
-      "contextOnly: true",
-      "descriptorStatus: proposed",
-      "",
-      "Context:",
-      "- Tripp.g is the user-facing harness shell.",
-      "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
-      "- Treat TripCore.Munch.g as retrieval/narrowing support and Tripp read-only adapter tools as execution support.",
-      "",
-      "Task:",
-      "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
-      "- Focus on schema, routing, runtime contract, or workspace UI only if it helps the next build chunk.",
-      "",
-      "Output:",
-      "- Lead with the recommendation.",
-      "- Include any risks or missing evidence.",
-      "- End with a small next-step checklist.",
-    ].join("\n"),
-    executionAllowed: false,
-    contextOnly: true,
-    descriptorStatus: "proposed",
-    requiresReview: true,
-    pinnedWorkspaceRoot: "static-fallback",
-    contextSnapshotId,
-    validation: {
-      type: "prompt_block_validation",
-      valid: true,
-      status: "valid",
-      executionAllowed: false,
-      contextOnly: true,
-      descriptorStatus: "proposed",
-      pinnedWorkspaceRoot: "static-fallback",
-      currentWorkspaceRoot: "static-fallback",
-      contextSnapshotId,
-      warnings: [],
-    },
-  };
-}
-
-function chooseTool(value) {
-  const lower = value.toLowerCase();
-  if (lower.includes("git")) return "git_status";
-  if (lower.includes("write") || lower.includes("edit")) return "filesystem_write";
-  if (lower.includes("file") || lower.includes("read")) return "filesystem_read";
-  if (lower.includes("web") || lower.includes("search")) return "web_search";
-  return "code_analyze";
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
