@@ -68,6 +68,7 @@ Start the app linked to the local Tripp bridge:
   - `POST /api/tripp/sessions`
   - `POST /api/tripp/sessions/:sessionId/select`
 - Optional backend bridge env:
+  - Copy `.env.example` to `.env.local` for manual local config. `.env.local` is ignored by Git.
   - `TRIPP_BACKEND_URL`
   - `TRIPP_BACKEND_SECRET` or `GOOSE_SERVER__SECRET_KEY`
   - `TRIPP_ENABLE_BACKEND_REPLY=true`
