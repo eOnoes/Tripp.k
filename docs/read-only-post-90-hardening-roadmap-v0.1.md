@@ -47,6 +47,7 @@ Required proof:
 - correct-and-re-scope adversarial rows do not look like capability expansion
 - Cyst remains event/audit only under adversarial scenarios
 - Cyst rows do not carry conclusion prose
+- Cyst visual truth artifact exists in harness output only, not normal product UI
 
 Rollback trigger:
 - adversarial Cyst rows become visually or semantically indistinguishable from healthy completion.

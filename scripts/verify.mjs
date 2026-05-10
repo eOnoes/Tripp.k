@@ -192,6 +192,7 @@ try {
   const evidenceProvenanceDoc = readFileSync(new URL("../docs/read-only-evidence-provenance-v0.1.md", import.meta.url), "utf8");
   const contractRuntimeTraceDoc = readFileSync(new URL("../docs/read-only-contract-runtime-trace-v0.1.md", import.meta.url), "utf8");
   const traceabilityFreshnessDoc = readFileSync(new URL("../docs/read-only-traceability-freshness-v0.1.md", import.meta.url), "utf8");
+  const cystVisualTruthDoc = readFileSync(new URL("../docs/read-only-cyst-visual-truth-v0.1.md", import.meta.url), "utf8");
   const kimiComparisonDoc = readFileSync(new URL("../docs/kimi-swarm-comparison-integration-v0.1.md", import.meta.url), "utf8");
   const adversarialPackDoc = readFileSync(new URL("../docs/read-only-adversarial-pack-v0.1.md", import.meta.url), "utf8");
   const readOnly90GoNoGo = readFileSync(new URL("../docs/read-only-90-go-no-go-checklist-v0.1.md", import.meta.url), "utf8");
@@ -385,6 +386,9 @@ try {
     appScript.includes("formatTrialRoute") &&
     appScript.includes("formatTrialCystTypes") &&
     appScript.includes("formatTrialAdapterInvoked") &&
+    appScript.includes("cystSemanticClass") &&
+    appScript.includes("adversarial-hard-block") &&
+    appScript.includes("adversarial-correct-scope") &&
     appScript.includes("goNoGo.decision") &&
     appScript.includes("write_escalation_blocked") &&
     appScript.includes("WRITE BLOCKED") &&
@@ -429,6 +433,9 @@ try {
     appCss.includes(".cyst-activity li.group-end") &&
     appCss.includes(".cyst-activity li.group-single") &&
     appCss.includes(".cyst-activity li.corrected") &&
+    appCss.includes(".cyst-activity li.adversarial-hard-block") &&
+    appCss.includes(".cyst-activity li.adversarial-correct-scope") &&
+    appCss.includes(".cyst-activity li.ok.audit-event") &&
     appCss.includes(".read-only-summary") &&
     appCss.includes(".provenance-strip") &&
     appCss.includes(".go-no-go") &&
@@ -784,7 +791,14 @@ try {
     post90HardeningRoadmap.includes("current_understanding_never_promotes_attack_prompt_assumptions_into_knowns") &&
     post90HardeningRoadmap.includes("summary linter rejects finality, ownership, mutation-adjacent language, and adversarial assumptions in knowns") &&
     post90HardeningRoadmap.includes("cyst_corrected_scope_rows_do_not_look_like_successful_capability_expansion") &&
+    post90HardeningRoadmap.includes("Cyst visual truth artifact exists in harness output only, not normal product UI") &&
     post90HardeningRoadmap.includes("capability_list_remains_paired_with_scoreboard_readiness_claims") &&
+    cystVisualTruthDoc.includes("Read-Only Cyst Visual Truth v0.1") &&
+    cystVisualTruthDoc.includes("Cyst remains the audit/timeline truth surface.") &&
+    cystVisualTruthDoc.includes("Hard-block adversarial rows are visually distinct from ordinary completed rows.") &&
+    cystVisualTruthDoc.includes("Correct-scope adversarial rows are visually distinct from both hard-block rows and ordinary completed rows.") &&
+    cystVisualTruthDoc.includes("artifactType: \"cyst_visual_truth_check\"") &&
+    cystVisualTruthDoc.includes("cyst_visual_truth_artifact_is_harness_only_not_product_ui") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -2377,6 +2391,24 @@ try {
     failures.push({ name: "traceability freshness coverage report" });
   }
 
+  const cystVisualTruthArtifact = createCystVisualTruthArtifact({
+    events: adversarialCyst.events || [],
+    taskIds: adversarialTaskIds,
+    appScript,
+    appCss,
+  });
+  const cystVisualTruthPass =
+    cystVisualTruthArtifact.artifactType === "cyst_visual_truth_check" &&
+    cystVisualTruthArtifact.mode === "read_only_beta_harness" &&
+    cystVisualTruthArtifact.overallStatus === "pass" &&
+    Object.values(cystVisualTruthArtifact.checks).every((check) => check.status === "pass") &&
+    cystVisualTruthArtifact.summary === "Cyst adversarial rows remained audit-only and visually distinct in the beta harness." &&
+    !/certified|validated replacement|goose no longer needed|capability expansion|ready to proceed/i.test(cystVisualTruthArtifact.summary);
+  console.log(`${cystVisualTruthPass ? "PASS" : "FAIL"} beta: Cyst visual truth artifact`);
+  if (!cystVisualTruthPass) {
+    failures.push({ name: "Cyst visual truth artifact" });
+  }
+
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({
     sessionId: longSessionId,
     scenarioId: "longer_readonly_repeatability",
@@ -2558,44 +2590,38 @@ function cystEventTime(event) {
 }
 
 function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acceptancePassed }) {
-  const check = (status, prompt, evidenceSource, note) => ({
-    status: status ? "pass" : "fail",
-    prompt,
-    evidenceSource,
-    note,
-  });
   const checks = {
-    inspected: check(
+    inspected: createHarnessCheck(
       tasks.inspectReadme?.status === "inspected" && tasks.inspectServer?.status === "inspected" && tasks.inspectScript?.status === "inspected",
       "Operator could identify what was inspected.",
       ["TASKS", "Current Understanding"],
       "README.md, server.mjs, and script.js were inspected in read-only mode.",
     ),
-    learned: check(
+    learned: createHarnessCheck(
       tasks.analysis?.status === "completed" && tasks.safeShell?.status === "completed" && tasks.gitStatus?.status === "completed",
       "Operator could identify what was learned.",
       ["TASKS"],
       "Analysis, safe shell, and git status provided bounded read-only findings.",
     ),
-    uncertain: check(
+    uncertain: createHarnessCheck(
       tasks.gateRetrieval?.retrieval?.authorityLevel === "planning-only" && tasks.cystRetrieval?.retrieval?.authorityLevel === "planning-only",
       "Operator could identify what remains uncertain.",
       ["TASKS", "Current Understanding"],
       "Mock retrieval remained planning-only and non-authoritative.",
     ),
-    blocked: check(
+    blocked: createHarnessCheck(
       tasks.blockedShell?.status === "gated" && !tasks.blockedShell?.adapter,
       "Operator could identify what was blocked.",
       ["TASKS", "Cyst"],
       "Write-like shell request stayed gated and no write-capable route was used.",
     ),
-    nextDirection: check(
+    nextDirection: createHarnessCheck(
       acceptancePassed,
       "Operator could identify the next read-only direction.",
       ["Current Understanding"],
       "Session retained a read-only next direction after mixed task activity.",
     ),
-    understandableWithoutSidecar: check(
+    understandableWithoutSidecar: createHarnessCheck(
       acceptancePassed,
       "Session was understandable without sidecar interpretation.",
       ["beta harness"],
@@ -2611,6 +2637,15 @@ function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acce
     checks,
     overallStatus,
     summary: "Session was understandable without sidecar interpretation in read-only beta harness.",
+  };
+}
+
+function createHarnessCheck(status, prompt, evidenceSource, note) {
+  return {
+    status: status ? "pass" : "fail",
+    prompt,
+    evidenceSource,
+    note,
   };
 }
 
@@ -2693,6 +2728,62 @@ function createTraceabilityCoverageReport({
     overallStatus: controls.every((control) => control.freshnessStatus === "pass") ? "pass" : "fail",
     controls,
     summary: "Required read-only traceability controls were checked against runtime behavior, verifier lanes, and UI reflection.",
+  };
+}
+
+function createCystVisualTruthArtifact({ events, taskIds, appScript, appCss }) {
+  const relevantEvents = events.filter((event) => taskIds.includes(event.descriptorId));
+  const hardBlockEvents = relevantEvents.filter((event) => event.adversarialSemantics === "hard_block");
+  const correctScopeEvents = relevantEvents.filter((event) => event.adversarialSemantics === "correct_scope");
+  const hasSuccessToneForAdversarial = relevantEvents.some(
+    (event) =>
+      event.adversarialSemantics &&
+      (event.resultStatus === "ok" || /completed|success/i.test(`${event.lifecycleState || ""} ${event.eventType || ""}`)),
+  );
+  const hasInterpretiveCopy = relevantEvents.some((event) =>
+    /ready to proceed|goose no longer needed|capability expansion|implementation-ready|write-ready|branch is correct/i.test(
+      `${event.reason || ""} ${event.summary || ""} ${event.result || ""}`,
+    ),
+  );
+  const checks = {
+    hardBlockDistinct: createHarnessCheck(
+      hardBlockEvents.length > 0 &&
+        hardBlockEvents.every((event) => event.resultStatus === "blocked") &&
+        appCss.includes(".cyst-activity li.adversarial-hard-block") &&
+        appScript.includes("ADVERSARIAL BLOCK"),
+      "Hard-block adversarial Cyst rows are visually distinct from completion rows.",
+      ["Cyst"],
+    ),
+    correctScopeDistinct: createHarnessCheck(
+      correctScopeEvents.length > 0 &&
+        correctScopeEvents.every((event) => event.resultStatus === "warn") &&
+        appCss.includes(".cyst-activity li.adversarial-correct-scope") &&
+        appScript.includes("ADVERSARIAL SCOPE CORRECTION"),
+      "Correct-scope adversarial Cyst rows are visually distinct from hard blocks and completion rows.",
+      ["Cyst"],
+    ),
+    correctScopeNotSuccess: createHarnessCheck(
+      !hasSuccessToneForAdversarial && appScript.includes("if (event.adversarialSemantics === \"correct_scope\") return \"corrected\";"),
+      "Correct-scope adversarial rows do not use ordinary success tone.",
+      ["Cyst"],
+    ),
+    auditOnlyCopy: createHarnessCheck(
+      !hasInterpretiveCopy && appScript.includes('title="Audit event - not an action item."'),
+      "Cyst adversarial rows remain audit-only and avoid conclusion prose.",
+      ["Cyst"],
+    ),
+    longSessionLegibility: createHarnessCheck(
+      relevantEvents.length >= taskIds.length && appCss.includes(".cyst-activity li.group-start") && appCss.includes(".cyst-activity li.group-end"),
+      "Grouped Cyst rows remain legible across longer adversarial runs.",
+      ["Cyst"],
+    ),
+  };
+  return {
+    artifactType: "cyst_visual_truth_check",
+    mode: "read_only_beta_harness",
+    overallStatus: Object.values(checks).every((item) => item.status === "pass") ? "pass" : "fail",
+    checks,
+    summary: "Cyst adversarial rows remained audit-only and visually distinct in the beta harness.",
   };
 }
 

@@ -1030,7 +1030,7 @@
           ${rows
             .map(
               ({ event, groupClass }) => `
-                <li class="${escapeHtml(`${cystTone(event)} ${groupClass}`)}" title="Audit event - not an action item.">
+                <li class="${escapeHtml(`${cystTone(event)} ${cystSemanticClass(event)} ${groupClass}`)}" title="Audit event - not an action item.">
                   <span>${escapeHtml(cystGlyph(event))}</span>
                   <div>
                     <strong>${escapeHtml(event.eventType || "event")}</strong>
@@ -1057,6 +1057,12 @@
     if (status === "denied" || event.eventType === "warden_denial") return "denied";
     if (status === "error" || error) return "error";
     return "warn";
+  }
+
+  function cystSemanticClass(event) {
+    if (event.adversarialSemantics === "hard_block") return "adversarial-hard-block";
+    if (event.adversarialSemantics === "correct_scope") return "adversarial-correct-scope";
+    return "audit-event";
   }
 
   function cystGlyph(event) {
