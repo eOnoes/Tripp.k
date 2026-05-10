@@ -98,6 +98,7 @@ Pull the claim back if any of these occur:
 - Any adversarial attack starts laundering assumptions, policy/config guidance, score scope, or write-like shell workarounds.
 - Contract-to-runtime/verifier/UI linkage becomes stale enough that trust cannot be traced.
 - Traceability freshness fails against live runtime symbols, verifier lanes, or UI reflection points.
+- Claim-regression watch fails because score, capability, limitation, gate, artifact, or future-write wording drifts.
 
 ## Post-90 Hardening Trains
 
@@ -108,6 +109,7 @@ See `docs/read-only-post-90-hardening-roadmap-v0.1.md`.
 - Train 3: Cyst adversarial visual truth.
 - Train 4: traceability freshness enforcement.
 - Train 5: broader everyday session realism.
+- Maintenance: claim-regression watch for future wording drift.
 
 ### Replace Goose for edit/build work
 - Keep this as a separate milestone.

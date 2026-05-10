@@ -194,6 +194,7 @@ try {
   const traceabilityFreshnessDoc = readFileSync(new URL("../docs/read-only-traceability-freshness-v0.1.md", import.meta.url), "utf8");
   const cystVisualTruthDoc = readFileSync(new URL("../docs/read-only-cyst-visual-truth-v0.1.md", import.meta.url), "utf8");
   const releaseClaimCoherenceDoc = readFileSync(new URL("../docs/read-only-release-claim-coherence-lock-v0.1.md", import.meta.url), "utf8");
+  const claimRegressionWatchDoc = readFileSync(new URL("../docs/read-only-claim-regression-watch-v0.1.md", import.meta.url), "utf8");
   const kimiComparisonDoc = readFileSync(new URL("../docs/kimi-swarm-comparison-integration-v0.1.md", import.meta.url), "utf8");
   const adversarialPackDoc = readFileSync(new URL("../docs/read-only-adversarial-pack-v0.1.md", import.meta.url), "utf8");
   const readOnly90GoNoGo = readFileSync(new URL("../docs/read-only-90-go-no-go-checklist-v0.1.md", import.meta.url), "utf8");
@@ -472,6 +473,8 @@ try {
     readinessScoreboard.includes("docs/read-only-post-85-roadmap-v0.1.md") &&
     readinessScoreboard.includes("Evidence Required To Keep The 90% Claim") &&
     readinessScoreboard.includes("90% Claim Invalidation") &&
+    readinessScoreboard.includes("Claim-regression watch fails because score, capability, limitation, gate, artifact, or future-write wording drifts.") &&
+    readinessScoreboard.includes("Maintenance: claim-regression watch for future wording drift.") &&
     !/\b(?:imminent|unlocked|ready for next phase|nearly replaces Goose|Goose-equivalent|autonomous reviewer|implementation-ready|edit-ready|write-ready)\b/i.test(readinessScoreboard) &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
     readinessScoreboard.includes("Multi-branch ambiguity acceptance now keeps backend and UI branches visible, ranks by usefulness, preserves mock uncertainty, and keeps blocked outcomes visible.") &&
@@ -813,6 +816,12 @@ try {
     releaseClaimCoherenceDoc.includes("Cyst remains audit/timeline truth only.") &&
     releaseClaimCoherenceDoc.includes("Future write lifecycle docs: stay design-only and cannot imply current runtime mutation capability.") &&
     releaseClaimCoherenceDoc.includes("scoreboard_release_docs_and_capability_list_use_consistent_internal_scoped_gate_based_wording") &&
+    claimRegressionWatchDoc.includes("Read-Only Claim Regression Watch v0.1") &&
+    claimRegressionWatchDoc.includes("Score wording keeps all four qualifiers: internal, scoped, gate-based, and read-only only.") &&
+    claimRegressionWatchDoc.includes("Known limitations continue to state no live writes, no approval/apply, no edit/build replacement, and non-authoritative mock/planning-only evidence.") &&
+    claimRegressionWatchDoc.includes("Harness artifacts remain fail-capable beta-harness evidence, not normal product UI or certification.") &&
+    claimRegressionWatchDoc.includes("artifactType: \"claim_regression_watch_check\"") &&
+    claimRegressionWatchDoc.includes("claim_regression_watch_fails_when_score_qualifiers_are_missing") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -2450,6 +2459,30 @@ try {
     failures.push({ name: "release claim coherence artifact" });
   }
 
+  const claimRegressionWatchArtifact = createClaimRegressionWatchArtifact({
+    readinessScoreboard,
+    betaReleaseNotes,
+    readOnly90GoNoGo,
+    releaseClaimCoherenceDoc,
+    claimRegressionWatchDoc,
+    futureWriteContract,
+    appScript,
+    appHtml,
+  });
+  const claimRegressionWatchPass =
+    claimRegressionWatchArtifact.artifactType === "claim_regression_watch_check" &&
+    claimRegressionWatchArtifact.mode === "read_only_beta_harness" &&
+    claimRegressionWatchArtifact.overallStatus === "pass" &&
+    Object.values(claimRegressionWatchArtifact.checks).every((check) => check.status === "pass") &&
+    claimRegressionWatchArtifact.summary === "Claim-regression watch found no score, capability, limitation, gate, artifact, or future-write drift." &&
+    !/certified|validated replacement|goose no longer needed|ready to proceed|implementation-ready|edit-ready|write-ready/i.test(claimRegressionWatchArtifact.summary) &&
+    !appScript.includes("claim_regression_watch_check") &&
+    !appHtml.includes("claim_regression_watch_check");
+  console.log(`${claimRegressionWatchPass ? "PASS" : "FAIL"} beta: claim regression watch artifact`);
+  if (!claimRegressionWatchPass) {
+    failures.push({ name: "claim regression watch artifact" });
+  }
+
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({
     sessionId: longSessionId,
     scenarioId: "longer_readonly_repeatability",
@@ -2917,6 +2950,91 @@ function createReleaseClaimCoherenceArtifact({
   };
 }
 
+function createClaimRegressionWatchArtifact({
+  readinessScoreboard,
+  betaReleaseNotes,
+  readOnly90GoNoGo,
+  releaseClaimCoherenceDoc,
+  claimRegressionWatchDoc,
+  futureWriteContract,
+  appScript,
+  appHtml,
+}) {
+  const watchedSurfaces = [
+    readinessScoreboard,
+    betaReleaseNotes,
+    readOnly90GoNoGo,
+    releaseClaimCoherenceDoc,
+    claimRegressionWatchDoc,
+    futureWriteContract,
+  ].join("\n");
+  const scopeInflationPattern = /\b(?:Goose-equivalent|ready for next phase|nearly replaces Goose|autonomous reviewer|implementation-ready|edit-ready|write-ready|validated replacement|goose no longer needed)\b/i;
+  const scoreBlock = extractSection(readinessScoreboard, "## Read-Only Goose Replacement Statement", "## Capability Statement");
+  const capabilityBlock = extractSection(readinessScoreboard, "## Capability Statement", "## Evidence Required To Keep The 90% Claim");
+  const checks = {
+    scoreQualifiers: createHarnessCheck(
+      scoreBlock.includes("internal, scoped readiness") &&
+        scoreBlock.includes("internal, scoped, and gate-based") &&
+        scoreBlock.includes("read-only planning/review") &&
+        scoreBlock.includes("does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity"),
+      "Score wording keeps internal, scoped, gate-based, and read-only-only qualifiers.",
+      ["Scoreboard"],
+    ),
+    capabilityPairing: createHarnessCheck(
+      capabilityBlock.includes("Current scoped read-only planning/review can") &&
+        capabilityBlock.includes("Current scoped read-only planning/review cannot") &&
+        capabilityBlock.includes("cannot edit files") &&
+        capabilityBlock.includes("claim broad Goose parity"),
+      "Capability list remains paired with the score and keeps can/cannot boundaries.",
+      ["Scoreboard"],
+    ),
+    knownLimitations: createHarnessCheck(
+      betaReleaseNotes.includes("No runtime mutation path is enabled.") &&
+        betaReleaseNotes.includes("No approval/apply capability exists in this beta.") &&
+        betaReleaseNotes.includes("Mock or planning-only retrieval is non-authoritative. It can support review and narrowing, but it cannot authorize file changes.") &&
+        betaReleaseNotes.includes("This beta does not include live writes, edit/build replacement, approval/apply capability, or general reasoning parity with Goose."),
+      "Known limitations remain specific and operator-readable.",
+      ["Release notes"],
+    ),
+    gateScope: createHarnessCheck(
+      betaReleaseNotes.includes("Read-Only Gate GO / NO GO reflects current read-only harness readiness only.") &&
+        readOnly90GoNoGo.includes("Gate GO overread") &&
+        releaseClaimCoherenceDoc.includes("Gate GO must never expand beyond read-only harness readiness"),
+      "Gate GO / NO GO remains scoped to read-only harness readiness.",
+      ["Read-Only Gate"],
+    ),
+    harnessFailCapable: createHarnessCheck(
+      releaseClaimCoherenceDoc.includes("Block the release/readiness claim if:") &&
+        claimRegressionWatchDoc.includes("Roll back the claim or reopen the coherence station if:") &&
+        claimRegressionWatchDoc.includes("harness artifacts become informative-only rather than fail-capable") &&
+        !appScript.includes("claim_regression_watch_check") &&
+        !appHtml.includes("claim_regression_watch_check"),
+      "Harness artifacts remain fail-capable maintenance sentinels and stay out of normal product UI.",
+      ["Harness artifacts"],
+    ),
+    futureWriteSeparation: createHarnessCheck(
+      futureWriteContract.includes("This contract is design-only and is not active in the current read-only harness.") &&
+        futureWriteContract.includes("No runtime mutation path is enabled by this document.") &&
+        readinessScoreboard.includes("Replace Goose for edit/build work") &&
+        readinessScoreboard.includes("Edit/build replacement remains a separate milestone."),
+      "Future write docs remain design-only and edit/build stays a separate lower-readiness milestone.",
+      ["Future write lifecycle"],
+    ),
+    noClaimInflation: createHarnessCheck(
+      !scopeInflationPattern.test(watchedSurfaces),
+      "Watched claim surfaces avoid broad replacement, autonomy, external-trust, and write-readiness language.",
+      ["Watched release surfaces"],
+    ),
+  };
+  return {
+    artifactType: "claim_regression_watch_check",
+    mode: "read_only_beta_harness",
+    overallStatus: Object.values(checks).every((item) => item.status === "pass") ? "pass" : "fail",
+    checks,
+    summary: "Claim-regression watch found no score, capability, limitation, gate, artifact, or future-write drift.",
+  };
+}
+
 function createOperatorIndependencePackArtifact({ packId, scenarios }) {
   const requiredScenarioIds = ["docs_config_vs_runtime", "warden_vs_adapter", "longer_session_branch_rolloff", "contradiction_recovery", "long_session_stress", "everyday_mixed_session"];
   const unsafeSummaryPattern = /\b(?:verified|confirmed|resolved|final|ready|certified|certification|autonomous|validated replacement|goose no longer needed|independent agent|self-sufficient reviewer|write-capable|edit-ready|apply-ready|patch-ready)\b/i;
@@ -3141,6 +3259,13 @@ function extractFunctionRange(source, startName, endName) {
   const start = source.indexOf(`function ${startName}`);
   const end = source.indexOf(`function ${endName}`, start + 1);
   if (start < 0) return "";
+  return end > start ? source.slice(start, end) : source.slice(start);
+}
+
+function extractSection(source, startHeading, endHeading) {
+  const start = source.indexOf(startHeading);
+  if (start < 0) return "";
+  const end = source.indexOf(endHeading, start + startHeading.length);
   return end > start ? source.slice(start, end) : source.slice(start);
 }
 
