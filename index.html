@@ -137,13 +137,31 @@
               <span id="connectionState">setup</span>
             </h2>
             <section class="connections-panel" id="connectionsPanel">
-              <p class="scope-note">Connections configure model access only. They do not change Tripp's current read-only scope.</p>
-              <div class="connection-panel-actions">
-                <button type="button" data-open-connection-modal data-method="backend_managed">ADD BACKEND</button>
-                <button type="button" data-open-connection-modal data-method="api_key">ADD CONNECTION</button>
+              <div class="connection-split-section provider-setup">
+                <header>
+                  <div>
+                    <strong>Provider / Model Setup</strong>
+                    <p>Set up all model backends here.</p>
+                  </div>
+                  <span>model access only</span>
+                </header>
+                <p class="scope-note">Connections configure model access only. They do not change Tripp's current read-only scope.</p>
+                <div class="connection-panel-actions">
+                  <button type="button" data-open-connection-modal data-method="backend_managed">ADD BACKEND</button>
+                  <button type="button" data-open-connection-modal data-method="api_key">ADD CONNECTION</button>
+                </div>
+                <div id="connectionRoot"></div>
               </div>
-              <div id="connectionRoot"></div>
-              <div class="lane-routing" id="laneRouting"></div>
+              <div class="connection-split-section lane-assignment">
+                <header>
+                  <div>
+                    <strong>Agent / Lane Assignment</strong>
+                    <p>Choose who talks to who.</p>
+                  </div>
+                  <span>routing only</span>
+                </header>
+                <div class="lane-routing" id="laneRouting"></div>
+              </div>
             </section>
           </section>
         </aside>
@@ -208,7 +226,8 @@
                 </label>
                 <label id="connectionModelField">
                   <span>MODEL</span>
-                  <input id="connectionModel" type="text" placeholder="gpt-4.1-mini" />
+                  <input id="connectionModel" type="text" placeholder="gpt-4.1-mini" list="connectionModelOptions" />
+                  <datalist id="connectionModelOptions"></datalist>
                 </label>
                 <label id="connectionBaseUrlField">
                   <span>BASE URL</span>

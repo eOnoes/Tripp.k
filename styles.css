@@ -732,6 +732,8 @@ button {
 }
 
 .connections-panel {
+  display: grid;
+  gap: 14px;
   max-height: none;
   overflow: auto;
   background: rgba(200, 255, 0, 0.025);
@@ -743,6 +745,47 @@ button {
   grid-auto-rows: max-content;
 }
 
+.connection-split-section {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.connection-split-section > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.connection-split-section > header strong {
+  color: var(--text);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.connection-split-section > header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.connection-split-section > header span {
+  flex: 0 0 auto;
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .connections-view .connection-panel-actions {
   max-width: 520px;
 }
@@ -752,7 +795,7 @@ button {
 }
 
 .connections-view .lane-routing {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .connections-panel .scope-note,
@@ -861,14 +904,85 @@ button {
 
 .lane-routing {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
-  padding: 8px;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 0;
   border: 1px solid var(--line-soft);
   background: rgba(200, 255, 0, 0.03);
 }
 
-.lane-routing strong {
+.routing-default {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.routing-default label {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(220px, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.routing-default span,
+.routing-default p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.lane-routing-grid {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+}
+
+.lane-route-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(120px, 0.7fr) minmax(220px, 1.2fr) minmax(180px, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px;
+  border-left: 2px solid rgba(200, 255, 0, 0.25);
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.lane-route-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lane-route-row select,
+.routing-default select {
+  min-width: 0;
+  width: 100%;
+  padding: 6px;
+  background: var(--black);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: 10px;
+}
+
+.lane-route-row em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lime);
+  font-size: 9px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lane-routing > strong {
   grid-column: 1 / -1;
   display: flex;
   justify-content: space-between;
@@ -878,12 +992,12 @@ button {
   letter-spacing: 0.12em;
 }
 
-.lane-routing strong em {
+.lane-routing > strong em {
   color: var(--lime);
   font-style: normal;
 }
 
-.lane-routing span {
+.lane-routing > span {
   min-width: 0;
   display: grid;
   gap: 2px;
@@ -892,13 +1006,13 @@ button {
   background: rgba(0, 0, 0, 0.26);
 }
 
-.lane-routing span.active {
+.lane-routing > span.active {
   border-left-color: var(--lime);
   box-shadow: inset 0 0 0 1px rgba(200, 255, 0, 0.3);
 }
 
-.lane-routing b,
-.lane-routing em {
+.lane-routing > span b,
+.lane-routing > span em {
   min-width: 0;
   overflow: hidden;
   font-size: 9px;
@@ -907,11 +1021,11 @@ button {
   white-space: nowrap;
 }
 
-.lane-routing b {
+.lane-routing > span b {
   color: var(--muted);
 }
 
-.lane-routing em {
+.lane-routing > span em {
   color: var(--lime);
 }
 

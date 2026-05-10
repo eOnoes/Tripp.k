@@ -294,6 +294,10 @@ try {
     appHtml.includes("connectionsPanel") &&
     appHtml.includes('data-ops-tab="connections"') &&
     appHtml.includes("connections-view") &&
+    appHtml.includes("Provider / Model Setup") &&
+    appHtml.includes("Agent / Lane Assignment") &&
+    appHtml.includes("Choose who talks to who.") &&
+    appHtml.includes("connectionModelOptions") &&
     appHtml.includes("connectionSetupModal") &&
     appHtml.includes("Set up Tripp model access") &&
     appHtml.includes("Choose how Tripp should connect for prompt testing and read-only planning.") &&
@@ -328,9 +332,12 @@ try {
     appScript.includes("hasUsableConnection") &&
     appScript.includes("connection-setup-blocked") &&
     appScript.includes("Set up Tripp model access before prompt testing") &&
+    appScript.includes("knownModelsForProvider") &&
+    appScript.includes("data-lane-provider") &&
+    appScript.includes("data-routing-default") &&
+    appScript.includes("updateConnectionRouting") &&
     appScript.includes("CHAT changes conversational routing") &&
     appScript.includes("AUTO changes supervised task routing") &&
-    appScript.includes("active:") &&
     appScript.includes("renderCystEvidenceMeta") &&
     appScript.includes("latestCystTimeline") &&
     appScript.includes("orderCystEvents") &&
@@ -487,7 +494,8 @@ try {
     appScript.includes("Backend-managed connection") &&
     appScript.includes("Managed by local/server-side Tripp backend") &&
     appScript.includes("lanes:") &&
-    appScript.includes("Lane routing") &&
+    appHtml.includes("Agent / Lane Assignment") &&
+    appScript.includes("If no specific model is assigned, default to:") &&
     appScript.includes("maybeShowConnectionFirstBoot") &&
     appScript.includes("Tripp needs model access before prompt testing") &&
     appScript.includes("Saving connections requires the local Tripp server") &&
@@ -509,7 +517,8 @@ try {
     appCss.includes(".go-no-go small + small") &&
     appCss.includes(".terminal-app:not(.ops-expanded) .input-telemetry") &&
     appCss.includes(".input-telemetry select") &&
-    appCss.includes(".lane-routing span.active") &&
+    appCss.includes(".lane-route-row") &&
+    appCss.includes(".routing-default") &&
     appCss.includes(".connection-setup-modal") &&
     appCss.includes(".connection-methods button.active") &&
     appCss.includes(".saved-connection-choices") &&
@@ -1282,7 +1291,7 @@ try {
   const routingUpdate = await postJson("/api/tripp/connections/routing", {
     assignments: [
       { lane: "coder_primary", connectionId: coderConnection.connection?.id },
-      { lane: "fallback", connectionId: localConnection.connection?.id },
+      { lane: "fallback", connectionId },
       { lane: "warden", connectionId },
     ],
   });
@@ -1330,7 +1339,7 @@ try {
     accountLinkStart.status === "not_supported" &&
     accountLinkStart.message?.includes("Account linking is not currently supported for this provider") &&
     routingUpdate.laneRouting?.coder_primary?.name === "Coder DeepSeek" &&
-    routingUpdate.laneRouting?.fallback?.name === "Local Ollama" &&
+    routingUpdate.laneRouting?.fallback?.name === "Prompt Test Local" &&
     createdConnection.connection?.hasToken === true &&
     createdConnection.connection?.maskedToken === "test...oken" &&
     !connectionPayloadText.includes("test-token") &&
@@ -1344,9 +1353,11 @@ try {
     routedPrompt.status?.model === "tripp-mock-model" &&
     fallbackPrompt.status === "connected" &&
     fallbackPrompt.requestedLane === "coder_secondary" &&
-    fallbackPrompt.lane === "default_prompt_testing" &&
+    fallbackPrompt.lane === "fallback" &&
+    fallbackPrompt.connection?.name === "Prompt Test Local" &&
     fallbackPrompt.fallbackUsed === true &&
     fallbackPrompt.routeSummary?.includes("Requested lane: coder_secondary") &&
+    fallbackPrompt.routeSummary?.includes("Lane: fallback") &&
     fallbackPrompt.routeSummary?.includes("Fallback: No usable connection is assigned to coder_secondary") &&
     routedPrompt.messages?.some(
       (message) =>

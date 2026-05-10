@@ -32,6 +32,7 @@
     connectionProvider: document.querySelector("#connectionProvider"),
     connectionMode: document.querySelector("#connectionMode"),
     connectionModel: document.querySelector("#connectionModel"),
+    connectionModelOptions: document.querySelector("#connectionModelOptions"),
     connectionBaseUrl: document.querySelector("#connectionBaseUrl"),
     connectionApiKey: document.querySelector("#connectionApiKey"),
     connectionApiKeyField: document.querySelector("#connectionApiKeyField"),
@@ -108,6 +109,7 @@
       providerSupport: data.connections?.providerSupport || {},
       resetVersion: data.connections?.reset?.resetVersion || data.firstBootReset?.resetVersion || null,
       lastTest: null,
+      routingDraft: {},
     },
     connectionSetup: {
       open: false,
@@ -176,6 +178,8 @@
     elements.closeConnectionSetup.addEventListener("click", () => closeConnectionSetup());
     elements.connectionProvider.addEventListener("change", updateConnectionModeHint);
     elements.connectionMode.addEventListener("change", updateConnectionModeHint);
+    elements.connectionModel.addEventListener("focus", updateConnectionModelOptions);
+    elements.laneRouting.addEventListener("change", handleLaneRoutingChange);
     elements.promptLane.addEventListener("change", () => {
       state.promptLane = elements.promptLane.value;
       renderConnections();
@@ -1137,9 +1141,9 @@
           <article class="connection-card ${connection.enabled ? "enabled" : "disabled"}">
             <header>
               <strong>${escapeHtml(connection.name)}</strong>
-              <span>${escapeHtml(connection.mode === "backend_managed" ? "BACKEND MANAGED" : connection.purposes?.includes("default_prompt_testing") || connection.isDefaultPromptTesting ? "PROMPT DEFAULT" : connection.status || "unknown")}</span>
+              <span>${escapeHtml(connectionModeBadge(connection))}</span>
             </header>
-            <p>${escapeHtml(connection.provider)} / ${escapeHtml(connection.mode || "api_key")} / ${escapeHtml(connection.model)}</p>
+            <p>${escapeHtml(connection.provider)} / ${escapeHtml(connection.displayMode || connection.mode || "api_key")} / ${escapeHtml(connection.model)}</p>
             <small>${escapeHtml(connectionDisplayMeta(connection))}</small>
             <small>lanes: ${escapeHtml((connection.purposes || []).map(formatLaneName).join(", ") || "none assigned")}</small>
             <div>
@@ -1161,7 +1165,82 @@
   }
 
   function renderLaneRouting() {
-    const lanes = [
+    const lanes = laneIds();
+    const agentLanes = lanes.filter((lane) => lane !== "fallback");
+    const fallbackConnection = routeConnectionForLane("fallback");
+    elements.laneRouting.innerHTML = `
+      <div class="routing-default">
+        <label>
+          <span>If no specific model is assigned, default to:</span>
+          <select data-routing-default>
+            ${renderConnectionOptions(fallbackConnection?.id || "", { includeDefault: false })}
+          </select>
+        </label>
+        <p>${escapeHtml(fallbackConnection ? routeLabel(fallbackConnection) : "No global default fallback is assigned.")}</p>
+      </div>
+      <div class="lane-routing-grid">
+        ${agentLanes.map(renderLaneAssignmentRow).join("")}
+      </div>
+    `;
+  }
+
+  function renderLaneAssignmentRow(lane) {
+    const connection = routeConnectionForLane(lane);
+    const draftProvider = state.connections.routingDraft[lane] || connection?.provider || "";
+    return `
+      <section class="lane-route-row" data-lane-row="${escapeHtml(lane)}">
+        <strong>${escapeHtml(formatLaneName(lane))}</strong>
+        <select data-lane-provider="${escapeHtml(lane)}">
+          <option value="">use default</option>
+          ${providerIds().map((provider) => `<option value="${escapeHtml(provider)}" ${provider === draftProvider ? "selected" : ""}>${escapeHtml(providerLabel(provider))}</option>`).join("")}
+        </select>
+        <select data-lane-connection="${escapeHtml(lane)}">
+          ${renderModelRouteOptions(lane, draftProvider, connection?.id || "")}
+        </select>
+        <em>${escapeHtml(connection ? routeLabel(connection) : "uses global default")}</em>
+      </section>
+    `;
+  }
+
+  function renderModelRouteOptions(lane, provider, selectedId) {
+    const connections = usableConnections().filter((connection) => !provider || connection.provider === provider);
+    const configured = connections
+      .map(
+        (connection) =>
+          `<option value="${escapeHtml(connection.id)}" ${connection.id === selectedId ? "selected" : ""}>${escapeHtml(connection.model)} - ${escapeHtml(connection.name)}</option>`,
+      )
+      .join("");
+    const known = knownModelsForProvider(provider)
+      .filter((model) => !connections.some((connection) => connection.model === model))
+      .map((model) => `<option value="" disabled>${escapeHtml(model)} - configure connection first</option>`)
+      .join("");
+    return `
+      <option value="">use default</option>
+      ${configured || known ? `${configured}${known}` : `<option value="" disabled>No configured models for ${escapeHtml(providerLabel(provider || "provider"))}</option>`}
+    `;
+  }
+
+  function renderConnectionOptions(selectedId, options = {}) {
+    const includeDefault = options.includeDefault !== false;
+    const connections = usableConnections();
+    return `
+      ${includeDefault ? `<option value="">use default</option>` : `<option value="">unassigned</option>`}
+      ${connections
+        .map((connection) => `<option value="${escapeHtml(connection.id)}" ${connection.id === selectedId ? "selected" : ""}>${escapeHtml(routeLabel(connection))}</option>`)
+        .join("")}
+    `;
+  }
+
+  function routeConnectionForLane(lane) {
+    return state.connections.items.find((item) => connectionUsable(item) && (item.purposes || []).includes(lane)) || null;
+  }
+
+  function usableConnections() {
+    return state.connections.items.filter(connectionUsable);
+  }
+
+  function laneIds() {
+    return [
       "default_prompt_testing",
       "default_chat",
       "read_only_planning",
@@ -1172,18 +1251,28 @@
       "verifier",
       "fallback",
     ];
-    elements.laneRouting.innerHTML = `
-      <strong>Lane routing <em>active: ${escapeHtml(formatLaneName(state.promptLane))}</em></strong>
-      ${lanes
-        .map((lane) => {
-          const connection = state.connections.items.find((item) => (item.purposes || []).includes(lane) && item.enabled);
-          const route = connection
-            ? `${connection.name} | ${connection.provider} | ${connection.mode || "api_key"} | ${connection.model}`
-            : "unassigned";
-          return `<span class="${lane === state.promptLane ? "active" : ""}"><b>${escapeHtml(formatLaneName(lane))}</b><em>${escapeHtml(route)}</em></span>`;
-        })
-        .join("")}
-    `;
+  }
+
+  function providerIds() {
+    return ["backend", "openai", "anthropic", "deepseek", "openrouter", "ollama", "custom"];
+  }
+
+  function routeLabel(connection) {
+    return `${connection.name} | ${connection.provider} | ${connection.model}`;
+  }
+
+  function providerLabel(provider) {
+    if (provider === "backend") return "backend-managed";
+    if (provider === "ollama") return "local runtime";
+    return provider || "provider";
+  }
+
+  function connectionModeBadge(connection) {
+    if (connection.mode === "backend_managed") return "BACKEND-MANAGED CONNECTION";
+    if (connection.mode === "local_runtime") return "LOCAL RUNTIME";
+    if (connection.mode === "account_linked") return connection.supportsAccountLink ? "ACCOUNT-LINKED" : "ACCOUNT LINK UNSUPPORTED";
+    if (connection.isDefaultPromptTesting || connection.purposes?.includes("default_prompt_testing")) return "PROMPT DEFAULT";
+    return String(connection.status || "unknown").toUpperCase();
   }
 
   function connectionDisplayMeta(connection) {
@@ -2360,6 +2449,45 @@
     }
   }
 
+  async function handleLaneRoutingChange(event) {
+    const defaultSelect = event.target.closest("[data-routing-default]");
+    if (defaultSelect) {
+      await saveLaneAssignment("fallback", defaultSelect.value);
+      return;
+    }
+
+    const providerSelect = event.target.closest("[data-lane-provider]");
+    if (providerSelect) {
+      const lane = providerSelect.dataset.laneProvider;
+      state.connections.routingDraft[lane] = providerSelect.value;
+      if (!providerSelect.value) {
+        await saveLaneAssignment(lane, "");
+        return;
+      }
+      renderConnections();
+      return;
+    }
+
+    const connectionSelect = event.target.closest("[data-lane-connection]");
+    if (connectionSelect) {
+      await saveLaneAssignment(connectionSelect.dataset.laneConnection, connectionSelect.value);
+    }
+  }
+
+  async function saveLaneAssignment(lane, connectionId) {
+    if (!state.connections.available) {
+      pushConnectionMessage("Lane routing updates require the local Tripp server.");
+      return;
+    }
+    const result = await runtime.updateConnectionRouting([{ lane, connectionId }]);
+    if (result.connections) state.connections.items = result.connections;
+    if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
+    if (!connectionId) delete state.connections.routingDraft[lane];
+    else state.connections.routingDraft[lane] = state.connections.items.find((connection) => connection.id === connectionId)?.provider || "";
+    pushConnectionMessage(`${formatLaneName(lane)} routing ${connectionId ? "updated" : "set to use default"}.`);
+    renderConnections();
+  }
+
   function readConnectionForm() {
     return {
       id: elements.connectionId.value || undefined,
@@ -2408,6 +2536,32 @@
     const index = state.connections.items.findIndex((item) => item.id === connection.id);
     if (index >= 0) state.connections.items[index] = connection;
     else state.connections.items.push(connection);
+  }
+
+  function knownModelsForProvider(provider) {
+    const configuredModels = state.connections.items
+      .filter((connection) => !provider || connection.provider === provider)
+      .map((connection) => connection.model)
+      .filter(Boolean);
+    const defaults = {
+      backend: ["tripp-adapter/backend"],
+      openai: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini"],
+      anthropic: ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
+      deepseek: ["deepseek-chat", "deepseek-reasoner"],
+      openrouter: ["openrouter/auto", "anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini"],
+      ollama: ["llama3.1", "qwen2.5-coder", "kimi-k2.6:cloud"],
+      custom: ["model"],
+    };
+    return [...new Set([...configuredModels, ...(defaults[provider] || [])])];
+  }
+
+  function updateConnectionModelOptions() {
+    const provider = elements.connectionProvider.value;
+    const models = knownModelsForProvider(provider);
+    elements.connectionModelOptions.innerHTML = models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
+    if (!elements.connectionModel.value || elements.connectionModel.value === "model") {
+      elements.connectionModel.placeholder = models[0] || "model";
+    }
   }
 
   function pushConnectionMessage(body) {
@@ -2580,6 +2734,7 @@
     const mode = elements.connectionMode.value;
     const support = state.connections.providerSupport?.[provider] || {};
     const unsupportedAccountLink = mode === "account_linked" && support[mode] !== true;
+    updateConnectionModelOptions();
     elements.connectionUnsupportedHint.hidden = !unsupportedAccountLink;
     elements.connectionForm.classList.toggle("unsupported-account-link", unsupportedAccountLink);
     elements.connectionApiKeyField.hidden = mode !== "api_key";
@@ -2779,6 +2934,18 @@ function createTrippRuntime() {
         return await fetchJson(`./api/tripp/connections/${encodeURIComponent(connectionId)}/default-prompt`, { method: "POST" });
       } catch {
         return { status: "failed", error: "Default connection updates require the local Tripp server." };
+      }
+    },
+
+    async updateConnectionRouting(assignments) {
+      try {
+        return await fetchJson("./api/tripp/connections/routing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assignments }),
+        });
+      } catch {
+        return { status: "failed", error: "Lane routing updates require the local Tripp server." };
       }
     },
 

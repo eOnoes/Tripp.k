@@ -3482,6 +3482,11 @@ function defaultPromptConnection() {
     null;
 }
 
+function defaultFallbackConnection() {
+  return usableConnectionForLane("fallback") ||
+    defaultPromptConnection();
+}
+
 function resolvePromptConnectionRoute(requestedLaneValue, connectionId = null) {
   const requestedLane = String(requestedLaneValue || "default_prompt_testing");
   if (connectionId) {
@@ -3506,7 +3511,7 @@ function resolvePromptConnectionRoute(requestedLaneValue, connectionId = null) {
     };
   }
 
-  const fallbackConnection = defaultPromptConnection();
+  const fallbackConnection = requestedLane === "default_prompt_testing" ? defaultPromptConnection() : defaultFallbackConnection();
   if (!fallbackConnection) {
     return {
       connection: null,
@@ -3517,7 +3522,9 @@ function resolvePromptConnectionRoute(requestedLaneValue, connectionId = null) {
     };
   }
 
-  const fallbackLane = (fallbackConnection.purposes || []).includes("default_prompt_testing")
+  const fallbackLane = requestedLane !== "default_prompt_testing" && (fallbackConnection.purposes || []).includes("fallback")
+    ? "fallback"
+    : (fallbackConnection.purposes || []).includes("default_prompt_testing")
     ? "default_prompt_testing"
     : (fallbackConnection.purposes || [])[0] || "fallback";
   return {
