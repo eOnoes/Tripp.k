@@ -1,4 +1,4 @@
-# Tripp.g
+# Tripp.k
 
 Tripp terminal harness prototype.
 
