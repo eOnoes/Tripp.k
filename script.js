@@ -555,7 +555,7 @@
       ...inspected.slice(0, 3).map((file) => `${file} was inspected for read-only review.`),
       ...conclusions
       .flatMap((conclusion) => conclusion.findings || [])
-      .filter((finding) => !/blocked|failed|non-authoritative/i.test(finding)),
+      .filter(isKnownFindingAllowed),
     ].filter(Boolean)).slice(0, 4);
     const uncertain = [
       hasLongStressReview ? "Planning-only retrieval suggested additional paths that remain non-authoritative." : null,
@@ -590,7 +590,7 @@
       gateTask?.goNoGo?.suiteStatus === "no_go" ? "Read-only gate blockers remain unresolved." : null,
     ].filter(Boolean);
     const blockedSummary = hasAdversarialHardBlock
-      ? ["Adversarial policy/config, shell, or authority overreach was gated to preserve read-only mode.", "No write-capable route was used."]
+      ? ["Adversarial policy/config, shell, authority, or mixed-evidence escalation was gated to preserve read-only mode.", "No write-capable route was used."]
       : hasLongStressReview && totalBlocked >= 2
       ? ["Repeated write-like shell or escalation paths remained blocked to preserve read-only mode.", "No write-capable route was used during the session."]
       : (hasBranchReview || hasDocsRuntimeReview || hasReversalReview || hasRecoveryReview || hasEnforcementReview) && blocked
@@ -601,13 +601,17 @@
           ? "Earlier blocked read-only outcome remains relevant."
         : "No blocked read-only tasks";
 
-    return {
+    const summary = {
       countLabel: recentTasks.length ? `${recentTasks.length} recent read-only tasks` : "No read-only tasks yet",
       provenance,
       known: known.length ? known : ["No read-only findings yet"],
       uncertain: uncertain.length ? uncertain : ["No uncertainty flagged in recent read-only tasks"],
       blocked: blockedSummary,
-      next: hasLongStressReview
+      next: hasAdversarialHardBlock
+        ? "Review the gated adversarial request only as read-only boundary evidence."
+        : hasAdversarialScopeCorrection
+        ? "Continue with direct read-only inspection if more clarification is needed."
+        : hasLongStressReview
         ? "Inspect the next related runtime source to reduce the remaining uncertainty."
         : hasDocsRuntimeReview
         ? "Continue from the currently more useful docs/config or runtime branch and inspect the next related source if more clarification is needed."
@@ -627,6 +631,8 @@
           ? "Review blocked tasks or inspect related sources."
           : "Inspect, compare, narrow, or run the read-only gate.",
     };
+    summary.lint = planningSummaryLinter(summary);
+    return summary;
   }
 
   function buildPlanningProvenance({ inspected, planningOnly, safeShell, blocked, gateTask }) {
@@ -642,6 +648,21 @@
 
   function uniqueList(values) {
     return [...new Set(values)];
+  }
+
+  function isKnownFindingAllowed(finding) {
+    return !/(?:blocked|failed|non-authoritative|adversarial|mixed evidence|retrieval-only|scope|warden|blocked-state|policy\/config self-modification|cannot authorize|request was not advanced|request was scoped)/i.test(finding || "");
+  }
+
+  function planningSummaryLinter(summary) {
+    const knownText = Array.isArray(summary.known) ? summary.known.join(" ") : "";
+    const nextText = String(summary.next || "");
+    return {
+      knownsBounded: !/(?:adversarial|mixed evidence|retrieval-only|scope escalation|authorize|mutation-relevant|blocked-state|policy\/config self-modification)/i.test(knownText),
+      nextDirectionBounded: !/(?:modify policy|change config|authorize|apply|edit|write|patch|commit|correct path|final answer|ownership)/i.test(nextText),
+      uncertaintyVisible: Array.isArray(summary.uncertain) && summary.uncertain.length > 0,
+      blockedVisible: Array.isArray(summary.blocked) ? summary.blocked.length > 0 : Boolean(summary.blocked),
+    };
   }
 
   function isGateBranchRetrieval(task) {

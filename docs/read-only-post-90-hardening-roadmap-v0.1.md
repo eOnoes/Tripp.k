@@ -33,6 +33,7 @@ Required proof:
 - blocked-state visibility survives long-session compression
 - provenance boundaries survive summary compression
 - next read-only direction remains specific and provisional
+- summary linter rejects finality, ownership, mutation-adjacent language, and adversarial assumptions in knowns
 
 Rollback trigger:
 - Current Understanding turns mixed or adversarial evidence into stronger certainty.

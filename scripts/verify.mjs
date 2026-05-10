@@ -183,6 +183,7 @@ try {
   const betaReleaseNotes = readFileSync(new URL("../docs/read-only-beta-release-v0.1.md", import.meta.url), "utf8");
   const sessionVarietyPack = readFileSync(new URL("../docs/read-only-session-variety-pack-v0.1.md", import.meta.url), "utf8");
   const partialEvidenceSynthesis = readFileSync(new URL("../docs/read-only-partial-evidence-synthesis-v0.1.md", import.meta.url), "utf8");
+  const currentUnderstandingAntiLaundering = readFileSync(new URL("../docs/read-only-current-understanding-anti-laundering-v0.1.md", import.meta.url), "utf8");
   const readOnly85MilestoneCard = readFileSync(new URL("../docs/read-only-85-percent-milestone-card-v0.1.md", import.meta.url), "utf8");
   const post85Roadmap = readFileSync(new URL("../docs/read-only-post-85-roadmap-v0.1.md", import.meta.url), "utf8");
   const readOnly90Gate = readFileSync(new URL("../docs/read-only-90-percent-gate-v0.1.md", import.meta.url), "utf8");
@@ -228,6 +229,7 @@ try {
     conclusionForbiddenTerms.every((term) => !conclusionSource.toLowerCase().includes(term)) &&
     !/nextStep:\s*["'`][^"'`]*(?:edit|apply|write|patch|approve|commit)/i.test(conclusionSource);
   const continuitySource = extractFunctionRange(appScript, "renderPlanningSummary", "renderTaskConclusion");
+  const continuityRenderedSource = continuitySource.replace(extractFunctionRange(appScript, "planningSummaryLinter", "isGateBranchRetrieval"), "");
   const continuityCopyGuardPass =
     continuitySource.includes("What we know") &&
     continuitySource.includes("What remains uncertain") &&
@@ -238,10 +240,14 @@ try {
     continuitySource.includes("Mixed evidence pressure did not merge retrieval, safe-shell observation, older summaries, and direct inspection into stronger certainty.") &&
     continuitySource.includes("Mixed evidence escalation was not allowed to override Warden, mutation, or blocked-state boundaries.") &&
     continuitySource.includes("Gate and score overread pressure was scoped back to current read-only harness readiness.") &&
-    continuitySource.includes("Adversarial policy/config, shell, or authority overreach was gated to preserve read-only mode.") &&
-    conclusionForbiddenTerms.every((term) => !continuitySource.toLowerCase().includes(term)) &&
-    !/\b(?:correct path|verified ownership|exclusive control|confirmed answer|invalid branch)\b/i.test(continuitySource) &&
-    !/next:\s*[^,]+(?:edit|apply|write|patch|approve|commit)/i.test(continuitySource);
+    continuitySource.includes("Adversarial policy/config, shell, authority, or mixed-evidence escalation was gated to preserve read-only mode.") &&
+    continuitySource.includes("isKnownFindingAllowed") &&
+    continuitySource.includes("planningSummaryLinter") &&
+    continuitySource.includes("knownsBounded") &&
+    continuitySource.includes("nextDirectionBounded") &&
+    conclusionForbiddenTerms.every((term) => !continuityRenderedSource.toLowerCase().includes(term)) &&
+    !/\b(?:correct path|verified ownership|exclusive control|confirmed answer|invalid branch)\b/i.test(continuityRenderedSource) &&
+    !/next:\s*[^,]+(?:edit|apply|write|patch|approve|commit)/i.test(continuityRenderedSource);
   const gateTaskSource = extractFunctionRange(appScript, "formatGateVerdict", "renderAdapterEvidence");
   const gateCystSource = extractFunctionRange(appScript, "gateRunCompact", "renderCystEvidenceMeta");
   const crossSurfaceReadOnlyCoherencePass =
@@ -575,6 +581,13 @@ try {
     partialEvidenceSynthesis.includes("single_branch_partial_evidence_stays_useful_but_incomplete") &&
     partialEvidenceSynthesis.includes("what_we_know_uses_only_directly_inspected_context_under_partial_evidence") &&
     partialEvidenceSynthesis.includes("partial_evidence_copy_does_not_overclaim") &&
+    currentUnderstandingAntiLaundering.includes("Read-Only Current Understanding Anti-Laundering v0.1") &&
+    currentUnderstandingAntiLaundering.includes("Use direct, bounded, reviewed context only.") &&
+    currentUnderstandingAntiLaundering.includes("must not absorb attack-prompt assumptions") &&
+    currentUnderstandingAntiLaundering.includes("Mixed-evidence escalation that targets mutation, Warden, or blocked-state boundaries is blocked context") &&
+    currentUnderstandingAntiLaundering.includes("planningSummaryLinter") &&
+    currentUnderstandingAntiLaundering.includes("summary_linter_rejects_finality_ownership_or_mutation_adjacent_language") &&
+    currentUnderstandingAntiLaundering.includes("current_understanding_does_not_promote_mixed_evidence_poisoning_into_knowns") &&
     readOnly85MilestoneCard.includes("85% Read-Only Planning/Review Readiness Milestone Card v0.1") &&
     readOnly85MilestoneCard.includes("This does not change the current 80% read-only Goose replacement estimate") &&
     readOnly85MilestoneCard.includes("This milestone defines a future gate beyond the current 80% readiness level.") &&
@@ -769,6 +782,7 @@ try {
     post90HardeningRoadmap.includes("Train 4 - Traceability Freshness Enforcement") &&
     post90HardeningRoadmap.includes("Train 5 - Broader Everyday Session Realism") &&
     post90HardeningRoadmap.includes("current_understanding_never_promotes_attack_prompt_assumptions_into_knowns") &&
+    post90HardeningRoadmap.includes("summary linter rejects finality, ownership, mutation-adjacent language, and adversarial assumptions in knowns") &&
     post90HardeningRoadmap.includes("cyst_corrected_scope_rows_do_not_look_like_successful_capability_expansion") &&
     post90HardeningRoadmap.includes("capability_list_remains_paired_with_scoreboard_readiness_claims") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
