@@ -148,6 +148,7 @@
 
   function renderShell() {
     elements.app.classList.toggle("ops-expanded", state.opsExpanded);
+    elements.inputModel.closest(".input-telemetry")?.setAttribute("aria-hidden", state.opsExpanded ? "false" : "true");
     elements.app.dataset.panelFocus = state.panelFocus;
     elements.app.dataset.opsTab = state.opsTab;
     elements.opsTabs.forEach((button) => {
@@ -2133,8 +2134,8 @@ function createTrippRuntime() {
             id: taskId,
             title: "Local fallback task",
             tool: "local",
-            status: action === "approve" ? "approved" : "dismissed",
-            result: "Updated locally because the task API was unavailable.",
+            status: "gated",
+            result: `Task ${action} was not persisted because the Tripp API is unavailable. Start the local server for real trials.`,
           },
         };
       }

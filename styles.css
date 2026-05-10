@@ -482,6 +482,10 @@ button {
   border-top: 1px solid var(--line);
 }
 
+.terminal-app:not(.ops-expanded) .terminal-input {
+  grid-template-columns: auto minmax(0, 1fr) 48px;
+}
+
 .terminal-app.ops-expanded .terminal-input {
   grid-template-columns: auto minmax(0, 1fr) minmax(210px, auto) 48px;
 }
@@ -531,6 +535,10 @@ button {
   font-weight: 800;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+
+.terminal-app:not(.ops-expanded) .input-telemetry {
+  display: none !important;
 }
 
 .terminal-app.ops-expanded .input-telemetry {

@@ -446,6 +446,10 @@ try {
     appCss.includes(".go-no-go") &&
     appCss.includes(".go-no-go.no_go") &&
     appCss.includes(".go-no-go small + small") &&
+    appCss.includes(".terminal-app:not(.ops-expanded) .input-telemetry") &&
+    appCss.includes("display: none !important;") &&
+    appScript.includes("aria-hidden\", state.opsExpanded ? \"false\" : \"true\"") &&
+    appScript.includes("Task ${action} was not persisted because the Tripp API is unavailable.") &&
     !appScript.includes("Goose Adapter") &&
     !appScript.includes("Goose.Prompt") &&
     !appScript.includes("Goose-style") &&
