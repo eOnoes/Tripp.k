@@ -4116,11 +4116,11 @@ function oauthProviderConfigs() {
 
 function parseOAuthExtraParams(value) {
   if (!value) {
-    // Default extra params for ChatGPT Codex (matches Goose)
+    // Default extra params for ChatGPT Codex (matches Goose exactly)
     return {
       id_token_add_organizations: "true",
       codex_cli_simplified_flow: "true",
-      originator: "tripp",
+      originator: "goose",
     };
   }
   try {
