@@ -99,6 +99,7 @@ Pull the claim back if any of these occur:
 - Contract-to-runtime/verifier/UI linkage becomes stale enough that trust cannot be traced.
 - Traceability freshness fails against live runtime symbols, verifier lanes, or UI reflection points.
 - Claim-regression watch fails because score, capability, limitation, gate, artifact, or future-write wording drifts.
+- Focused claim-regression maintenance script fails on hard or soft wording inflation.
 
 ## Post-90 Hardening Trains
 
@@ -110,6 +111,7 @@ See `docs/read-only-post-90-hardening-roadmap-v0.1.md`.
 - Train 4: traceability freshness enforcement.
 - Train 5: broader everyday session realism.
 - Maintenance: claim-regression watch for future wording drift.
+- Maintenance command: `node scripts/verify-claim-regression.mjs`.
 
 ### Replace Goose for edit/build work
 - Keep this as a separate milestone.

@@ -26,6 +26,17 @@ Monitor future changes to:
 - Harness artifacts remain fail-capable beta-harness evidence, not normal product UI or certification.
 - Future write lifecycle docs remain design-only and do not imply a current runtime mutation path.
 - Edit/build readiness remains a separate lower-readiness milestone.
+- Soft wording must not inflate the claim through vague confidence language such as broader day-to-day use, mature review assistant, trusted workflow, production-trusted review, general review maturity, or practical replacement.
+
+## Maintenance Automation
+
+Run the focused sentinel before merging release/readiness wording changes:
+
+`node scripts/verify-claim-regression.mjs`
+
+This script checks the scoreboard, beta release notes, 90 go/no-go checklist, release claim coherence lock, claim-regression watch, and future write lifecycle contract. It exits nonzero when a required invariant fails.
+
+The full beta harness also emits `claim_regression_watch_check` through `node scripts/verify.mjs`.
 
 ## Rollback Triggers
 
@@ -38,6 +49,7 @@ Roll back the claim or reopen the coherence station if:
 - harness artifacts become informative-only rather than fail-capable
 - future write docs imply current runtime mutation capability
 - release wording implies broad Goose parity, external validation, or edit/build readiness
+- soft confidence wording inflates the scoped score without using an explicit hard-blocked phrase
 
 ## Sentinel Artifact
 
@@ -65,3 +77,5 @@ Minimum artifact fields:
 - `claim_regression_watch_fails_when_harness_artifacts_stop_being_fail_capable`
 - `claim_regression_watch_fails_when_future_write_docs_imply_runtime_mutation`
 - `claim_regression_watch_artifact_is_harness_only_not_product_ui`
+- `claim_regression_watch_fails_on_soft_wording_inflation`
+- `claim_regression_watch_can_run_as_focused_maintenance_script`

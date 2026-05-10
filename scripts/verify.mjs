@@ -200,6 +200,7 @@ try {
   const readOnly90GoNoGo = readFileSync(new URL("../docs/read-only-90-go-no-go-checklist-v0.1.md", import.meta.url), "utf8");
   const post90HardeningRoadmap = readFileSync(new URL("../docs/read-only-post-90-hardening-roadmap-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
+  const claimRegressionScript = readFileSync(new URL("./verify-claim-regression.mjs", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
   const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
@@ -474,7 +475,9 @@ try {
     readinessScoreboard.includes("Evidence Required To Keep The 90% Claim") &&
     readinessScoreboard.includes("90% Claim Invalidation") &&
     readinessScoreboard.includes("Claim-regression watch fails because score, capability, limitation, gate, artifact, or future-write wording drifts.") &&
+    readinessScoreboard.includes("Focused claim-regression maintenance script fails on hard or soft wording inflation.") &&
     readinessScoreboard.includes("Maintenance: claim-regression watch for future wording drift.") &&
+    readinessScoreboard.includes("Maintenance command: `node scripts/verify-claim-regression.mjs`.") &&
     !/\b(?:imminent|unlocked|ready for next phase|nearly replaces Goose|Goose-equivalent|autonomous reviewer|implementation-ready|edit-ready|write-ready)\b/i.test(readinessScoreboard) &&
     readinessScoreboard.includes("Mixed-session acceptance now includes inspect, mock retrieval, follow-up inspect, safe shell, blocked shell, and gate review.") &&
     readinessScoreboard.includes("Multi-branch ambiguity acceptance now keeps backend and UI branches visible, ranks by usefulness, preserves mock uncertainty, and keeps blocked outcomes visible.") &&
@@ -820,8 +823,14 @@ try {
     claimRegressionWatchDoc.includes("Score wording keeps all four qualifiers: internal, scoped, gate-based, and read-only only.") &&
     claimRegressionWatchDoc.includes("Known limitations continue to state no live writes, no approval/apply, no edit/build replacement, and non-authoritative mock/planning-only evidence.") &&
     claimRegressionWatchDoc.includes("Harness artifacts remain fail-capable beta-harness evidence, not normal product UI or certification.") &&
+    claimRegressionWatchDoc.includes("Soft wording must not inflate the claim through vague confidence language") &&
+    claimRegressionWatchDoc.includes("node scripts/verify-claim-regression.mjs") &&
     claimRegressionWatchDoc.includes("artifactType: \"claim_regression_watch_check\"") &&
     claimRegressionWatchDoc.includes("claim_regression_watch_fails_when_score_qualifiers_are_missing") &&
+    claimRegressionWatchDoc.includes("claim_regression_watch_fails_on_soft_wording_inflation") &&
+    claimRegressionScript.includes("softWordingInflationPattern") &&
+    claimRegressionScript.includes("process.exitCode = 1") &&
+    claimRegressionScript.includes("claim-regression-watch:") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -2968,7 +2977,15 @@ function createClaimRegressionWatchArtifact({
     claimRegressionWatchDoc,
     futureWriteContract,
   ].join("\n");
+  const outwardClaimSurfaces = [
+    readinessScoreboard,
+    betaReleaseNotes,
+    readOnly90GoNoGo,
+    releaseClaimCoherenceDoc,
+    futureWriteContract,
+  ].join("\n");
   const scopeInflationPattern = /\b(?:Goose-equivalent|ready for next phase|nearly replaces Goose|autonomous reviewer|implementation-ready|edit-ready|write-ready|validated replacement|goose no longer needed)\b/i;
+  const softWordingInflationPattern = /\b(?:broader day-to-day use|mature review assistant|trusted workflow|production-trusted review|general review maturity|practical replacement)\b/i;
   const scoreBlock = extractSection(readinessScoreboard, "## Read-Only Goose Replacement Statement", "## Capability Statement");
   const capabilityBlock = extractSection(readinessScoreboard, "## Capability Statement", "## Evidence Required To Keep The 90% Claim");
   const checks = {
@@ -3024,6 +3041,16 @@ function createClaimRegressionWatchArtifact({
       !scopeInflationPattern.test(watchedSurfaces),
       "Watched claim surfaces avoid broad replacement, autonomy, external-trust, and write-readiness language.",
       ["Watched release surfaces"],
+    ),
+    noSoftWordingInflation: createHarnessCheck(
+      !softWordingInflationPattern.test(outwardClaimSurfaces),
+      "Watched claim surfaces avoid soft confidence wording that inflates the scoped score.",
+      ["Watched release surfaces"],
+    ),
+    focusedScriptAvailable: createHarnessCheck(
+      claimRegressionWatchDoc.includes("node scripts/verify-claim-regression.mjs"),
+      "Focused claim-regression maintenance script is documented for future wording changes.",
+      ["Maintenance automation"],
     ),
   };
   return {
