@@ -59,6 +59,7 @@ Required proof:
 - runtime paths link to verifier lanes
 - verifier lanes link to UI reflection
 - stale or missing trace links fail the hardening check
+- critical-control coverage report distinguishes symbol-linked checks from end-to-end proven controls
 
 Rollback trigger:
 - the trace matrix becomes stale enough that a required control cannot be traced.

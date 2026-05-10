@@ -25,6 +25,27 @@ The contract-to-runtime matrix is useful only while it stays tied to live runtim
 - Stale route, state, scenario, or symbol names invalidate the freshness check.
 - Freshness checks must not imply runtime write capability.
 
+## Freshness Confidence Levels
+
+- `symbol_linked`: named runtime/UI symbols still exist.
+- `runtime_linked`: verifier observed the mapped runtime behavior.
+- `verifier_exercised`: verifier lane exercises the mapped control.
+- `ui_reflected`: mapped UI surface has bounded copy or state.
+- `end_to_end_proven`: runtime behavior, verifier lane, and UI reflection all passed.
+
+## Critical-Control Coverage Report
+
+The verifier emits a compact in-memory coverage report for required controls. Each row includes:
+
+- control id
+- expected runtime behavior
+- mapped verifier lane
+- mapped UI reflection
+- freshness status
+- confidence level
+
+Required controls must reach `end_to_end_proven` for the current 90% claim to stand.
+
 ## Rollback Triggers
 
 - a required runtime symbol is removed without updating the matrix
@@ -40,3 +61,6 @@ The contract-to-runtime matrix is useful only while it stays tied to live runtim
 - `trace_matrix_verifier_lanes_map_to_ui_reflection_points`
 - `traceability_fails_when_matrix_references_stale_routes_or_states`
 - `required_contract_clauses_have_runtime_and_ui_reflection_for_ninety_scope`
+- `critical_control_coverage_report_marks_symbol_only_vs_end_to_end_proven_controls`
+- `trace_matrix_symbol_checks_are_backed_by_runtime_behavior_checks_for_critical_controls`
+- `traceability_fails_when_verifier_lane_exists_but_no_longer_exercises_required_case`

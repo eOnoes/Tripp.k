@@ -722,7 +722,11 @@ try {
     traceabilityFreshnessDoc.includes("createReadOnlyGoNoGo") &&
     traceabilityFreshnessDoc.includes("buildPlanningSummary") &&
     traceabilityFreshnessDoc.includes("detectAdversarialGuardrail") &&
+    traceabilityFreshnessDoc.includes("Freshness Confidence Levels") &&
+    traceabilityFreshnessDoc.includes("end_to_end_proven") &&
+    traceabilityFreshnessDoc.includes("Critical-Control Coverage Report") &&
     traceabilityFreshnessDoc.includes("traceability_fails_when_matrix_references_stale_routes_or_states") &&
+    traceabilityFreshnessDoc.includes("critical_control_coverage_report_marks_symbol_only_vs_end_to_end_proven_controls") &&
     ["permissionDecision", "recordWriteEscalationBlockedIfNeeded", "createMunchRetrieval", "recordRetrievalEvent", "createEvidenceGate", "detectSafeShellCommand", "runTaskAdapterCall", "createTaskAdapterEvidence", "createReadOnlyGoNoGo", "createReadOnlySuiteSummary", "recordReadOnlyGateEvent", "detectAdversarialGuardrail"].every((symbol) => serverSource.includes(symbol)) &&
     ["buildShellConclusion", "buildBlockedConclusion", "buildRetrievalConclusion", "buildPlanningProvenance", "buildGateConclusion", "renderGoNoGoSummary", "buildPlanningSummary", "buildAdversarialGuardrailConclusion"].every((symbol) => appScript.includes(symbol)) &&
     kimiComparisonDoc.includes("Kimi Swarm Comparison Integration v0.1") &&
@@ -2334,6 +2338,31 @@ try {
     failures.push({ name: "adversarial read-only pack" });
   }
 
+  const traceabilityCoverageReport = createTraceabilityCoverageReport({
+    results,
+    blockedPatchApply,
+    munchRetrieve,
+    trialRun,
+    adversarialTasks,
+    adversarialCyst,
+    serverSource,
+    appScript,
+  });
+  const traceabilityCoveragePass =
+    traceabilityCoverageReport.artifactType === "traceability_freshness_coverage_report" &&
+    traceabilityCoverageReport.mode === "read_only_beta_harness" &&
+    traceabilityCoverageReport.overallStatus === "pass" &&
+    traceabilityCoverageReport.controls.length >= 6 &&
+    traceabilityCoverageReport.controls.every((control) => control.freshnessStatus === "pass") &&
+    traceabilityCoverageReport.controls.every((control) => control.confidenceLevel === "end_to_end_proven") &&
+    traceabilityCoverageReport.controls.some((control) => control.controlId === "adversarial_semantics" && control.runtimeObserved && control.uiReflected) &&
+    traceabilityCoverageReport.controls.some((control) => control.controlId === "synthesis_boundaries" && control.runtimeObserved && control.uiReflected) &&
+    !/write-ready|implementation-ready|broad goose parity|external validation/i.test(traceabilityCoverageReport.summary);
+  console.log(`${traceabilityCoveragePass ? "PASS" : "FAIL"} beta: traceability freshness coverage report`);
+  if (!traceabilityCoveragePass) {
+    failures.push({ name: "traceability freshness coverage report" });
+  }
+
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({
     sessionId: longSessionId,
     scenarioId: "longer_readonly_repeatability",
@@ -2568,6 +2597,88 @@ function createOperatorIndependenceArtifact({ sessionId, scenarioId, tasks, acce
     checks,
     overallStatus,
     summary: "Session was understandable without sidecar interpretation in read-only beta harness.",
+  };
+}
+
+function createTraceabilityCoverageReport({
+  results,
+  blockedPatchApply,
+  munchRetrieve,
+  trialRun,
+  adversarialTasks,
+  adversarialCyst,
+  serverSource,
+  appScript,
+}) {
+  const resultByName = new Map(results.map((result) => [result.name, result]));
+  const adversarialTaskIds = adversarialTasks.map((task) => task?.id).filter(Boolean);
+  const hasHardBlockEvent = adversarialCyst.events?.some(
+    (event) => adversarialTaskIds.includes(event.descriptorId) && event.adversarialSemantics === "hard_block" && event.resultStatus === "blocked",
+  );
+  const hasCorrectScopeEvent = adversarialCyst.events?.some(
+    (event) => adversarialTaskIds.includes(event.descriptorId) && event.adversarialSemantics === "correct_scope" && event.resultStatus === "warn",
+  );
+  const controls = [
+    {
+      controlId: "mutation_denial",
+      runtimeObserved: resultByName.get("gated shell")?.pass === true && blockedPatchApply.task?.status === "apply_blocked",
+      verifierLane: "gated shell / patch gate / executor read-only gates",
+      uiReflected: appScript.includes("buildShellConclusion") && appScript.includes("buildBlockedConclusion") && appScript.includes("Read-only policy block"),
+      symbols: ["permissionDecision", "recordWriteEscalationBlockedIfNeeded", "gooseAdapterCall", "validateGooseAdapterGates"],
+    },
+    {
+      controlId: "planning_only_retrieval",
+      runtimeObserved: munchRetrieve.authorityLevel === "planning-only" && munchRetrieve.writeApprovalEligible === false && munchRetrieve.applyEligible === false,
+      verifierLane: "munch retrieval / provenance checks",
+      uiReflected: appScript.includes("buildRetrievalConclusion") && appScript.includes("MOCK_RETRIEVAL") && appScript.includes("non-authoritative for file changes"),
+      symbols: ["createMunchRetrieval", "recordRetrievalEvent", "createEvidenceGate"],
+    },
+    {
+      controlId: "safe_shell_observation",
+      runtimeObserved: resultByName.get("safe shell")?.pass === true,
+      verifierLane: "safe shell",
+      uiReflected: appScript.includes("buildShellConclusion") && appScript.includes("SAFE_SHELL") && appScript.includes("Safe shell output"),
+      symbols: ["detectSafeShellCommand", "runTaskAdapterCall", "createTaskAdapterEvidence"],
+    },
+    {
+      controlId: "gate_scope",
+      runtimeObserved: trialRun.goNoGo === "go" && trialRun.suiteSummary?.suiteStatus === "go",
+      verifierLane: "read-only harness suite / beta gate lanes",
+      uiReflected: appScript.includes("buildGateConclusion") && appScript.includes("renderGoNoGoSummary") && appScript.includes("READONLY_GATE"),
+      symbols: ["createReadOnlyGoNoGo", "createReadOnlySuiteSummary", "recordReadOnlyGateEvent"],
+    },
+    {
+      controlId: "synthesis_boundaries",
+      runtimeObserved: adversarialTasks.some((task) => task?.adversarialGuardrail?.id === "mixed_evidence_poisoning"),
+      verifierLane: "copy-safety / adversarial pack / cross-surface coherence",
+      uiReflected: appScript.includes("buildPlanningSummary") && appScript.includes("buildPlanningProvenance") && appScript.includes("Mixed evidence pressure did not merge"),
+      symbols: ["buildPlanningSummary", "buildPlanningProvenance", "buildAdversarialGuardrailConclusion"],
+      runtimeSource: "script.js",
+    },
+    {
+      controlId: "adversarial_semantics",
+      runtimeObserved: hasHardBlockEvent && hasCorrectScopeEvent,
+      verifierLane: "adversarial read-only pack",
+      uiReflected: appScript.includes("ADVERSARIAL BLOCK") && appScript.includes("ADVERSARIAL SCOPE CORRECTION") && appScript.includes("cystTone"),
+      symbols: ["detectAdversarialGuardrail", "adversarialSemantics", "mixed_evidence_poisoning"],
+    },
+  ].map((control) => {
+    const symbolSource = control.runtimeSource === "script.js" ? appScript : `${serverSource}\n${appScript}`;
+    const symbolsPresent = control.symbols.every((symbol) => symbolSource.includes(symbol));
+    const freshnessStatus = symbolsPresent && control.runtimeObserved && control.uiReflected ? "pass" : "fail";
+    return {
+      ...control,
+      symbolsPresent,
+      freshnessStatus,
+      confidenceLevel: freshnessStatus === "pass" ? "end_to_end_proven" : symbolsPresent ? "symbol_linked" : "missing_symbol",
+    };
+  });
+  return {
+    artifactType: "traceability_freshness_coverage_report",
+    mode: "read_only_beta_harness",
+    overallStatus: controls.every((control) => control.freshnessStatus === "pass") ? "pass" : "fail",
+    controls,
+    summary: "Required read-only traceability controls were checked against runtime behavior, verifier lanes, and UI reflection.",
   };
 }
 
