@@ -172,6 +172,8 @@
         id: "tripp",
         name: "Tripp",
         role: "conductor",
+        provider: "chatgpt_codex",
+        model: "gpt-5.3-codex",
         skills: ["route", "orchestrate", "delegate", "coordinate", "swarm"],
         description: "The sarcastic hive mind conductor. Routes tasks to specialists and talks to the operator.",
         guidance: "You are the swarm conductor. Your job is to understand the operator's intent, pick the right specialist agent, and coordinate their work. You don't write code yourself — you delegate to Coder, Planner, Architect, or Debugger depending on the task. Always explain which agent you're routing to and why.",
@@ -182,6 +184,8 @@
         id: "coder",
         name: "Coder",
         role: "specialist",
+        provider: "kimi",
+        model: "kimi-k2",
         skills: ["code", "implement", "write", "program", "function", "script", "syntax", "typescript", "javascript", "python"],
         description: "The raw implementation engine. Writes functions, classes, scripts, and entire files.",
         guidance: "You are the implementation specialist. Your job is to write clean, working code. You handle functions, classes, API integrations, scripts, and file generation. You write the actual code that other agents designed. Focus on correctness, modern syntax, and clean patterns.",
@@ -192,6 +196,8 @@
         id: "architect",
         name: "Architect",
         role: "specialist",
+        provider: "gemini",
+        model: "gemini-2.5-pro",
         skills: ["design", "architecture", "structure", "system", "pattern", "interface", "api", "schema", "model", "flow"],
         description: "The blueprint maker. Designs systems, APIs, data models, and architecture before anyone writes a line of code.",
         guidance: "You are the system architect. Your job is to design structure before implementation. You create API schemas, data models, system diagrams, component hierarchies, and integration flows. You define interfaces and contracts that Coder will implement. You don't write implementation code — you write the blueprint.",
@@ -202,6 +208,8 @@
         id: "debugger",
         name: "Debugger",
         role: "specialist",
+        provider: "deepseek",
+        model: "deepseek-chat",
         skills: ["debug", "fix", "error", "bug", "crash", "trace", "investigate", "diagnose", "repair", "test"],
         description: "The forensic investigator of broken code. Finds root causes, traces execution, and prescribes fixes.",
         guidance: "You are the debug specialist. Your job is to find and fix bugs. You analyze error messages, trace execution paths, inspect variables, and identify root causes. You don't guess — you trace the actual code path. You write minimal, surgical fixes. You also add regression tests to prevent the bug from returning.",
@@ -212,6 +220,8 @@
         id: "planner",
         name: "Planner",
         role: "specialist",
+        provider: "chatgpt_codex",
+        model: "gpt-5.3-codex",
         skills: ["plan", "breakdown", "estimate", "strategy", "steps", "roadmap", "organize", "sequence", "prioritize"],
         description: "The strategist who breaks mountains into pebbles. Breaks complex tasks into steps, estimates effort, and sequences work.",
         guidance: "You are the planning specialist. Your job is to break complex tasks into actionable steps, estimate effort, and sequence work. You create execution plans that Tripp can delegate to other agents. You handle project structure, milestone definition, and dependency mapping. You don't write code — you write the battle plan.",
@@ -222,6 +232,8 @@
         id: "security",
         name: "Warden",
         role: "specialist",
+        provider: "deepseek",
+        model: "deepseek-chat",
         skills: ["security", "audit", "review", "vulnerability", "scan", "check", "validate", "sanitize", "inject", "xss", "sql", "auth"],
         description: "The paranoid gatekeeper. Reviews code for vulnerabilities, checks for injection risks, validates inputs, and enforces security boundaries.",
         guidance: "You are the security specialist. Your job is to review code for vulnerabilities, check for injection risks, validate inputs, and enforce security boundaries. You think like an attacker — every input is malicious, every endpoint is exposed, every dependency is compromised. You write security tests and hardening recommendations.",
@@ -232,6 +244,8 @@
         id: "optimizer",
         name: "Optimizer",
         role: "specialist",
+        provider: "deepseek",
+        model: "deepseek-chat",
         skills: ["optimize", "performance", "speed", "memory", "cache", "profile", "benchmark", "efficiency", "latency", "throughput"],
         description: "The speed demon. Profiles code, identifies bottlenecks, and squeezes every cycle. Thinks in Big O and cache lines.",
         guidance: "You are the performance specialist. Your job is to make code fast and efficient. You profile execution, identify bottlenecks, optimize algorithms, reduce memory usage, and improve caching. You measure before and after. You don't optimize prematurely — but when you optimize, you go deep.",
@@ -242,6 +256,8 @@
         id: "docsmith",
         name: "DocSmith",
         role: "specialist",
+        provider: "gemini",
+        model: "gemini-2.5-pro",
         skills: ["document", "explain", "readme", "guide", "comment", "docstring", "manual", "tutorial", "example", "clarify"],
         description: "The storyteller of the swarm. Writes docs, comments, READMEs, and explanations that humans actually understand.",
         guidance: "You are the documentation specialist. Your job is to write docs, comments, READMEs, API guides, and explanations. You make complex code understandable. You write for the next developer who inherits this code at 3 AM. You don't write implementation — you write comprehension.",
@@ -386,12 +402,14 @@
     pushMessage({ kind: "user", speaker: "you", time: now(), body: text });
 
     try {
-      // In a real backend, you'd send agent.id to the server
+      // In a real backend, you'd send agent.id and provider to the server
       // For now, we include it in the prompt context
       const result = await runtime.reply({
         prompt: text,
         lane: elements.promptLane.value,
         agent: agent.id,
+        provider: agent.provider,
+        model: agent.model,
         agentPersona: {
           guidance: agent.guidance,
           rules: agent.rules,
@@ -427,6 +445,10 @@
       id,
       name: "New Agent",
       role: "specialist",
+      provider: "",
+      model: "",
+      skills: [],
+      description: "",
       guidance: "",
       rules: "",
       creative: "",
@@ -441,10 +463,29 @@
         (agent, index) => `
         <article class="agent-card" data-agent-id="${escapeHtml(agent.id)}">
           <header class="agent-card-header">
-            <strong>${escapeHtml(agent.name)}</strong>
+            <div>
+              <strong>${escapeHtml(agent.name)}</strong>
+              <div style="font-size:10px;color:var(--text-dim);margin-top:2px">
+                ${agent.provider ? `<span style="color:var(--neon)">●</span> ${escapeHtml(agent.provider)} → ${escapeHtml(agent.model || "default")}` : "No model linked"}
+              </div>
+            </div>
             <span>${escapeHtml(agent.role)}</span>
           </header>
           <div class="agent-fields">
+            <div class="agent-field">
+              <label>Model Link</label>
+              <select data-agent-field="provider" data-agent-index="${index}" style="background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:12px;color:var(--text)">
+                <option value="" ${!agent.provider ? "selected" : ""}>No model linked</option>
+                <option value="chatgpt_codex" ${agent.provider === "chatgpt_codex" ? "selected" : ""}>ChatGPT Codex</option>
+                <option value="kimi" ${agent.provider === "kimi" ? "selected" : ""}>Kimi</option>
+                <option value="gemini" ${agent.provider === "gemini" ? "selected" : ""}>Gemini</option>
+                <option value="deepseek" ${agent.provider === "deepseek" ? "selected" : ""}>DeepSeek</option>
+                <option value="openai" ${agent.provider === "openai" ? "selected" : ""}>OpenAI</option>
+                <option value="anthropic" ${agent.provider === "anthropic" ? "selected" : ""}>Anthropic</option>
+                <option value="openrouter" ${agent.provider === "openrouter" ? "selected" : ""}>OpenRouter</option>
+                <option value="ollama" ${agent.provider === "ollama" ? "selected" : ""}>Ollama</option>
+              </select>
+            </div>
             <div class="agent-field">
               <label>Guidance — What this agent does</label>
               <textarea data-agent-field="guidance" data-agent-index="${index}" placeholder="e.g. Write clean code, debug errors, review architecture...">${escapeHtml(agent.guidance || "")}</textarea>
@@ -467,12 +508,13 @@
       )
       .join("");
 
-    // Wire up agent field events
-    elements.swarmRoot.querySelectorAll("textarea[data-agent-field]").forEach((ta) => {
-      ta.addEventListener("change", () => {
-        const idx = Number(ta.dataset.agentIndex);
-        const field = ta.dataset.agentField;
-        state.agents[idx][field] = ta.value;
+    // Wire up agent field events (textarea + select)
+    elements.swarmRoot.querySelectorAll("[data-agent-field]").forEach((el) => {
+      el.addEventListener("change", () => {
+        const idx = Number(el.dataset.agentIndex);
+        const field = el.dataset.agentField;
+        state.agents[idx][field] = el.value;
+        if (field === "provider") renderSwarm(); // refresh to show new model
       });
     });
 
