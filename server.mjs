@@ -1,7 +1,9 @@
-import { execFileSync } from "node:child_process";
+﻿import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { homedir } from "node:os";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { readFirstBootResetMetadata, resetFirstBootState } from "./lib/tripp-first-boot-reset.mjs";
 
@@ -20,31 +22,21 @@ const cystStoreFile = join(runtimeDir, "cyst-events.json");
 const settingsStoreFile = join(runtimeDir, "settings.json");
 const connectionStoreFile = join(runtimeDir, "connections.json");
 const connectionSecretStoreFile = join(runtimeDir, "connection-secrets.json");
+const oauthTokenDir = resolve(process.env.TRIPP_OAUTH_TOKEN_DIR || join(homedir(), ".kimi-tripp", "oauth-tokens"));
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
 const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
 const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
 const backendHealthPath = process.env.TRIPP_BACKEND_HEALTH_PATH || "/health";
+const providerTlsInsecure = process.env.TRIPP_PROVIDER_TLS_INSECURE === "true";
 const taskQueue = loadTaskQueue();
 const sessionStore = loadSessionStore();
 const cystEventStore = loadCystEventStore();
 const settingsStore = loadSettingsStore();
 const connectionStore = loadConnectionStore();
 const connectionSecretStore = loadConnectionSecretStore();
+const oauthSessions = new Map();
 let appliedFirstBootResetVersion = null;
 
-// ─── OAuth Configuration ───
-const oauthTokenDir = resolve(process.env.TRIPP_OAUTH_TOKEN_DIR || join(runtimeDir, "oauth-tokens"));
-const oauthSessions = new Map(); // sessionId → { state, codeVerifier, redirectUri, startedAt }
-
-const CHATGPT_CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
-const CHATGPT_CODEX_ISSUER = "https://auth.openai.com";
-const CHATGPT_CODEX_REDIRECT_URI = "http://localhost:1455/auth/callback";
-const CHATGPT_CODEX_SCOPES = ["openid", "profile", "email", "offline_access"];
-
-// Ensure OAuth token directory exists
-if (!existsSync(oauthTokenDir)) {
-  mkdirSync(oauthTokenDir, { recursive: true });
-}
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -55,6 +47,7 @@ const types = {
 };
 
 function loadLocalEnv(rootDir) {
+  if (process.env.TRIPP_SKIP_LOCAL_ENV === "true") return;
   for (const file of [".env.local", ".env"]) {
     const envPath = join(rootDir, file);
     if (!existsSync(envPath)) continue;
@@ -130,9 +123,44 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/api/tripp/oauth-providers") {
+    sendJson(response, readOAuthProvidersPublic());
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/tripp/oauth/")) {
+    await handleOAuthApi(request, response, url);
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/tripp/connections") {
     sendJson(response, readConnectionsPublic());
     return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/tripp/model-providers") {
+    sendJson(response, readModelProviders());
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/tripp/model-inventory") {
+    sendJson(response, readModelInventory());
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname.startsWith("/api/tripp/model-providers/")) {
+    const parts = url.pathname.split("/");
+    const providerId = decodeURIComponent(parts.at(-2) || "");
+    const action = decodeURIComponent(parts.at(-1) || "");
+    const payload = await readJson(request);
+    if (action === "health") {
+      sendJson(response, await checkModelProviderHealth(providerId, payload));
+      return;
+    }
+    if (action === "models") {
+      sendJson(response, await discoverProviderModels(providerId, payload));
+      return;
+    }
   }
 
   if (request.method === "POST" && url.pathname === "/api/tripp/connections") {
@@ -321,254 +349,9 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
-  // ─── OAuth Routes ───
-  if (request.method === "GET" && url.pathname === "/api/tripp/oauth-providers") {
-    sendJson(response, readOAuthProvidersPublic());
-    return;
-  }
-
-  if (url.pathname.startsWith("/api/tripp/oauth/")) {
-    await handleOAuthApi(request, response, url);
-    return;
-  }
-
   sendJson(response, { error: "Unknown Tripp API route." }, 404);
 }
 
-// ─── OAuth Implementation ───
-
-function readOAuthProvidersPublic() {
-  return {
-    providers: [
-      {
-        id: "chatgpt_codex",
-        name: "ChatGPT (Codex)",
-        description: "Use your ChatGPT Plus/Pro subscription for GPT-5 Codex models via OAuth",
-        authenticated: existsSync(join(oauthTokenDir, "chatgpt_codex.json")),
-        models: ["gpt-5.4", "gpt-5.3-codex"],
-      },
-    ],
-  };
-}
-
-async function handleOAuthApi(request, response, url) {
-  const parts = url.pathname.split("/");
-  const providerId = decodeURIComponent(parts.at(-2) || "");
-  const action = decodeURIComponent(parts.at(-1) || "");
-
-  if (request.method === "POST" && action === "start") {
-    const session = startOAuthSession(providerId);
-    sendJson(response, {
-      status: "started",
-      sessionId: session.sessionId,
-      authorizeUrl: session.authorizeUrl,
-      redirectUri: session.redirectUri,
-    });
-    return;
-  }
-
-  if (request.method === "GET" && action === "callback") {
-    const code = url.searchParams.get("code");
-    const state = url.searchParams.get("state");
-    const error = url.searchParams.get("error");
-
-    if (error) {
-      response.writeHead(400, { "Content-Type": "text/html" });
-      response.end(`<html><body><h2>Authentication Failed</h2><p>${error}</p><p>You can close this window.</p></body></html>`);
-      return;
-    }
-
-    if (!code) {
-      response.writeHead(400, { "Content-Type": "text/html" });
-      response.end(`<html><body><h2>Missing Code</h2><p>No authorization code received.</p></body></html>`);
-      return;
-    }
-
-    // Find session by state
-    let session = null;
-    for (const [sid, s] of oauthSessions) {
-      if (s.state === state) {
-        session = { ...s, sessionId: sid };
-        break;
-      }
-    }
-
-    if (!session) {
-      response.writeHead(400, { "Content-Type": "text/html" });
-      response.end(`<html><body><h2>Session Expired</h2><p>Your authentication session has expired. Please try again.</p></body></html>`);
-      return;
-    }
-
-    try {
-      const tokens = await exchangeCodeForTokens(code, session.codeVerifier, session.redirectUri);
-      saveOAuthTokens(providerId, tokens);
-      oauthSessions.delete(session.sessionId);
-
-      response.writeHead(200, { "Content-Type": "text/html" });
-      response.end(`<html><body><h2>Authentication Successful</h2><p>You can close this window and return to Tripp.g.</p><script>setTimeout(()=>window.close(),2000)</script></body></html>`);
-    } catch (e) {
-      console.error("OAuth callback error:", e);
-      response.writeHead(500, { "Content-Type": "text/html" });
-      response.end(`<html><body><h2>Authentication Failed</h2><p>${e.message}</p><p>You can close this window.</p></body></html>`);
-    }
-    return;
-  }
-
-  if (request.method === "GET" && action === "status") {
-    const tokens = loadOAuthTokens(providerId);
-    sendJson(response, {
-      provider: providerId,
-      authenticated: !!tokens,
-      expiresAt: tokens?.expiresAt || null,
-    });
-    return;
-  }
-
-  if (request.method === "POST" && action === "logout") {
-    clearOAuthTokens(providerId);
-    sendJson(response, { status: "logged_out", provider: providerId });
-    return;
-  }
-
-  if (request.method === "POST" && action === "token") {
-    const tokens = loadOAuthTokens(providerId);
-    if (!tokens) {
-      sendJson(response, { error: "Not authenticated" }, 401);
-      return;
-    }
-    sendJson(response, { accessToken: tokens.accessToken, accountId: tokens.accountId });
-    return;
-  }
-
-  sendJson(response, { error: "Unknown OAuth action" }, 404);
-}
-
-function startOAuthSession(providerId) {
-  const sessionId = randomBytes(16).toString("hex");
-  const state = randomBytes(16).toString("hex");
-  const codeVerifier = randomBytes(32).toString("base64url");
-  const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
-
-  const redirectUri = CHATGPT_CODEX_REDIRECT_URI;
-  const authUrl = new URL(`${CHATGPT_CODEX_ISSUER}/oauth/authorize`);
-  authUrl.searchParams.set("client_id", CHATGPT_CODEX_CLIENT_ID);
-  authUrl.searchParams.set("redirect_uri", redirectUri);
-  authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", CHATGPT_CODEX_SCOPES.join(" "));
-  authUrl.searchParams.set("state", state);
-  authUrl.searchParams.set("code_challenge", codeChallenge);
-  authUrl.searchParams.set("code_challenge_method", "S256");
-  authUrl.searchParams.set("id_token_add_organizations", "true");
-  authUrl.searchParams.set("codex_cli_simplified_flow", "true");
-  authUrl.searchParams.set("originator", "tripp");
-
-  const session = {
-    providerId,
-    state,
-    codeVerifier,
-    redirectUri,
-    authorizeUrl: authUrl.toString(),
-    startedAt: Date.now(),
-  };
-
-  oauthSessions.set(sessionId, session);
-
-  // Auto-cleanup after 10 minutes
-  setTimeout(() => {
-    oauthSessions.delete(sessionId);
-  }, 10 * 60 * 1000);
-
-  return { sessionId, authorizeUrl: authUrl.toString(), redirectUri };
-}
-
-async function exchangeCodeForTokens(code, codeVerifier, redirectUri) {
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    client_id: CHATGPT_CODEX_CLIENT_ID,
-    code,
-    redirect_uri: redirectUri,
-    code_verifier: codeVerifier,
-  }).toString();
-
-  return new Promise((resolve, reject) => {
-    const req = require("node:https").request(
-      `${CHATGPT_CODEX_ISSUER}/oauth/token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Content-Length": Buffer.byteLength(body),
-        },
-      },
-      (res) => {
-        let data = "";
-        res.on("data", (chunk) => (data += chunk));
-        res.on("end", () => {
-          try {
-            const parsed = JSON.parse(data);
-            if (!res.statusCode || res.statusCode >= 400) {
-              reject(new Error(`Token exchange failed: ${res.statusCode} ${parsed.error || data}`));
-              return;
-            }
-
-            const expiresAt = parsed.expires_in ? new Date(Date.now() + parsed.expires_in * 1000).toISOString() : null;
-
-            // Extract account ID from JWT id_token
-            let accountId = null;
-            if (parsed.id_token) {
-              try {
-                const payload = parsed.id_token.split(".")[1];
-                const decoded = JSON.parse(Buffer.from(payload, "base64url").toString());
-                accountId = decoded.chatgpt_account_id || decoded["https://api.openai.com/auth"]?.chatgpt_account_id || decoded.organizations?.[0]?.id || null;
-              } catch {
-                // ignore JWT parse errors
-              }
-            }
-
-            resolve({
-              accessToken: parsed.access_token,
-              refreshToken: parsed.refresh_token,
-              idToken: parsed.id_token,
-              expiresAt,
-              accountId,
-            });
-          } catch (e) {
-            reject(new Error(`Invalid token response: ${e.message}`));
-          }
-        });
-      }
-    );
-    req.on("error", (e) => reject(e));
-    req.write(body);
-    req.end();
-  });
-}
-
-function saveOAuthTokens(providerId, tokens) {
-  const path = join(oauthTokenDir, `${providerId}.json`);
-  if (!existsSync(oauthTokenDir)) {
-    mkdirSync(oauthTokenDir, { recursive: true });
-  }
-  writeFileSync(path, JSON.stringify(tokens, null, 2));
-}
-
-function loadOAuthTokens(providerId) {
-  const path = join(oauthTokenDir, `${providerId}.json`);
-  if (!existsSync(path)) return null;
-  try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return null;
-  }
-}
-
-function clearOAuthTokens(providerId) {
-  const path = join(oauthTokenDir, `${providerId}.json`);
-  if (existsSync(path)) {
-    const { unlinkSync } = require("node:fs");
-    unlinkSync(path);
-  }
-}
 
 function readBootstrap() {
   applyFirstBootResetMetadataToMemory();
@@ -3234,6 +3017,10 @@ function defaultSettings() {
       enabled: true,
       updatedAt: null,
     },
+    display: {
+      fontBoost: 0,
+      updatedAt: null,
+    },
   };
 }
 
@@ -3249,22 +3036,114 @@ function loadSettingsStore() {
 
 function loadConnectionStore() {
   try {
-    if (!existsSync(connectionStoreFile)) return { connections: [] };
+    if (!existsSync(connectionStoreFile)) return seedEnvConnectionStore({ connections: [] });
     const parsed = JSON.parse(readFileSync(connectionStoreFile, "utf8"));
-    return { connections: Array.isArray(parsed.connections) ? parsed.connections.map(normalizeConnectionRecord).filter(Boolean) : [] };
+    return seedEnvConnectionStore({
+      connections: Array.isArray(parsed.connections) ? parsed.connections.map(normalizeConnectionRecord).filter(Boolean) : [],
+    });
   } catch {
-    return { connections: [] };
+    return seedEnvConnectionStore({ connections: [] });
   }
 }
 
 function loadConnectionSecretStore() {
   try {
-    if (!existsSync(connectionSecretStoreFile)) return { secrets: {} };
+    if (!existsSync(connectionSecretStoreFile)) return seedEnvConnectionSecrets({ secrets: {} });
     const parsed = JSON.parse(readFileSync(connectionSecretStoreFile, "utf8"));
-    return { secrets: parsed && typeof parsed.secrets === "object" && !Array.isArray(parsed.secrets) ? parsed.secrets : {} };
+    return seedEnvConnectionSecrets({
+      secrets: parsed && typeof parsed.secrets === "object" && !Array.isArray(parsed.secrets) ? parsed.secrets : {},
+    });
   } catch {
-    return { secrets: {} };
+    return seedEnvConnectionSecrets({ secrets: {} });
   }
+}
+
+function seedEnvConnectionStore(store) {
+  const connections = Array.isArray(store.connections) ? [...store.connections] : [];
+  for (const seeded of envConnectionRecords()) {
+    if (!connections.some((connection) => connection.id === seeded.id)) {
+      connections.push(seeded);
+    }
+  }
+  return { connections };
+}
+
+function seedEnvConnectionSecrets(store) {
+  const secrets = store && typeof store.secrets === "object" && !Array.isArray(store.secrets) ? { ...store.secrets } : {};
+  const deepseekKey = String(process.env.DEEPSEEK_API_KEY || "").trim();
+  if (deepseekKey) {
+    secrets["env-deepseek"] = deepseekKey;
+  }
+  return { secrets };
+}
+
+function envConnectionRecords() {
+  return [envDeepseekConnection(), ...envOllamaConnections()].filter(Boolean).map(normalizeConnectionRecord).filter(Boolean);
+}
+
+function envDeepseekConnection() {
+  const apiKey = String(process.env.DEEPSEEK_API_KEY || "").trim();
+  if (!apiKey) return null;
+  return {
+    id: "env-deepseek",
+    name: process.env.DEEPSEEK_CONNECTION_NAME || "DeepSeek local env",
+    provider: "deepseek",
+    mode: "api_key",
+    model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
+    baseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
+    enabled: process.env.DEEPSEEK_ENABLED !== "false",
+    status: "unknown",
+    isDefaultPromptTesting: process.env.DEEPSEEK_DEFAULT_PROMPT !== "false",
+    purposes: envConnectionPurposes(
+      process.env.DEEPSEEK_PURPOSES,
+      ["default_prompt_testing", "default_chat", "read_only_planning", "synthesis", "fallback"],
+    ),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function envOllamaConnections() {
+  if (process.env.OLLAMA_ENABLED === "false") return null;
+  const configured = process.env.OLLAMA_BASE_URL || process.env.OLLAMA_MODEL || process.env.OLLAMA_CONNECTION_NAME || process.env.TRIPP_SEED_OLLAMA === "true";
+  const altConfigured = process.env.OLLAMA_ALT_MODEL || process.env.OLLAMA_ALT_CONNECTION_NAME || process.env.TRIPP_SEED_OLLAMA_ALT === "true";
+  if (!configured && !altConfigured) return [];
+
+  const primary = {
+    id: "env-ollama-kimi",
+    name: process.env.OLLAMA_CONNECTION_NAME || "Ollama local env",
+    provider: "ollama",
+    mode: "local_runtime",
+    model: process.env.OLLAMA_MODEL || "kimi-k2.6:cloud",
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
+    enabled: true,
+    status: "unknown",
+    isDefaultPromptTesting: process.env.OLLAMA_DEFAULT_PROMPT !== "false",
+    purposes: envConnectionPurposes(process.env.OLLAMA_PURPOSES, ["default_prompt_testing", "default_chat", "coder_primary", "fallback"]),
+    createdAt: new Date().toISOString(),
+  };
+
+  const alt = {
+    id: "env-ollama-nemotron",
+    name: process.env.OLLAMA_ALT_CONNECTION_NAME || "Ollama Nemotron env",
+    provider: "ollama",
+    mode: "local_runtime",
+    model: process.env.OLLAMA_ALT_MODEL || "nemotron-3-super:cloud",
+    baseUrl: process.env.OLLAMA_ALT_BASE_URL || process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
+    enabled: process.env.OLLAMA_ALT_ENABLED !== "false",
+    status: "unknown",
+    isDefaultPromptTesting: process.env.OLLAMA_ALT_DEFAULT_PROMPT === "true",
+    purposes: envConnectionPurposes(process.env.OLLAMA_ALT_PURPOSES, ["coder_secondary", "verifier"]),
+    createdAt: new Date().toISOString(),
+  };
+
+  return [primary, alt];
+}
+
+function envConnectionPurposes(raw, fallback) {
+  const allowed = connectionPurposes();
+  const source = String(raw || "").trim() ? String(raw).split(",") : fallback;
+  const normalized = source.map((item) => String(item || "").trim()).filter((item) => allowed.includes(item));
+  return [...new Set(normalized)];
 }
 
 function normalizeConnectionRecord(value = {}) {
@@ -3279,7 +3158,7 @@ function normalizeConnectionRecord(value = {}) {
     name: String(value.name || defaultConnectionName(provider)).slice(0, 80),
     provider,
     mode,
-    model: String(value.model || defaultConnectionModel(provider)).slice(0, 120),
+    model: normalizeProviderModel(provider, value.model || defaultConnectionModel(provider)).slice(0, 120),
     baseUrl: normalizeConnectionBaseUrl(value.baseUrl),
     enabled: value.enabled !== false,
     status: ["unknown", "connected", "failed", "disabled", "not_supported", "ready_for_linking", "managed"].includes(value.status) ? value.status : "unknown",
@@ -3301,13 +3180,28 @@ function normalizeConnectionRecord(value = {}) {
 
 function normalizeConnectionProvider(provider) {
   const value = String(provider || "").toLowerCase();
-  return ["openai", "anthropic", "deepseek", "openrouter", "ollama", "custom", "backend"].includes(value) ? value : null;
+  return ["openai", "anthropic", "deepseek", "openrouter", "ollama", "custom", "backend", "chatgpt_codex"].includes(value) ? value : null;
+}
+
+function normalizeProviderModel(provider, model) {
+  const value = String(model || "").trim();
+  if (provider === "ollama") {
+    const aliases = {
+      kimik2: "kimi-k2.6:cloud",
+      "kimik2.6": "kimi-k2.6:cloud",
+      "kimi-k2.6": "kimi-k2.6:cloud",
+      "nemotron-3-super": "nemotron-3-super:cloud",
+    };
+    return aliases[value.toLowerCase()] || value;
+  }
+  return value;
 }
 
 function normalizeConnectionMode(mode, provider) {
   const value = String(mode || "").toLowerCase();
   if (["account_linked", "api_key", "local_runtime", "backend_managed"].includes(value)) return value;
   if (provider === "backend") return "backend_managed";
+  if (provider === "chatgpt_codex") return "account_linked";
   return provider === "ollama" ? "local_runtime" : "api_key";
 }
 
@@ -3315,6 +3209,7 @@ function providerModeSupport(provider) {
   const defaults = { account_linked: false, api_key: true, local_runtime: false, backend_managed: false };
   if (provider === "backend") return { account_linked: false, api_key: false, local_runtime: false, backend_managed: true };
   if (provider === "ollama") return { account_linked: false, api_key: false, local_runtime: true, backend_managed: false };
+  if (provider === "chatgpt_codex") return { account_linked: true, api_key: false, local_runtime: false, backend_managed: false };
   if (provider === "custom") return { account_linked: false, api_key: true, local_runtime: true, backend_managed: false };
   return defaults;
 }
@@ -3356,11 +3251,12 @@ function defaultConnectionName(provider) {
 }
 
 function defaultConnectionModel(provider) {
+  if (provider === "chatgpt_codex") return "gpt-5.3-codex";
   if (provider === "openai") return "gpt-4.1-mini";
   if (provider === "anthropic") return "claude-3-5-haiku-latest";
-  if (provider === "deepseek") return "deepseek-chat";
+  if (provider === "deepseek") return "deepseek-v4-chat";
   if (provider === "openrouter") return "openrouter/auto";
-  if (provider === "ollama") return "llama3.1";
+  if (provider === "ollama") return "kimi-k2.6:cloud";
   if (provider === "backend") return "tripp-adapter/backend";
   return "model";
 }
@@ -3380,7 +3276,7 @@ function readConnectionsPublic() {
     defaultPromptConnectionId: connectionForLane("default_prompt_testing", connections)?.id || null,
     laneRouting: laneRoutingSnapshot(connections),
     supportedPurposes: connectionPurposes(),
-    providerSupport: Object.fromEntries(["openai", "anthropic", "deepseek", "openrouter", "ollama", "custom", "backend"].map((provider) => [provider, providerModeSupport(provider)])),
+    providerSupport: Object.fromEntries(["openai", "anthropic", "deepseek", "openrouter", "ollama", "custom", "backend", "chatgpt_codex"].map((provider) => [provider, providerModeSupport(provider)])),
     scopeNote: "Connections configure model access only. They do not change Tripp's current read-only scope.",
     reset: readFirstBootResetMetadata({ root, runtimeDir }),
   };
@@ -3588,7 +3484,7 @@ async function testConnectionById(connectionId) {
   return { ...result, connection: sanitizeConnection(connection) };
 }
 
-async function testConnection(connection) {
+async function testConnection(connection, secretOverride = null) {
   if (!connection.enabled) return { status: "failed", error: "Connection is disabled." };
   if (!connectionModeSupported(connection.provider, connection.mode)) {
     return { status: "not_supported", error: `${connectionModeLabel(connection.mode)} is not currently supported for ${connection.provider}.` };
@@ -3597,18 +3493,19 @@ async function testConnection(connection) {
     return await testBackendManagedConnection(connection);
   }
   if (connection.mode === "account_linked") {
-    return { status: "not_supported", error: "Account linking is not currently supported for this provider." };
+    return await testOAuthConnection(connection);
   }
-  const secret = connectionSecretStore.secrets[connection.id] || "";
+  const secret = secretOverride !== null ? String(secretOverride || "") : connectionSecretStore.secrets[connection.id] || "";
   if (connection.mode === "api_key" && ["openai", "anthropic", "deepseek", "openrouter", "custom"].includes(connection.provider) && !secret) {
     return { status: "auth_error", error: "API key or token is required." };
   }
   if (!connection.model) return { status: "model_not_found", error: "Model is required." };
-  return callConnection(connection, "Respond with CONNECTION_OK for a Tripp read-only prompt test.", { testOnly: true });
+  return callConnection(connection, "Respond with CONNECTION_OK for a Tripp read-only prompt test.", { testOnly: true, secretOverride: secret });
 }
 
 function defaultBaseUrl(connection) {
   if (connection.baseUrl) return connection.baseUrl;
+  if (connection.provider === "chatgpt_codex") return oauthProviderConfig("chatgpt_codex")?.apiBaseUrl || "https://chatgpt.com/backend-api/codex";
   if (connection.provider === "openai") return "https://api.openai.com/v1";
   if (connection.provider === "anthropic") return "https://api.anthropic.com/v1";
   if (connection.provider === "deepseek") return "https://api.deepseek.com";
@@ -3651,16 +3548,16 @@ async function callBackendManagedConnection(connection, prompt, testOnly = false
   };
 }
 
-async function callConnection(connection, prompt, { testOnly = false } = {}) {
+async function callConnection(connection, prompt, { testOnly = false, secretOverride = null } = {}) {
   if (!connectionModeSupported(connection.provider, connection.mode)) {
     return { status: "not_supported", error: `${connectionModeLabel(connection.mode)} is not currently supported for ${connection.provider}.` };
   }
   if (connection.mode === "backend_managed") return await callBackendManagedConnection(connection, prompt, testOnly);
-  if (connection.mode === "account_linked") return { status: "not_supported", error: "Account linking is not currently supported for this provider." };
+  if (connection.mode === "account_linked") return await callOAuthConnection(connection, prompt, testOnly);
   const baseUrl = defaultBaseUrl(connection);
   if (!baseUrl) return { status: "endpoint_unreachable", error: "Base URL is required." };
   if (connection.model.toLowerCase().includes("missing")) return { status: "model_not_found", error: "Model was not found." };
-  const secret = connectionSecretStore.secrets[connection.id] || "";
+  const secret = secretOverride !== null ? String(secretOverride || "") : connectionSecretStore.secrets[connection.id] || "";
 
   try {
     if (connection.provider === "openai") return await callOpenAiConnection(connection, baseUrl, secret, prompt, testOnly);
@@ -3676,21 +3573,44 @@ async function callConnection(connection, prompt, { testOnly = false } = {}) {
 }
 
 async function callOpenAiConnection(connection, baseUrl, secret, prompt, testOnly) {
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const deepseekProfile = resolveDeepSeekModelProfile(connection);
+  const body = {
+    model: deepseekProfile.model,
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: testOnly ? 16 : 256,
+  };
+  if (connection.provider === "deepseek" && deepseekProfile.thinking) {
+    body.thinking = deepseekProfile.thinking;
+  }
+  const response = await providerFetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     signal: AbortSignal.timeout(8000),
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
-    body: JSON.stringify({
-      model: connection.model,
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: testOnly ? 16 : 256,
-    }),
+    body: JSON.stringify(body),
   });
   return parseProviderResponse(response, (body) => body?.choices?.[0]?.message?.content || "");
 }
 
+function resolveDeepSeekModelProfile(connection) {
+  if (connection.provider !== "deepseek") return { model: connection.model };
+  const requested = String(connection.model || "deepseek-v4-chat");
+  if (requested === "deepseek-v4-chat" || requested === "deepseek-chat") {
+    return { model: "deepseek-v4-flash", thinking: { type: "disabled" } };
+  }
+  if (requested === "deepseek-v4-flash") {
+    return { model: "deepseek-v4-flash", thinking: { type: "disabled" } };
+  }
+  if (requested === "deepseek-v4-think" || requested === "deepseek-reasoner") {
+    return { model: "deepseek-v4-flash", thinking: { type: "enabled", reasoning_effort: "high" } };
+  }
+  if (requested === "deepseek-v4-pro") {
+    return { model: "deepseek-v4-pro", thinking: { type: "enabled", reasoning_effort: "high" } };
+  }
+  return { model: requested };
+}
+
 async function callAnthropicConnection(connection, baseUrl, secret, prompt, testOnly) {
-  const response = await fetch(`${baseUrl}/messages`, {
+  const response = await providerFetch(`${baseUrl}/messages`, {
     method: "POST",
     signal: AbortSignal.timeout(8000),
     headers: { "Content-Type": "application/json", "x-api-key": secret, "anthropic-version": "2023-06-01" },
@@ -3714,7 +3634,7 @@ async function callOllamaConnection(connection, baseUrl, prompt, testOnly) {
 }
 
 async function callCustomConnection(connection, baseUrl, secret, prompt, testOnly) {
-  const response = await fetch(baseUrl, {
+  const response = await providerFetch(baseUrl, {
     method: "POST",
     signal: AbortSignal.timeout(8000),
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
@@ -3849,7 +3769,697 @@ function normalizeSettings(value = {}) {
       enabled: value.compact?.enabled !== false,
       updatedAt: value.compact?.updatedAt || null,
     },
+    display: {
+      fontBoost: normalizeFontBoost(value.display?.fontBoost),
+      updatedAt: value.display?.updatedAt || null,
+    },
   };
+}
+
+async function testOAuthConnection(connection) {
+  const status = oauthProviderStatus(connection.provider);
+  if (!status.supported) return { status: "not_supported", error: "OAuth provider is not registered." };
+  if (!status.authenticated) return { status: "auth_error", error: "Connect this OAuth provider before using it." };
+  if (!connection.model) return { status: "model_not_found", error: "Model is required." };
+  return {
+    status: "connected",
+    text: `${status.displayName} OAuth token is cached. Live Codex conversation calls are staged behind the managed-provider adapter.`,
+  };
+}
+
+async function callOAuthConnection(connection, prompt, testOnly = false) {
+  const token = await oauthAccessToken(connection.provider);
+  if (!token) return { status: "auth_error", error: "Connect this OAuth provider before using it." };
+  if (testOnly) return await testOAuthConnection(connection);
+  return {
+    status: "not_supported",
+    error: "OAuth is connected, but the live managed-provider conversation adapter is not enabled yet.",
+  };
+}
+
+function readModelProviders() {
+  return {
+    providers: providerConfigs().map((provider) => provider.auth === "oauth" ? { ...provider, oauth: oauthProviderStatus(provider.id) } : provider),
+    scopeNote: "Model providers configure model access only. They do not change Tripp's current read-only scope.",
+  };
+}
+
+function providerConfigs() {
+  return [
+    {
+      id: "chatgpt_codex",
+      displayName: "ChatGPT (Codex)",
+      engine: "oauth",
+      auth: "oauth",
+      defaultBaseUrl: oauthProviderConfig("chatgpt_codex")?.apiBaseUrl || "https://chatgpt.com/backend-api/codex",
+      dynamicModels: false,
+      knownModels: knownProviderModels("chatgpt_codex").map((id, index) => ({ id, recommended: index === 0 })),
+    },
+    {
+      id: "ollama",
+      displayName: "Ollama",
+      engine: "ollama",
+      auth: "none",
+      defaultBaseUrl: "http://127.0.0.1:11434",
+      dynamicModels: true,
+      knownModels: knownProviderModels("ollama").map((id, index) => ({ id, recommended: index === 0 })),
+    },
+    {
+      id: "deepseek",
+      displayName: "DeepSeek",
+      engine: "openai",
+      auth: "api_key",
+      apiKeyEnv: "DEEPSEEK_API_KEY",
+      defaultBaseUrl: "https://api.deepseek.com",
+      dynamicModels: true,
+      knownModels: knownProviderModels("deepseek").map((id, index) => ({ id, contextLimit: 128000, recommended: index === 0 })),
+    },
+    {
+      id: "openai",
+      displayName: "OpenAI",
+      engine: "openai",
+      auth: "api_key",
+      apiKeyEnv: "OPENAI_API_KEY",
+      defaultBaseUrl: "https://api.openai.com/v1",
+      dynamicModels: true,
+      knownModels: knownProviderModels("openai").map((id, index) => ({ id, recommended: index === 0 })),
+    },
+    {
+      id: "anthropic",
+      displayName: "Anthropic",
+      engine: "anthropic",
+      auth: "api_key",
+      apiKeyEnv: "ANTHROPIC_API_KEY",
+      defaultBaseUrl: "https://api.anthropic.com/v1",
+      dynamicModels: false,
+      knownModels: knownProviderModels("anthropic").map((id, index) => ({ id, recommended: index === 0 })),
+    },
+    {
+      id: "openrouter",
+      displayName: "OpenRouter",
+      engine: "openai",
+      auth: "api_key",
+      defaultBaseUrl: "https://openrouter.ai/api/v1",
+      dynamicModels: true,
+      knownModels: knownProviderModels("openrouter").map((id, index) => ({ id, recommended: index === 0 })),
+    },
+    {
+      id: "custom",
+      displayName: "Custom OpenAI-compatible",
+      engine: "openai",
+      auth: "api_key",
+      defaultBaseUrl: "",
+      dynamicModels: false,
+      knownModels: knownProviderModels("custom").map((id) => ({ id })),
+    },
+    {
+      id: "backend",
+      displayName: "Backend managed",
+      engine: "backend",
+      auth: "backend_managed",
+      defaultBaseUrl: backendUrl || "",
+      dynamicModels: false,
+      knownModels: knownProviderModels("backend").map((id) => ({ id, recommended: true })),
+    },
+  ];
+}
+
+function knownProviderModels(provider) {
+  return {
+    chatgpt_codex: ["gpt-5.3-codex", "gpt-5.4", "gpt-5.4-mini"],
+    backend: ["tripp-adapter/backend"],
+    openai: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini"],
+    anthropic: ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
+    deepseek: ["deepseek-v4-chat", "deepseek-v4-flash", "deepseek-v4-think", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
+    openrouter: ["openrouter/auto", "anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini"],
+    ollama: [
+      "kimi-k2.6:cloud",
+      "glm-5.1:cloud",
+      "qwen3.5:cloud",
+      "nemotron-3-super:cloud",
+      "gemma4:31b-cloud",
+      "mistral-large-3:675b-cloud",
+      "qwen3-coder-next:cloud",
+      "qwen3.5:397b-cloud",
+    ],
+    custom: ["model"],
+  }[provider] || ["model"];
+}
+
+function readModelInventory() {
+  applyFirstBootResetMetadataToMemory();
+  const connections = connectionStore.connections.map(sanitizeConnection);
+  const providerGroups = [];
+  for (const connection of connections) {
+    const key = providerGroupKey(connection);
+    let group = providerGroups.find((item) => item.key === key);
+    if (!group) {
+      group = {
+        key,
+        id: key,
+        providerId: connection.provider,
+        displayName: providerDisplayName(connection.provider),
+        baseUrl: connection.baseUrl || defaultBaseUrl(connection),
+        authMode: connection.mode,
+        status: providerGroupStatus(connection),
+        hasToken: connection.hasToken,
+        maskedToken: connection.maskedToken,
+        modelsDiscovered: {
+          source: "saved",
+          count: 0,
+        },
+        models: [],
+      };
+      providerGroups.push(group);
+    }
+    group.models.push({
+      id: connection.id,
+      providerGroupId: group.id,
+      modelId: connection.model,
+      displayName: connection.model,
+      connectionName: connection.name,
+      status: connection.status || "unknown",
+      lanes: connection.purposes || [],
+      recommended: Boolean(connection.isDefaultPromptTesting),
+      lastTestedAt: connection.lastCheckedAt || null,
+      error: connection.lastError || null,
+    });
+    group.modelsDiscovered.count = group.models.length;
+    group.status = mergeProviderGroupStatus(group.status, providerGroupStatus(connection));
+  }
+  return {
+    providerGroups,
+    laneRouting: laneRoutingSnapshot(connections),
+    supportedLanes: connectionPurposes(),
+    scopeNote: "Model inventory configures model routing only. It does not approve work or enable writes.",
+  };
+}
+
+function providerGroupKey(connection) {
+  return `${connection.provider}:${connection.mode}:${connection.baseUrl || defaultBaseUrl(connection) || "default"}`;
+}
+
+function providerDisplayName(provider) {
+  const config = providerConfigs().find((item) => item.id === provider);
+  return config?.displayName || provider || "Provider";
+}
+
+function providerGroupStatus(connection) {
+  if (connection.status === "connected") return "connected";
+  if (connection.status === "failed") return "failed";
+  if (connection.status === "not_supported") return "unsupported";
+  return "unknown";
+}
+
+function mergeProviderGroupStatus(current, next) {
+  if (current === "connected" || next === "connected") return "connected";
+  if (current === "failed" || next === "failed") return "failed";
+  if (current === "unsupported" || next === "unsupported") return "unsupported";
+  return next || current || "unknown";
+}
+
+async function checkModelProviderHealth(providerId, payload = {}) {
+  const provider = normalizeConnectionProvider(providerId);
+  if (!provider) return { status: "unsupported", diagnosticCode: "provider_not_supported", message: "Unsupported provider." };
+  if (providerModeSupport(provider).account_linked && (payload.mode === "account_linked" || provider === "chatgpt_codex")) {
+    const status = oauthProviderStatus(provider);
+    return {
+      providerId: provider,
+      status: status.authenticated ? "connected" : "auth_error",
+      diagnosticCode: status.authenticated ? "connected" : "oauth_not_authenticated",
+      message: status.authenticated ? `${status.displayName} is connected.` : `Connect ${status.displayName || provider} with browser login.`,
+      safeDetail: status.tokenExpiresAt || "",
+    };
+  }
+  const record = transientConnectionRecord(provider, payload);
+  if (!record) return { status: "unsupported", diagnosticCode: "provider_not_supported", message: "Unsupported provider." };
+  const result = await testConnection(record, String(payload.apiKey || payload.token || ""));
+  return {
+    providerId: provider,
+    status: result.status,
+    diagnosticCode: diagnosticCodeForProviderResult(result),
+    message: result.status === "connected" ? "Connected." : result.error || result.status,
+    safeDetail: result.text || "",
+  };
+}
+
+async function discoverProviderModels(providerId, payload = {}) {
+  const provider = normalizeConnectionProvider(providerId);
+  if (!provider) return { providerId, status: "unsupported", models: [], source: "none", message: "Unsupported provider." };
+  const record = transientConnectionRecord(provider, payload);
+  const knownModels = knownProviderModels(provider);
+  if (providerModeSupport(provider).account_linked && (payload.mode === "account_linked" || provider === "chatgpt_codex")) {
+    const status = oauthProviderStatus(provider);
+    return {
+      providerId: provider,
+      status: status.authenticated ? "connected" : "auth_required",
+      models: knownModels,
+      source: status.authenticated ? "oauth-known" : "known",
+      message: status.authenticated ? "OAuth models available." : "Connect provider to use these models.",
+    };
+  }
+  if (provider === "ollama") {
+    const discovered = await discoverOllamaModels(record.baseUrl || defaultBaseUrl(record));
+    if (discovered.models.length) return { providerId: provider, status: "connected", models: discovered.models, source: discovered.source, message: "Models discovered." };
+    return { providerId: provider, status: discovered.status, models: knownModels, source: "fallback", message: discovered.message || "Using known Ollama cloud model list." };
+  }
+  if (["openai", "deepseek", "openrouter"].includes(provider) && String(payload.apiKey || payload.token || "").trim()) {
+    const discovered = await discoverOpenAiModels(record, String(payload.apiKey || payload.token || ""));
+    if (discovered.models.length) return { providerId: provider, status: "connected", models: discovered.models, source: discovered.source, message: "Models discovered." };
+  }
+  return { providerId: provider, status: "fallback", models: knownModels, source: "known", message: "Using known model list." };
+}
+
+function transientConnectionRecord(provider, payload = {}) {
+  return normalizeConnectionRecord({
+    id: "__transient_model_provider",
+    provider,
+    name: payload.name || providerDisplayName(provider),
+    mode: payload.mode || normalizeConnectionMode(payload.mode, provider),
+    model: payload.model || knownProviderModels(provider)[0] || defaultConnectionModel(provider),
+    baseUrl: payload.baseUrl || "",
+    enabled: true,
+    status: "unknown",
+    purposes: ["default_prompt_testing"],
+  });
+}
+
+async function discoverOllamaModels(baseUrl) {
+  try {
+    const response = await fetch(`${String(baseUrl || "http://127.0.0.1:11434").replace(/\/+$/, "")}/api/tags`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) return { status: "endpoint_unreachable", models: [], source: "none", message: "Ollama endpoint did not return tags." };
+    const body = await response.json().catch(() => ({}));
+    const models = (Array.isArray(body.models) ? body.models : [])
+      .map((model) => model.name || model.model)
+      .filter(Boolean);
+    return { status: "connected", models: [...new Set([...models, ...knownProviderModels("ollama")])], source: models.length ? "mixed" : "fallback" };
+  } catch (error) {
+    return { status: "endpoint_unreachable", models: [], source: "none", message: "Ollama endpoint is unreachable." };
+  }
+}
+
+async function discoverOpenAiModels(connection, secret) {
+  try {
+    const response = await providerFetch(`${defaultBaseUrl(connection).replace(/\/+$/, "")}/models`, {
+      method: "GET",
+      signal: AbortSignal.timeout(5000),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+    });
+    if (!response.ok) return { status: "endpoint_unreachable", models: [], source: "none" };
+    const body = await response.json().catch(() => ({}));
+    const models = (Array.isArray(body.data) ? body.data : [])
+      .map((model) => model.id || model.name)
+      .filter(Boolean);
+    return { status: "connected", models: [...new Set(models)], source: "live" };
+  } catch (error) {
+    return { status: error?.cause?.code === "UNABLE_TO_GET_ISSUER_CERT_LOCALLY" ? "tls_error" : "endpoint_unreachable", models: [], source: "none" };
+  }
+}
+
+function diagnosticCodeForProviderResult(result) {
+  if (result.status === "connected") return "connected";
+  if (result.status === "auth_error") return "auth_error";
+  if (result.status === "model_not_found") return "model_not_found";
+  if (String(result.error || "").toLowerCase().includes("certificate") || String(result.error || "").toLowerCase().includes("tls")) return "tls_error";
+  if (result.status === "not_supported") return "unsupported";
+  return "endpoint_unreachable";
+}
+
+function oauthProviderConfigs() {
+  const callbackPort = Number(process.env.CHATGPT_CODEX_CALLBACK_PORT || process.env.TRIPP_OAUTH_CALLBACK_PORT || 1455);
+  const callbackHost = process.env.CHATGPT_CODEX_CALLBACK_HOST || "127.0.0.1";
+  const callbackPath = process.env.CHATGPT_CODEX_CALLBACK_PATH || "/callback";
+  const redirectUri = process.env.CHATGPT_CODEX_REDIRECT_URI || `http://localhost:${callbackPort}${callbackPath}`;
+  return [
+    {
+      id: "chatgpt_codex",
+      name: "chatgpt_codex",
+      displayName: "ChatGPT (Codex)",
+      clientId: process.env.CHATGPT_CODEX_CLIENT_ID || "app_EMoamEEZ73f0CkXaXp7hrann",
+      issuer: process.env.CHATGPT_CODEX_ISSUER || "https://auth.openai.com",
+      authorizationEndpoint: process.env.CHATGPT_CODEX_AUTH_URL || "https://auth.openai.com/authorize",
+      tokenEndpoint: process.env.CHATGPT_CODEX_TOKEN_URL || "https://auth.openai.com/token",
+      redirectUri,
+      callbackHost,
+      callbackPort,
+      callbackPath,
+      scopes: String(process.env.CHATGPT_CODEX_SCOPES || "openid profile email offline_access").split(/[,\s]+/).filter(Boolean),
+      apiBaseUrl: "https://chatgpt.com/backend-api/codex",
+      usePkce: true,
+      extraParams: parseOAuthExtraParams(process.env.CHATGPT_CODEX_EXTRA_PARAMS),
+      models: knownProviderModels("chatgpt_codex"),
+    },
+  ];
+}
+
+function parseOAuthExtraParams(value) {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return Object.fromEntries(
+      String(value)
+        .split(/[,&]/)
+        .map((pair) => pair.split("="))
+        .filter(([key]) => key)
+        .map(([key, paramValue = "true"]) => [key.trim(), paramValue.trim()]),
+    );
+  }
+}
+
+function oauthProviderConfig(providerId) {
+  return oauthProviderConfigs().find((provider) => provider.id === providerId || provider.name === providerId) || null;
+}
+
+function readOAuthProvidersPublic() {
+  return {
+    providers: oauthProviderConfigs().map((provider) => oauthProviderStatus(provider.id)),
+    tokenCache: oauthTokenDir,
+    scopeNote: "OAuth providers use browser login and cached scoped tokens instead of pasted API keys.",
+  };
+}
+
+function oauthProviderStatus(providerId) {
+  const config = oauthProviderConfig(providerId);
+  if (!config) return { id: providerId, supported: false, authenticated: false };
+  const token = readOAuthToken(providerId);
+  const expired = token?.expiresAt ? Date.parse(token.expiresAt) <= Date.now() + 30000 : false;
+  return {
+    id: config.id,
+    displayName: config.displayName,
+    auth: "oauth",
+    supported: true,
+    authenticated: Boolean(token?.accessToken && !expired),
+    hasRefreshToken: Boolean(token?.refreshToken),
+    tokenExpiresAt: token?.expiresAt || null,
+    accountId: token?.accountId || null,
+    models: config.models,
+    redirectUri: config.redirectUri,
+    callbackPort: config.callbackPort,
+    tokenCache: oauthTokenDir,
+  };
+}
+
+async function handleOAuthApi(request, response, url) {
+  const parts = url.pathname.split("/").filter(Boolean);
+  const providerId = decodeURIComponent(parts[3] || "");
+  const action = decodeURIComponent(parts[4] || "");
+  if (!oauthProviderConfig(providerId)) {
+    sendJson(response, { status: "unsupported", error: "OAuth provider is not registered." }, 404);
+    return;
+  }
+  if (request.method === "POST" && action === "start") {
+    try {
+      sendJson(response, await startOAuthFlow(providerId));
+    } catch (error) {
+      sendJson(response, { status: "failed", error: error.message || "OAuth flow could not start." }, 409);
+    }
+    return;
+  }
+  if (request.method === "GET" && action === "status") {
+    sendJson(response, oauthProviderStatus(providerId));
+    return;
+  }
+  if (request.method === "POST" && action === "logout") {
+    logoutOAuthProvider(providerId);
+    sendJson(response, oauthProviderStatus(providerId));
+    return;
+  }
+  if (request.method === "GET" && action === "callback") {
+    await finishOAuthCallback(providerId, url, response);
+    return;
+  }
+  sendJson(response, { error: "OAuth action not found." }, 404);
+}
+
+async function startOAuthFlow(providerId) {
+  const config = oauthProviderConfig(providerId);
+  const state = base64Url(randomBytes(24));
+  const codeVerifier = base64Url(randomBytes(48));
+  const codeChallenge = base64Url(createHash("sha256").update(codeVerifier).digest());
+  await closeOAuthSessionsForProvider(providerId);
+  const callbackServer = await startOAuthCallbackServer(providerId, state);
+  oauthSessions.set(state, { providerId, codeVerifier, callbackServer, createdAt: Date.now() });
+  const authorize = new URL(config.authorizationEndpoint);
+  authorize.searchParams.set("client_id", config.clientId);
+  authorize.searchParams.set("redirect_uri", config.redirectUri);
+  authorize.searchParams.set("response_type", "code");
+  authorize.searchParams.set("scope", config.scopes.join(" "));
+  authorize.searchParams.set("state", state);
+  authorize.searchParams.set("code_challenge", codeChallenge);
+  authorize.searchParams.set("code_challenge_method", "S256");
+  for (const [key, value] of Object.entries(config.extraParams || {})) {
+    authorize.searchParams.set(key, String(value));
+  }
+  return {
+    status: "started",
+    providerId,
+    displayName: config.displayName,
+    authorizeUrl: authorize.toString(),
+    redirectUri: config.redirectUri,
+    callbackPort: config.callbackPort,
+    expiresInMs: 10 * 60 * 1000,
+  };
+}
+
+function startOAuthCallbackServer(providerId, state) {
+  const config = oauthProviderConfig(providerId);
+  return new Promise((resolveStart, rejectStart) => {
+    const callbackServer = createServer(async (request, response) => {
+      const callbackUrl = new URL(request.url || "/", config.redirectUri);
+      if (request.method !== "GET" || callbackUrl.pathname !== config.callbackPath) {
+        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("OAuth callback route not found.");
+        return;
+      }
+      await finishOAuthCallback(providerId, callbackUrl, response);
+    });
+    callbackServer.once("error", rejectStart);
+    callbackServer.listen(config.callbackPort, config.callbackHost, () => {
+      callbackServer.off("error", rejectStart);
+      resolveStart(callbackServer);
+    });
+  }).catch((error) => {
+    throw new Error(`OAuth callback server could not start on port ${config.callbackPort}: ${error.message}`);
+  });
+}
+
+async function finishOAuthCallback(providerId, url, response) {
+  const code = url.searchParams.get("code") || "";
+  const state = url.searchParams.get("state") || "";
+  const error = url.searchParams.get("error") || "";
+  const session = oauthSessions.get(state);
+  if (error || !code || !session || session.providerId !== providerId || Date.now() - session.createdAt > 10 * 60 * 1000) {
+    response.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
+    response.end(oauthCallbackHtml("OAuth failed", error || "State mismatch or expired login. Return to Tripp and try again."));
+    return;
+  }
+  oauthSessions.delete(state);
+  await closeOAuthSession(session);
+  try {
+    const token = await exchangeOAuthCode(providerId, code, session.codeVerifier);
+    writeOAuthToken(providerId, token);
+    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    response.end(oauthCallbackHtml("OAuth connected", "You can close this tab and return to Tripp."));
+  } catch (exchangeError) {
+    response.writeHead(502, { "Content-Type": "text/html; charset=utf-8" });
+    response.end(oauthCallbackHtml("OAuth token exchange failed", "The provider rejected the local OAuth exchange. Check the OAuth client and redirect URI."));
+  }
+}
+
+async function closeOAuthSessionsForProvider(providerId) {
+  const closing = [];
+  for (const [state, session] of oauthSessions) {
+    if (session.providerId !== providerId) continue;
+    closing.push(closeOAuthSession(session));
+    oauthSessions.delete(state);
+  }
+  await Promise.all(closing);
+}
+
+function closeOAuthSession(session) {
+  return new Promise((resolveClose) => {
+    try {
+      if (!session?.callbackServer?.listening) {
+        resolveClose();
+        return;
+      }
+      session.callbackServer.close(() => resolveClose());
+    } catch {
+      resolveClose();
+    }
+  });
+}
+
+async function exchangeOAuthCode(providerId, code, codeVerifier) {
+  const config = oauthProviderConfig(providerId);
+  const form = new URLSearchParams();
+  form.set("grant_type", "authorization_code");
+  form.set("client_id", config.clientId);
+  form.set("code", code);
+  form.set("redirect_uri", config.redirectUri);
+  form.set("code_verifier", codeVerifier);
+  const response = await providerFetch(config.tokenEndpoint, {
+    method: "POST",
+    signal: AbortSignal.timeout(10000),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+  });
+  if (!response.ok) throw new Error(`OAuth token exchange failed: ${response.status}`);
+  const body = await response.json();
+  const expiresIn = Number(body.expires_in || 3600);
+  return {
+    accessToken: body.access_token || "",
+    refreshToken: body.refresh_token || "",
+    idToken: body.id_token || "",
+    accountId: extractOAuthAccountId(body.id_token || body.access_token || "") || readOAuthToken(providerId)?.accountId || "",
+    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    tokenType: body.token_type || "Bearer",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function oauthAccessToken(providerId) {
+  const token = readOAuthToken(providerId);
+  if (!token?.accessToken) return "";
+  if (!token.expiresAt || Date.parse(token.expiresAt) > Date.now() + 30000) return token.accessToken;
+  if (!token.refreshToken) return "";
+  const refreshed = await refreshOAuthToken(providerId, token.refreshToken).catch(() => null);
+  if (!refreshed?.accessToken) return "";
+  writeOAuthToken(providerId, refreshed);
+  return refreshed.accessToken;
+}
+
+async function refreshOAuthToken(providerId, refreshToken) {
+  const config = oauthProviderConfig(providerId);
+  const form = new URLSearchParams();
+  form.set("grant_type", "refresh_token");
+  form.set("client_id", config.clientId);
+  form.set("refresh_token", refreshToken);
+  const response = await providerFetch(config.tokenEndpoint, {
+    method: "POST",
+    signal: AbortSignal.timeout(10000),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+  });
+  if (!response.ok) throw new Error(`OAuth refresh failed: ${response.status}`);
+  const body = await response.json();
+  const expiresIn = Number(body.expires_in || 3600);
+  return {
+    accessToken: body.access_token || "",
+    refreshToken: body.refresh_token || refreshToken,
+    idToken: body.id_token || "",
+    accountId: extractOAuthAccountId(body.id_token || body.access_token || ""),
+    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    tokenType: body.token_type || "Bearer",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function oauthTokenFile(providerId) {
+  const hash = createHash("sha256").update(providerId).digest("hex").slice(0, 12);
+  return join(oauthTokenDir, `${providerId}-${hash}.json`);
+}
+
+function readOAuthToken(providerId) {
+  try {
+    const file = oauthTokenFile(providerId);
+    if (!existsSync(file)) return null;
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function extractOAuthAccountId(token) {
+  const payload = decodeJwtPayload(token);
+  return payload?.["https://api.openai.com/account_id"] ||
+    payload?.account_id ||
+    payload?.accountId ||
+    payload?.org_id ||
+    payload?.organization_id ||
+    payload?.sub ||
+    "";
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const [, payload] = String(token || "").split(".");
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeOAuthToken(providerId, token) {
+  mkdirSync(oauthTokenDir, { recursive: true });
+  writeFileSync(oauthTokenFile(providerId), `${JSON.stringify(token, null, 2)}\n`, "utf8");
+}
+
+function logoutOAuthProvider(providerId) {
+  try {
+    rmSync(oauthTokenFile(providerId), { force: true });
+  } catch {
+    writeOAuthToken(providerId, {});
+  }
+}
+
+function oauthCallbackHtml(title, message) {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtmlForHtml(title)}</title></head><body style="font-family:system-ui;background:#111;color:#eee;padding:32px"><h1>${escapeHtmlForHtml(title)}</h1><p>${escapeHtmlForHtml(message)}</p></body></html>`;
+}
+
+function base64Url(buffer) {
+  return Buffer.from(buffer).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function escapeHtmlForHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+}
+
+function providerFetch(url, options = {}) {
+  if (providerTlsInsecure && String(url).startsWith("https://")) {
+    return insecureHttpsJsonFetch(url, options);
+  }
+  return fetch(url, options);
+}
+
+function insecureHttpsJsonFetch(url, options = {}) {
+  return new Promise((resolveResponse, rejectResponse) => {
+    const target = new URL(url);
+    const request = httpsRequest({
+      hostname: target.hostname,
+      port: target.port || 443,
+      path: `${target.pathname}${target.search}`,
+      method: options.method || "GET",
+      headers: options.headers || {},
+      rejectUnauthorized: false,
+      timeout: 8000,
+    }, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => {
+        const text = Buffer.concat(chunks).toString("utf8");
+        resolveResponse({
+          status: response.statusCode || 0,
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          json: async () => JSON.parse(text || "{}"),
+          text: async () => text,
+        });
+      });
+    });
+    request.on("error", rejectResponse);
+    request.on("timeout", () => {
+      request.destroy(new Error("Provider request timed out."));
+    });
+    if (options.body) request.write(options.body);
+    request.end();
+  });
 }
 
 function updateSettings(payload = {}) {
@@ -3859,10 +4469,21 @@ function updateSettings(payload = {}) {
       ...(payload.compact || payload),
       updatedAt: new Date().toISOString(),
     },
+    display: {
+      ...settingsStore.display,
+      ...(payload.display || {}),
+      updatedAt: new Date().toISOString(),
+    },
   });
   settingsStore.compact = next.compact;
+  settingsStore.display = next.display;
   saveSettingsStore();
   return settingsStore;
+}
+
+function normalizeFontBoost(value) {
+  const number = Number(value);
+  return [0, 2, 3, 4].includes(number) ? number : 0;
 }
 
 function clampNumber(value, min, max, fallback) {

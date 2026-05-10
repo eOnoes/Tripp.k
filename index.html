@@ -126,6 +126,15 @@
                 <span>LIMIT</span>
                 <input id="contextLimit" type="number" min="16000" max="512000" step="1000" />
               </label>
+              <label>
+                <span>TYPE SIZE</span>
+                <select id="typeSizeBoost">
+                  <option value="0">base</option>
+                  <option value="2">+2 px</option>
+                  <option value="3">+3 px</option>
+                  <option value="4">+4 px</option>
+                </select>
+              </label>
               <button type="submit">SAVE POLICY</button>
             </form>
             <div id="cystRoot" class="cyst-activity"></div>
@@ -193,7 +202,7 @@
             </button>
             <button type="button" data-connection-method="account_linked">
               <strong>Connect provider account</strong>
-              <span>Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.</span>
+              <span>Browser login for managed providers such as ChatGPT Codex. No API key is pasted into Tripp.</span>
             </button>
           </section>
           <p class="connection-mode-hint" id="connectionUnsupportedHint">Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.</p>
@@ -213,6 +222,7 @@
                     <option value="ollama">ollama</option>
                     <option value="custom">custom</option>
                     <option value="backend">backend</option>
+                    <option value="chatgpt_codex">chatgpt_codex</option>
                   </select>
                 </label>
                 <label id="connectionModeField">

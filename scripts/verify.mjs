@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const port = 4199;
+const oauthCallbackPort = 4499;
 const baseUrl = `http://127.0.0.1:${port}`;
 const workspaceRoot = process.cwd();
 const runtimeDir = mkdtempSync(join(tmpdir(), "tripp-runtime-verify-"));
@@ -12,7 +13,7 @@ const extraRuntimeDirs = [];
 const extraServers = [];
 const server = spawn(process.execPath, ["server.mjs"], {
   cwd: new URL("..", import.meta.url),
-  env: { ...process.env, PORT: String(port), TRIPP_RUNTIME_DIR: runtimeDir },
+  env: { ...process.env, PORT: String(port), TRIPP_RUNTIME_DIR: runtimeDir, TRIPP_SKIP_LOCAL_ENV: "true", TRIPP_OAUTH_CALLBACK_PORT: String(oauthCallbackPort) },
   stdio: ["ignore", "pipe", "pipe"],
 });
 
@@ -174,7 +175,45 @@ try {
   const blockedFile = await getJson("/api/tripp/workspace/file?path=.git/config");
   const reviewChanges = await getJson("/api/tripp/review-changes");
   const settings = await getJson("/api/tripp/settings");
-  const savedSettings = await postJson("/api/tripp/settings", { compact: { autoCompactAt: 42000, contextLimit: 128000 } });
+  const savedSettings = await postJson("/api/tripp/settings", {
+    compact: { autoCompactAt: 42000, contextLimit: 128000 },
+    display: { fontBoost: 3 },
+  });
+  const modelProviders = await getJson("/api/tripp/model-providers");
+  const oauthProviders = await getJson("/api/tripp/oauth-providers");
+  const oauthStatus = await getJson("/api/tripp/oauth/chatgpt_codex/status");
+  const oauthStart = await postJson("/api/tripp/oauth/chatgpt_codex/start", {});
+  const modelInventory = await getJson("/api/tripp/model-inventory");
+  const ollamaModels = await postJson("/api/tripp/model-providers/ollama/models", {
+    baseUrl: "http://127.0.0.1:1",
+    model: "kimi-k2.6:cloud",
+  });
+  const modelProviderApiPass =
+    oauthProviders.providers?.some((provider) => provider.id === "chatgpt_codex" && provider.auth === "oauth") &&
+    oauthStatus.supported === true &&
+    oauthStatus.authenticated === false &&
+    oauthStatus.redirectUri === `http://localhost:${oauthCallbackPort}/callback` &&
+    oauthStatus.callbackPort === oauthCallbackPort &&
+    oauthStart.authorizeUrl?.includes("code_challenge=") &&
+    oauthStart.authorizeUrl?.includes(`redirect_uri=http%3A%2F%2Flocalhost%3A${oauthCallbackPort}%2Fcallback`) &&
+    oauthStart.redirectUri === `http://localhost:${oauthCallbackPort}/callback` &&
+    oauthProviders.tokenCache?.includes(".kimi-tripp") &&
+    modelProviders.providers?.some((provider) => provider.id === "chatgpt_codex" && provider.auth === "oauth") &&
+    modelProviders.providers?.some((provider) =>
+      provider.id === "deepseek" &&
+      provider.knownModels?.some((model) => model.id === "deepseek-v4-chat") &&
+      provider.knownModels?.some((model) => model.id === "deepseek-v4-flash") &&
+      provider.knownModels?.some((model) => model.id === "deepseek-v4-think"),
+    ) &&
+    modelProviders.providers?.some((provider) => provider.id === "ollama" && provider.dynamicModels === true) &&
+    modelProviders.providers?.some((provider) => provider.id === "deepseek" && provider.auth === "api_key") &&
+    Array.isArray(modelInventory.providerGroups) &&
+    ollamaModels.models?.includes("kimi-k2.6:cloud") &&
+    ollamaModels.models?.includes("nemotron-3-super:cloud");
+  console.log(`${modelProviderApiPass ? "PASS" : "FAIL"} model providers: declarative config and fallback discovery`);
+  if (!modelProviderApiPass) {
+    failures.push({ name: "model providers" });
+  }
   const bootstrapAfterSettings = await getJson("/api/tripp/bootstrap");
   const appHtml = await getText("/");
   const appScript = await getText("/script.js");
@@ -183,6 +222,7 @@ try {
   const connectionSetupModalHtml = appHtml.slice(appHtml.indexOf('id="connectionSetupModal"'), appHtml.indexOf('id="footerConnection"'));
   const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const modelConnectionSystem = readFileSync(new URL("../docs/model-connection-system-v0.2.md", import.meta.url), "utf8");
   const readinessScoreboard = readFileSync(new URL("../docs/tripp-readiness-scoreboard-v0.1.md", import.meta.url), "utf8");
   const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
   const betaReleaseNotes = readFileSync(new URL("../docs/read-only-beta-release-v0.1.md", import.meta.url), "utf8");
@@ -287,11 +327,24 @@ try {
     reviewChanges.source === "git-status-readonly" &&
     settings.compact?.autoCompactAt >= 8000 &&
     savedSettings.compact?.autoCompactAt === 42000 &&
+    savedSettings.display?.fontBoost === 3 &&
     bootstrapAfterSettings.status?.autoCompactAt === 42000 &&
+    bootstrapAfterSettings.settings?.display?.fontBoost === 3 &&
     appHtml.includes("cystRoot") &&
     appHtml.includes("reviewChanges") &&
     appHtml.includes("settingsForm") &&
+    appHtml.includes("typeSizeBoost") &&
     appHtml.includes("connectionsPanel") &&
+    readme.includes("docs/model-connection-system-v0.2.md") &&
+    modelConnectionSystem.includes("Layer 1: Declarative Provider Config") &&
+    modelConnectionSystem.includes("Layer 2: Provider Runtime Registry") &&
+    modelConnectionSystem.includes("Layer 3: Model Inventory") &&
+    modelConnectionSystem.includes("kimi-k2.6:cloud") &&
+    modelConnectionSystem.includes("nemotron-3-super:cloud") &&
+    modelConnectionSystem.includes("Model roster") &&
+    modelConnectionSystem.includes("provider-group and model-inventory routes") &&
+    modelConnectionSystem.includes("tls_error") &&
+    modelProviderApiPass &&
     appHtml.includes('data-ops-tab="connections"') &&
     appHtml.includes("connections-view") &&
     appHtml.includes("Provider / Model Setup") &&
@@ -305,7 +358,7 @@ try {
     appHtml.includes("Use backend-managed provider access") &&
     appHtml.includes("Managed by local/server-side Tripp backend") &&
     appHtml.includes("No provider key is entered in the browser for this connection") &&
-    appHtml.includes("Provider account linking is not currently supported for this provider.") &&
+    appHtml.includes("Browser login for managed providers such as ChatGPT Codex") &&
     connectionsPanelHtml.includes("ADD BACKEND") &&
     connectionsPanelHtml.includes("ADD CONNECTION") &&
     !connectionsPanelHtml.includes('id="connectionForm"') &&
@@ -333,6 +386,21 @@ try {
     appScript.includes("connection-setup-blocked") &&
     appScript.includes("Set up Tripp model access before prompt testing") &&
     appScript.includes("knownModelsForProvider") &&
+    appScript.includes("renderAddModelPanel") &&
+    appScript.includes("renderModelProviderGroup") &&
+    appScript.includes("data-model-provider") &&
+    appScript.includes("data-model-check") &&
+    appScript.includes("data-model-save") &&
+    appScript.includes("data-oauth-connect") &&
+    appScript.includes("oauthStart") &&
+    appScript.includes("refreshOAuthStatus") &&
+    appScript.includes("chatgpt_codex") &&
+    appScript.includes("checkProviderHealth") &&
+    appScript.includes("discoverProviderModels") &&
+    appScript.includes("/api/tripp/model-providers") &&
+    appScript.includes("/api/tripp/model-inventory") &&
+    appScript.includes("kimi-k2.6:cloud") &&
+    appScript.includes("nemotron-3-super:cloud") &&
     appScript.includes("data-lane-provider") &&
     appScript.includes("data-routing-default") &&
     appScript.includes("updateConnectionRouting") &&
@@ -487,6 +555,8 @@ try {
     appScript.includes("APPLY BLOCKED") &&
     appScript.includes("renderReviewChanges") &&
     appScript.includes("saveCompactSettings") &&
+    appScript.includes("normalizeFontBoost") &&
+    appScript.includes("--font-boost") &&
     appScript.includes("renderConnections") &&
     appScript.includes("renderLaneRouting") &&
     appScript.includes("Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.") &&
@@ -497,12 +567,16 @@ try {
     appHtml.includes("Agent / Lane Assignment") &&
     appScript.includes("If no specific model is assigned, default to:") &&
     appScript.includes("maybeShowConnectionFirstBoot") &&
-    appScript.includes("Tripp needs model access before prompt testing") &&
+    appScript.includes("Tripp needs a default prompt/chat model before prompt testing") &&
+    appScript.includes("hasPromptReadyConnection") &&
     appScript.includes("Saving connections requires the local Tripp server") &&
     appScript.includes("Connections configure model access only and do not change Tripp's current read-only scope.") &&
     appScript.includes("/api/tripp/cyst/events") &&
     appScript.includes("/api/tripp/connections") &&
     appCss.includes(".cyst-activity li.group-start") &&
+    appCss.includes(".model-add-panel") &&
+    appCss.includes(".model-health.connected") &&
+    appCss.includes(".model-roster-row") &&
     appCss.includes(".cyst-activity li.group-middle") &&
     appCss.includes(".cyst-activity li.group-end") &&
     appCss.includes(".cyst-activity li.group-single") &&
@@ -517,6 +591,8 @@ try {
     appCss.includes(".go-no-go small + small") &&
     appCss.includes(".terminal-app:not(.ops-expanded) .input-telemetry") &&
     appCss.includes(".input-telemetry select") &&
+    appCss.includes("--font-boost") &&
+    appCss.includes("font-size: calc(10px + var(--font-boost, 0px));") &&
     appCss.includes(".lane-route-row") &&
     appCss.includes(".routing-default") &&
     appCss.includes(".connection-setup-modal") &&
@@ -3484,6 +3560,7 @@ async function verifyBackendBridge() {
       ...process.env,
       PORT: String(bridgePort),
       TRIPP_RUNTIME_DIR: bridgeRuntimeDir,
+      TRIPP_SKIP_LOCAL_ENV: "true",
       TRIPP_BACKEND_URL: `http://127.0.0.1:${backendPort}`,
       TRIPP_ENABLE_BACKEND_REPLY: "true",
     },

@@ -46,6 +46,7 @@
     resetConnection: document.querySelector("#resetConnection"),
     autoCompactAt: document.querySelector("#autoCompactAt"),
     contextLimit: document.querySelector("#contextLimit"),
+    typeSizeBoost: document.querySelector("#typeSizeBoost"),
     compactPolicyState: document.querySelector("#compactPolicyState"),
     messageRoot: document.querySelector("#messageRoot"),
     feed: document.querySelector(".terminal-feed"),
@@ -101,6 +102,9 @@
       enabled: data.settings?.compact?.enabled !== false,
       lastCompactedAt: null,
     },
+    display: {
+      fontBoost: normalizeFontBoost(data.settings?.display?.fontBoost),
+    },
     connections: {
       available: data.connections?.available === true,
       items: data.connections?.connections || [],
@@ -110,6 +114,19 @@
       resetVersion: data.connections?.reset?.resetVersion || data.firstBootReset?.resetVersion || null,
       lastTest: null,
       routingDraft: {},
+    },
+    modelSetup: {
+      provider: "chatgpt_codex",
+      baseUrl: "",
+      apiKey: "",
+      model: "gpt-5.3-codex",
+      lanes: ["default_prompt_testing", "default_chat", "coder_primary"],
+      status: "idle",
+      message: "Choose a provider to begin.",
+      models: ["gpt-5.3-codex"],
+      modelSource: "known",
+      oauthAuthenticated: false,
+      healthTimer: null,
     },
     connectionSetup: {
       open: false,
@@ -171,6 +188,8 @@
     elements.testConnection.addEventListener("click", testSelectedConnection);
     elements.resetConnection.addEventListener("click", resetConnectionForm);
     elements.connectionRoot.addEventListener("click", handleConnectionClick);
+    elements.connectionRoot.addEventListener("change", handleModelSetupChange);
+    elements.connectionRoot.addEventListener("input", handleModelSetupInput);
     document.querySelectorAll("[data-open-connection-modal]").forEach((button) => {
       button.addEventListener("click", () => openConnectionSetup(button.dataset.method || "api_key", { blocking: false }));
     });
@@ -209,6 +228,7 @@
   }
 
   function renderShell() {
+    applyDisplaySettings();
     elements.app.classList.toggle("ops-expanded", state.opsExpanded);
     elements.app.classList.toggle("connection-setup-blocked", state.connectionSetup.open && state.connectionSetup.blocking);
     elements.inputModel.closest(".input-telemetry")?.setAttribute("aria-hidden", state.opsExpanded ? "false" : "true");
@@ -1106,14 +1126,21 @@
   function renderSettings() {
     elements.autoCompactAt.value = state.context.autoCompactAt;
     elements.contextLimit.value = state.context.limit;
+    elements.typeSizeBoost.value = state.display.fontBoost;
     const used = contextTokens();
     elements.compactPolicyState.textContent =
       state.context.enabled && used >= state.context.autoCompactAt ? "threshold reached" : "armed";
   }
 
+  function applyDisplaySettings() {
+    elements.app.dataset.fontBoost = state.display.fontBoost;
+    elements.app.style.setProperty("--font-boost", `${state.display.fontBoost}px`);
+  }
+
   function renderConnections() {
     const items = state.connections.items;
-    elements.connectionState.textContent = state.connections.available ? `${items.length} saved` : "server required";
+    const groups = modelProviderGroups();
+    elements.connectionState.textContent = state.connections.available ? `${groups.length} providers` : "server required";
     renderLaneRouting();
     updateConnectionModeHint();
     if (!state.connections.available) {
@@ -1125,37 +1152,16 @@
       `;
       return;
     }
-    if (!items.length) {
-      elements.connectionRoot.innerHTML = `
-        <article class="connection-empty">
-          <strong>No usable model access configured</strong>
-          <p>First boot now uses the setup modal instead of this panel. Use Add backend or Add connection to reopen it.</p>
-          <p>Connections configure model access only. They do not change Tripp's current read-only scope.</p>
-        </article>
-      `;
-      return;
-    }
-    elements.connectionRoot.innerHTML = items
-      .map(
-        (connection) => `
-          <article class="connection-card ${connection.enabled ? "enabled" : "disabled"}">
-            <header>
-              <strong>${escapeHtml(connection.name)}</strong>
-              <span>${escapeHtml(connectionModeBadge(connection))}</span>
-            </header>
-            <p>${escapeHtml(connection.provider)} / ${escapeHtml(connection.displayMode || connection.mode || "api_key")} / ${escapeHtml(connection.model)}</p>
-            <small>${escapeHtml(connectionDisplayMeta(connection))}</small>
-            <small>lanes: ${escapeHtml((connection.purposes || []).map(formatLaneName).join(", ") || "none assigned")}</small>
-            <div>
-              <button type="button" data-connection-edit="${escapeHtml(connection.id)}">EDIT</button>
-              <button type="button" data-connection-test="${escapeHtml(connection.id)}">TEST</button>
-              <button type="button" data-connection-default="${escapeHtml(connection.id)}">DEFAULT</button>
-              <button type="button" data-connection-delete="${escapeHtml(connection.id)}">DELETE</button>
-            </div>
-          </article>
-        `,
-      )
-      .join("");
+    elements.connectionRoot.innerHTML = `
+      ${renderAddModelPanel()}
+      <section class="model-roster" aria-label="Model roster">
+        <header>
+          <strong>Model roster</strong>
+          <span>${escapeHtml(items.length)} saved models</span>
+        </header>
+        ${groups.length ? groups.map(renderModelProviderGroup).join("") : renderEmptyModelRoster()}
+      </section>
+    `;
     if (state.connections.lastTest) {
       elements.connectionRoot.insertAdjacentHTML(
         "beforeend",
@@ -1254,7 +1260,7 @@
   }
 
   function providerIds() {
-    return ["backend", "openai", "anthropic", "deepseek", "openrouter", "ollama", "custom"];
+    return ["chatgpt_codex", "backend", "openai", "anthropic", "deepseek", "openrouter", "ollama", "custom"];
   }
 
   function routeLabel(connection) {
@@ -1263,6 +1269,7 @@
 
   function providerLabel(provider) {
     if (provider === "backend") return "backend-managed";
+    if (provider === "chatgpt_codex") return "ChatGPT Codex";
     if (provider === "ollama") return "local runtime";
     return provider || "provider";
   }
@@ -2318,6 +2325,7 @@
     event.preventDefault();
     const contextLimit = Number(elements.contextLimit.value);
     const autoCompactAt = Number(elements.autoCompactAt.value);
+    state.display.fontBoost = normalizeFontBoost(elements.typeSizeBoost.value);
     state.context.limit = Math.max(16000, Math.min(512000, Math.round(contextLimit || state.context.limit)));
     state.context.autoCompactAt = Math.max(8000, Math.min(state.context.limit, Math.round(autoCompactAt || state.context.autoCompactAt)));
     renderStatus();
@@ -2329,15 +2337,19 @@
           autoCompactAt: state.context.autoCompactAt,
           enabled: state.context.enabled,
         },
+        display: {
+          fontBoost: state.display.fontBoost,
+        },
       });
       state.context.limit = saved.compact?.contextLimit || state.context.limit;
       state.context.autoCompactAt = saved.compact?.autoCompactAt || state.context.autoCompactAt;
       state.context.enabled = saved.compact?.enabled !== false;
+      state.display.fontBoost = normalizeFontBoost(saved.display?.fontBoost);
       pushMessage({
         kind: "system",
         speaker: "settings>",
         time: now(),
-        body: `Compact policy saved. Auto threshold ${formatCompactNumber(state.context.autoCompactAt)} / limit ${formatCompactNumber(
+        body: `Display and compact policy saved. Type size +${state.display.fontBoost}px. Auto threshold ${formatCompactNumber(state.context.autoCompactAt)} / limit ${formatCompactNumber(
           state.context.limit,
         )}.`,
       });
@@ -2349,10 +2361,275 @@
         kind: "system",
         speaker: "settings>",
         time: now(),
-        body: "Compact policy saved locally. Settings API is unavailable.",
+        body: "Display and compact policy saved locally. Settings API is unavailable.",
       });
       renderMessages();
     }
+  }
+
+  function renderAddModelPanel() {
+    const provider = state.modelSetup.provider;
+    const providerConfig = providerConfigFor(provider);
+    const requiresKey = providerConfig.auth === "api_key";
+    const requiresOauth = providerConfig.auth === "oauth";
+    const showEndpoint = providerConfig.auth !== "backend_managed" && providerConfig.auth !== "oauth";
+    return `
+      <section class="model-add-panel" aria-label="Add model">
+        <header>
+          <div>
+            <strong>Add model</strong>
+            <p>Provider first, connection check second, model choice third.</p>
+          </div>
+          ${renderHealthLight(state.modelSetup.status, state.modelSetup.message)}
+        </header>
+        <div class="model-add-grid">
+          <label>
+            <span>Provider</span>
+            <select data-model-provider>
+              ${providerConfigs().map((config) => `<option value="${escapeHtml(config.id)}" ${config.id === provider ? "selected" : ""}>${escapeHtml(config.displayName)}</option>`).join("")}
+            </select>
+          </label>
+          ${showEndpoint ? `
+            <label>
+              <span>${provider === "ollama" ? "Endpoint" : "Base URL"}</span>
+              <input data-model-base-url type="text" value="${escapeHtml(state.modelSetup.baseUrl)}" placeholder="${escapeHtml(providerConfig.defaultBaseUrl || "provider endpoint")}" />
+            </label>
+          ` : ""}
+          ${requiresKey ? `
+            <label>
+              <span>API key</span>
+              <input data-model-api-key type="password" value="${escapeHtml(state.modelSetup.apiKey)}" placeholder="paste key" autocomplete="off" />
+            </label>
+          ` : ""}
+          ${requiresOauth ? `
+            <div class="oauth-connect-box">
+              <span>Account</span>
+              <strong>${state.modelSetup.oauthAuthenticated ? "Connected" : "Browser login required"}</strong>
+              <p>${escapeHtml(state.modelSetup.oauthAuthenticated ? `${providerConfig.displayName} token is cached locally.` : `Connect with ${providerConfig.displayName} to use subscription-backed models.`)}</p>
+              <div>
+                <button type="button" data-oauth-connect="${escapeHtml(provider)}">${state.modelSetup.oauthAuthenticated ? "REFRESH STATUS" : "CONNECT"}</button>
+                <button type="button" data-oauth-logout="${escapeHtml(provider)}" ${state.modelSetup.oauthAuthenticated ? "" : "disabled"}>LOG OUT</button>
+              </div>
+            </div>
+          ` : ""}
+          <label>
+            <span>Model</span>
+            <select data-model-choice ${modelChoiceDisabled() ? "disabled" : ""}>
+              ${modelSetupOptions().map((model) => `<option value="${escapeHtml(model)}" ${model === state.modelSetup.model ? "selected" : ""}>${escapeHtml(model)}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+        <fieldset class="model-lanes">
+          <legend>Use for</legend>
+          ${laneIds().map((lane) => `
+            <label>
+              <input data-model-lane type="checkbox" value="${escapeHtml(lane)}" ${state.modelSetup.lanes.includes(lane) ? "checked" : ""} />
+              <span>${escapeHtml(formatLaneName(lane))}</span>
+            </label>
+          `).join("")}
+        </fieldset>
+        <div class="model-add-actions">
+          <button type="button" data-model-check>CHECK CONNECTION</button>
+          <button type="button" data-model-save ${modelSaveDisabled() ? "disabled" : ""}>SAVE MODEL</button>
+          <span>${escapeHtml(modelSetupMeta())}</span>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderHealthLight(status, message) {
+    const normalized = ["connected", "checking", "failed", "auth_error", "endpoint_unreachable", "model_not_found", "tls_error"].includes(status) ? status : "idle";
+    return `<span class="model-health ${escapeHtml(normalized)}"><i></i>${escapeHtml(message || normalized)}</span>`;
+  }
+
+  function providerConfigs() {
+    return [
+      {
+        id: "chatgpt_codex",
+        displayName: "ChatGPT (Codex)",
+        auth: "oauth",
+        mode: "account_linked",
+        defaultBaseUrl: "",
+        knownModels: ["gpt-5.3-codex", "gpt-5.4", "gpt-5.4-mini"],
+        lanes: ["default_prompt_testing", "default_chat", "coder_primary"],
+      },
+      {
+        id: "ollama",
+        displayName: "Ollama",
+        auth: "none",
+        mode: "local_runtime",
+        defaultBaseUrl: "http://127.0.0.1:11434",
+        knownModels: [
+          "kimi-k2.6:cloud",
+          "glm-5.1:cloud",
+          "qwen3.5:cloud",
+          "nemotron-3-super:cloud",
+          "gemma4:31b-cloud",
+          "mistral-large-3:675b-cloud",
+          "qwen3-coder-next:cloud",
+          "qwen3.5:397b-cloud",
+        ],
+        lanes: ["default_prompt_testing", "default_chat", "coder_primary", "fallback"],
+      },
+      {
+        id: "deepseek",
+        displayName: "DeepSeek",
+        auth: "api_key",
+        mode: "api_key",
+        defaultBaseUrl: "https://api.deepseek.com",
+        knownModels: ["deepseek-v4-chat", "deepseek-v4-flash", "deepseek-v4-think", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
+        lanes: ["default_prompt_testing", "read_only_planning", "synthesis", "fallback"],
+      },
+      {
+        id: "openai",
+        displayName: "OpenAI",
+        auth: "api_key",
+        mode: "api_key",
+        defaultBaseUrl: "https://api.openai.com/v1",
+        knownModels: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini"],
+        lanes: ["default_prompt_testing", "default_chat", "synthesis"],
+      },
+      {
+        id: "anthropic",
+        displayName: "Anthropic",
+        auth: "api_key",
+        mode: "api_key",
+        defaultBaseUrl: "https://api.anthropic.com/v1",
+        knownModels: ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
+        lanes: ["default_prompt_testing", "read_only_planning", "synthesis"],
+      },
+      {
+        id: "openrouter",
+        displayName: "OpenRouter",
+        auth: "api_key",
+        mode: "api_key",
+        defaultBaseUrl: "https://openrouter.ai/api/v1",
+        knownModels: ["openrouter/auto", "anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini"],
+        lanes: ["default_prompt_testing", "default_chat", "fallback"],
+      },
+      {
+        id: "custom",
+        displayName: "Custom OpenAI-compatible",
+        auth: "api_key",
+        mode: "api_key",
+        defaultBaseUrl: "",
+        knownModels: ["model"],
+        lanes: ["default_prompt_testing"],
+      },
+      {
+        id: "backend",
+        displayName: "Backend managed",
+        auth: "backend_managed",
+        mode: "backend_managed",
+        defaultBaseUrl: "",
+        knownModels: ["tripp-adapter/backend"],
+        lanes: ["default_prompt_testing", "default_chat", "warden"],
+      },
+    ];
+  }
+
+  function providerConfigFor(provider) {
+    return providerConfigs().find((config) => config.id === provider) || providerConfigs().find((config) => config.id === "custom");
+  }
+
+  function modelSetupOptions() {
+    return [...new Set([state.modelSetup.model, ...(state.modelSetup.models || []), ...knownModelsForProvider(state.modelSetup.provider)].filter(Boolean))];
+  }
+
+  function modelChoiceDisabled() {
+    return state.modelSetup.status === "checking" || !modelSetupOptions().length;
+  }
+
+  function modelSaveDisabled() {
+    const config = providerConfigFor(state.modelSetup.provider);
+    return !state.modelSetup.model ||
+      state.modelSetup.status === "checking" ||
+      (config.auth === "api_key" && !state.modelSetup.apiKey.trim()) ||
+      (config.auth === "oauth" && !state.modelSetup.oauthAuthenticated);
+  }
+
+  function modelSetupMeta() {
+    const count = modelSetupOptions().length;
+    return `${count} models available from ${state.modelSetup.modelSource || "known"} list`;
+  }
+
+  function renderEmptyModelRoster() {
+    return `
+      <article class="connection-empty">
+        <strong>No saved models yet</strong>
+        <p>Add a provider above, wait for the light, choose a model, assign lanes, then save.</p>
+      </article>
+    `;
+  }
+
+  function renderModelProviderGroup(group) {
+    return `
+      <article class="model-provider-group ${escapeHtml(group.status)}">
+        <header>
+          <div>
+            <strong>${escapeHtml(group.label)}</strong>
+            <p>${escapeHtml(group.detail)}</p>
+          </div>
+          ${renderHealthLight(group.status, `${group.status} - ${group.models.length} models`)}
+        </header>
+        <div class="model-row-list">
+          ${group.models.map(renderModelRosterRow).join("")}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderModelRosterRow(connection) {
+    const lanes = (connection.purposes || []).map(formatLaneName);
+    return `
+      <section class="model-roster-row">
+        <div>
+          <strong>${escapeHtml(connection.model)}</strong>
+          <p>${escapeHtml(lanes.length ? lanes.join(" - ") : "Unassigned")}</p>
+          ${connection.lastError ? `<small>${escapeHtml(connection.lastError)}</small>` : ""}
+        </div>
+        <div>
+          <button type="button" data-connection-test="${escapeHtml(connection.id)}">TEST</button>
+          <button type="button" data-connection-edit="${escapeHtml(connection.id)}">EDIT LANES</button>
+          <button type="button" data-connection-delete="${escapeHtml(connection.id)}">REMOVE</button>
+        </div>
+      </section>
+    `;
+  }
+
+  function modelProviderGroups() {
+    const groups = [];
+    for (const connection of state.connections.items) {
+      const key = `${connection.provider}:${connection.mode}:${connection.baseUrl || "default"}`;
+      let group = groups.find((item) => item.key === key);
+      if (!group) {
+        group = {
+          key,
+          provider: connection.provider,
+          mode: connection.mode,
+          label: providerConfigFor(connection.provider).displayName,
+          detail: connection.mode === "api_key" ? "API key connected" : connection.baseUrl || connection.displayMode || connection.mode,
+          status: "unknown",
+          models: [],
+        };
+        groups.push(group);
+      }
+      group.models.push(connection);
+      group.status = mergeGroupStatus(group.status, connection.status);
+    }
+    return groups;
+  }
+
+  function mergeGroupStatus(current, next) {
+    if (current === "connected" || next === "connected") return "connected";
+    if (next === "failed") return current === "connected" ? current : "failed";
+    if (next === "not_supported") return current === "unknown" ? "failed" : current;
+    return current === "unknown" ? (next || "unknown") : current;
+  }
+
+  function normalizeFontBoost(value) {
+    const boost = String(value ?? "0");
+    return ["0", "2", "3", "4"].includes(boost) ? boost : "0";
   }
 
   async function saveConnection(event) {
@@ -2402,9 +2679,191 @@
     renderConnections();
   }
 
+  function handleModelSetupChange(event) {
+    const providerSelect = event.target.closest("[data-model-provider]");
+    if (providerSelect) {
+      applyModelProviderDefaults(providerSelect.value);
+      renderConnections();
+      if (providerConfigFor(state.modelSetup.provider).auth === "oauth") refreshOAuthStatus(state.modelSetup.provider);
+      else scheduleModelSetupHealth();
+      return;
+    }
+
+    const modelSelect = event.target.closest("[data-model-choice]");
+    if (modelSelect) {
+      state.modelSetup.model = modelSelect.value;
+      scheduleModelSetupHealth();
+      return;
+    }
+
+    const laneInput = event.target.closest("[data-model-lane]");
+    if (laneInput) {
+      state.modelSetup.lanes = readModelSetupLanes();
+      renderConnections();
+    }
+  }
+
+  function handleModelSetupInput(event) {
+    const baseUrlInput = event.target.closest("[data-model-base-url]");
+    const apiKeyInput = event.target.closest("[data-model-api-key]");
+    if (!baseUrlInput && !apiKeyInput) return;
+    if (baseUrlInput) state.modelSetup.baseUrl = baseUrlInput.value;
+    if (apiKeyInput) state.modelSetup.apiKey = apiKeyInput.value;
+    scheduleModelSetupHealth();
+  }
+
+  function applyModelProviderDefaults(provider) {
+    const config = providerConfigFor(provider);
+    state.modelSetup.provider = config.id;
+    state.modelSetup.baseUrl = config.defaultBaseUrl || "";
+    state.modelSetup.apiKey = "";
+    state.modelSetup.models = [...config.knownModels];
+    state.modelSetup.model = config.knownModels[0] || "";
+    state.modelSetup.lanes = [...config.lanes];
+    state.modelSetup.oauthAuthenticated = false;
+    state.modelSetup.status = "idle";
+    state.modelSetup.message = `${config.displayName} selected.`;
+    state.modelSetup.modelSource = "known";
+    if (state.modelSetup.healthTimer) clearTimeout(state.modelSetup.healthTimer);
+    state.modelSetup.healthTimer = null;
+  }
+
+  function readModelSetupLanes() {
+    const checked = [...elements.connectionRoot.querySelectorAll("[data-model-lane]:checked")].map((input) => input.value);
+    return checked.length ? checked : ["default_prompt_testing"];
+  }
+
+  function scheduleModelSetupHealth() {
+    if (state.modelSetup.healthTimer) clearTimeout(state.modelSetup.healthTimer);
+    if (providerConfigFor(state.modelSetup.provider).auth === "oauth") {
+      refreshOAuthStatus(state.modelSetup.provider);
+      return;
+    }
+    state.modelSetup.status = "checking";
+    state.modelSetup.message = "Checking connection...";
+    state.modelSetup.healthTimer = setTimeout(() => {
+      state.modelSetup.healthTimer = null;
+      refreshModelSetupHealth();
+    }, 650);
+  }
+
+  async function refreshModelSetupHealth() {
+    const payload = readModelSetupPayload();
+    if (providerConfigFor(state.modelSetup.provider).auth === "oauth") {
+      await refreshOAuthStatus(state.modelSetup.provider);
+      return;
+    }
+    state.modelSetup.status = "checking";
+    state.modelSetup.message = "Checking connection...";
+    renderConnections();
+    const result = await runtime.checkProviderHealth(state.modelSetup.provider, payload);
+    state.modelSetup.status = result.status || result.diagnosticCode || "failed";
+    state.modelSetup.message = result.message || result.error || state.modelSetup.status;
+    await discoverModelSetupModels(payload);
+    renderConnections();
+  }
+
+  async function discoverModelSetupModels(payload = readModelSetupPayload()) {
+    const result = await runtime.discoverProviderModels(state.modelSetup.provider, payload);
+    const discovered = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
+    const options = [...new Set([...discovered, ...knownModelsForProvider(state.modelSetup.provider)])];
+    state.modelSetup.models = options;
+    state.modelSetup.modelSource = result.source || (discovered.length ? "live" : "known");
+    if (!options.includes(state.modelSetup.model)) state.modelSetup.model = options[0] || state.modelSetup.model;
+  }
+
+  async function refreshOAuthStatus(provider = state.modelSetup.provider) {
+    const status = await runtime.oauthStatus(provider);
+    state.modelSetup.oauthAuthenticated = Boolean(status.authenticated);
+    state.modelSetup.status = status.authenticated ? "connected" : "auth_error";
+    state.modelSetup.message = status.authenticated ? `${status.displayName || provider} connected.` : `Connect ${status.displayName || provider} with browser login.`;
+    state.modelSetup.models = status.models?.length ? status.models : providerConfigFor(provider).knownModels;
+    state.modelSetup.modelSource = status.authenticated ? "oauth" : "known";
+    if (!state.modelSetup.models.includes(state.modelSetup.model)) state.modelSetup.model = state.modelSetup.models[0] || state.modelSetup.model;
+    renderConnections();
+  }
+
+  async function startOAuthProvider(provider = state.modelSetup.provider) {
+    const result = await runtime.oauthStart(provider);
+    if (result.authorizeUrl) {
+      window.open(result.authorizeUrl, "_blank", "noopener,noreferrer");
+      state.modelSetup.status = "checking";
+      state.modelSetup.message = "Browser login opened. Return here after authorization.";
+      setTimeout(() => refreshOAuthStatus(provider), 2500);
+    } else {
+      state.modelSetup.status = "failed";
+      state.modelSetup.message = result.error || "OAuth start failed.";
+    }
+    renderConnections();
+  }
+
+  async function logoutOAuthProvider(provider = state.modelSetup.provider) {
+    await runtime.oauthLogout(provider);
+    state.modelSetup.oauthAuthenticated = false;
+    state.modelSetup.status = "auth_error";
+    state.modelSetup.message = "OAuth token removed.";
+    renderConnections();
+  }
+
+  function readModelSetupPayload() {
+    const config = providerConfigFor(state.modelSetup.provider);
+    return {
+      provider: state.modelSetup.provider,
+      mode: config.mode,
+      baseUrl: state.modelSetup.baseUrl || config.defaultBaseUrl || "",
+      apiKey: state.modelSetup.apiKey || "",
+      model: state.modelSetup.model || config.knownModels[0] || "model",
+    };
+  }
+
+  async function saveModelSetup() {
+    if (!state.connections.available) {
+      pushConnectionMessage("Saving models requires the local Tripp server.");
+      return;
+    }
+    const config = providerConfigFor(state.modelSetup.provider);
+    const model = state.modelSetup.model || config.knownModels[0] || "model";
+    const payload = {
+      name: `${config.displayName} ${model}`,
+      provider: config.id,
+      mode: config.mode,
+      model,
+      baseUrl: state.modelSetup.baseUrl || config.defaultBaseUrl || "",
+      apiKey: state.modelSetup.apiKey || "",
+      enabled: true,
+      purposes: state.modelSetup.lanes.length ? state.modelSetup.lanes : ["default_prompt_testing"],
+      isDefaultPromptTesting: state.modelSetup.lanes.includes("default_prompt_testing"),
+    };
+    const result = await runtime.saveConnection(payload);
+    if (result.connections) state.connections.items = result.connections;
+    if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
+    if (result.connection?.isDefaultPromptTesting) state.connections.defaultPromptConnectionId = result.connection.id;
+    state.modelSetup.status = result.error ? "failed" : "connected";
+    state.modelSetup.message = result.error || `${model} saved. Add another model from this endpoint whenever you are ready.`;
+    pushConnectionMessage(state.modelSetup.message);
+    renderShell();
+    renderConnections();
+  }
+
   async function handleConnectionClick(event) {
     const button = event.target.closest("button");
     if (!button) return;
+    if (button.dataset.modelCheck !== undefined) {
+      await refreshModelSetupHealth();
+      return;
+    }
+    if (button.dataset.modelSave !== undefined) {
+      await saveModelSetup();
+      return;
+    }
+    if (button.dataset.oauthConnect) {
+      await startOAuthProvider(button.dataset.oauthConnect);
+      return;
+    }
+    if (button.dataset.oauthLogout) {
+      await logoutOAuthProvider(button.dataset.oauthLogout);
+      return;
+    }
     if (button.dataset.connectionNew !== undefined) {
       resetConnectionForm();
       openConnectionSetup("api_key", { blocking: false });
@@ -2543,16 +3002,8 @@
       .filter((connection) => !provider || connection.provider === provider)
       .map((connection) => connection.model)
       .filter(Boolean);
-    const defaults = {
-      backend: ["tripp-adapter/backend"],
-      openai: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini"],
-      anthropic: ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
-      deepseek: ["deepseek-chat", "deepseek-reasoner"],
-      openrouter: ["openrouter/auto", "anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini"],
-      ollama: ["llama3.1", "qwen2.5-coder", "kimi-k2.6:cloud"],
-      custom: ["model"],
-    };
-    return [...new Set([...configuredModels, ...(defaults[provider] || [])])];
+    const defaults = provider ? providerConfigFor(provider).knownModels : providerConfigs().flatMap((config) => config.knownModels);
+    return [...new Set([...configuredModels, ...defaults])];
   }
 
   function updateConnectionModelOptions() {
@@ -2570,19 +3021,29 @@
   }
 
   function maybeShowConnectionFirstBoot() {
-    if (!state.connections.available || hasUsableConnection()) return;
+    if (!state.connections.available || hasPromptReadyConnection()) return;
+    state.opsExpanded = true;
+    state.opsTab = "connections";
+    applyModelProviderDefaults("chatgpt_codex");
+    state.modelSetup.status = "idle";
+    state.modelSetup.message = "Connect ChatGPT Codex, or choose another provider to finish setup.";
     pushMessage({
       kind: "system",
       speaker: "connections>",
       time: now(),
-      body: "Tripp needs model access before prompt testing. The setup modal is open; connections configure model access only and do not change Tripp's current read-only scope.",
+      body: "Tripp needs a default prompt/chat model before prompt testing. The model setup panel is open; connect a provider, save a model, then assign it to default prompt testing or default chat.",
     });
-    openConnectionSetup(preferredFirstBootMethod(), { blocking: true });
+    renderShell();
+    renderConnections();
     renderMessages();
   }
 
   function hasUsableConnection() {
     return state.connections.items.some((connection) => connectionUsable(connection));
+  }
+
+  function hasPromptReadyConnection() {
+    return Boolean(routeConnectionForLane("default_prompt_testing") || routeConnectionForLane("default_chat"));
   }
 
   function connectionUsable(connection) {
@@ -2702,10 +3163,10 @@
       elements.connectionApiKey.value = "";
       setConnectionPurposes(["default_prompt_testing", "fallback"]);
     } else if (method === "account_linked") {
-      elements.connectionName.value = "Provider account";
-      elements.connectionProvider.value = "openai";
+      elements.connectionName.value = "ChatGPT Codex";
+      elements.connectionProvider.value = "chatgpt_codex";
       elements.connectionMode.value = "account_linked";
-      elements.connectionModel.value = "gpt-4.1-mini";
+      elements.connectionModel.value = "gpt-5.3-codex";
       elements.connectionApiKey.value = "";
       setConnectionPurposes(["default_prompt_testing"]);
     } else {
@@ -2754,7 +3215,9 @@
       return;
     }
     if (mode === "account_linked") {
-      elements.connectionModeHint.textContent = "Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.";
+      elements.connectionModeHint.textContent = support[mode] === true
+        ? "Browser-login managed provider. Use the main provider panel to connect or refresh OAuth status."
+        : "Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.";
       elements.connectionApiKey.disabled = true;
       return;
     }
@@ -2909,6 +3372,70 @@ function createTrippRuntime() {
       });
     },
 
+    async modelProviders() {
+      try {
+        return await fetchJson("./api/tripp/model-providers");
+      } catch {
+        return { providers: [] };
+      }
+    },
+
+    async modelInventory() {
+      try {
+        return await fetchJson("./api/tripp/model-inventory");
+      } catch {
+        return { providerGroups: [] };
+      }
+    },
+
+    async oauthStart(providerId) {
+      try {
+        return await fetchJson(`./api/tripp/oauth/${encodeURIComponent(providerId)}/start`, { method: "POST" });
+      } catch {
+        return { status: "failed", error: "OAuth start requires the local Tripp server." };
+      }
+    },
+
+    async oauthStatus(providerId) {
+      try {
+        return await fetchJson(`./api/tripp/oauth/${encodeURIComponent(providerId)}/status`);
+      } catch {
+        return { authenticated: false, error: "OAuth status requires the local Tripp server." };
+      }
+    },
+
+    async oauthLogout(providerId) {
+      try {
+        return await fetchJson(`./api/tripp/oauth/${encodeURIComponent(providerId)}/logout`, { method: "POST" });
+      } catch {
+        return { authenticated: false, error: "OAuth logout requires the local Tripp server." };
+      }
+    },
+
+    async checkProviderHealth(providerId, payload) {
+      try {
+        return await fetchJson(`./api/tripp/model-providers/${encodeURIComponent(providerId)}/health`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload || {}),
+        });
+      } catch {
+        return { status: "failed", diagnosticCode: "endpoint_unreachable", message: "Provider health check requires the local Tripp server." };
+      }
+    },
+
+    async discoverProviderModels(providerId, payload) {
+      try {
+        return await fetchJson(`./api/tripp/model-providers/${encodeURIComponent(providerId)}/models`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload || {}),
+        });
+      } catch {
+        return { status: "fallback", source: "known", models: [] };
+      }
+    },
+
     async saveConnection(payload) {
       try {
         return await fetchJson("./api/tripp/connections", {
@@ -3035,6 +3562,7 @@ async function loadStaticData() {
           ollama: { account_linked: false, api_key: false, local_runtime: true },
           custom: { account_linked: false, api_key: true, local_runtime: true },
           backend: { account_linked: false, api_key: false, local_runtime: false, backend_managed: true },
+          chatgpt_codex: { account_linked: true, api_key: false, local_runtime: false, backend_managed: false },
         },
         scopeNote: "Connections configure model access only. They do not change Tripp's current read-only scope.",
         reset: {

@@ -12,6 +12,7 @@
   --text: #e0e0e0;
   --muted: #808080;
   --dim: #555555;
+  --font-boost: 0px;
   font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
 }
 
@@ -85,7 +86,7 @@ button {
 
 .brand {
   padding-left: 18px;
-  font-size: 21px;
+  font-size: calc(21px + var(--font-boost, 0px));
   font-weight: 800;
   letter-spacing: 0.06em;
 }
@@ -110,7 +111,7 @@ button {
   background: transparent;
   color: #4d6400;
   border-left: 1px solid rgba(0, 0, 0, 0.2);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -143,7 +144,7 @@ button {
   background: transparent;
   color: var(--lime);
   border-bottom: 1px solid var(--line-soft);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -188,7 +189,7 @@ button {
   color: var(--black);
   border: 1px solid var(--black);
   box-shadow: 0 0 0 1px var(--line), 0 0 18px rgba(200, 255, 0, 0.18);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 900;
   letter-spacing: 0.06em;
 }
@@ -210,7 +211,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px 8px 0 0;
   box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.34);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -237,7 +238,7 @@ button {
   background: transparent;
   color: var(--text);
   border-bottom: 1px solid var(--lime);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
   font-weight: 900;
 }
 
@@ -263,20 +264,20 @@ button {
 .empty-state div {
   margin-bottom: 14px;
   color: var(--line);
-  font-size: 48px;
+  font-size: calc(48px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
 .empty-state strong {
   color: var(--lime);
-  font-size: 18px;
+  font-size: calc(18px + var(--font-boost, 0px));
 }
 
 .empty-state span,
 .empty-state small {
   margin-top: 10px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
 }
 
 .empty-state i {
@@ -294,7 +295,7 @@ button {
   height: 20px;
   margin-bottom: 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
 }
 
 .rail-cursor {
@@ -305,7 +306,7 @@ button {
 
 .prompt-line strong {
   color: var(--lime);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
 }
 
 .prompt-line time {
@@ -319,7 +320,7 @@ button {
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--text);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-boost, 0px));
   line-height: 1.5;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
@@ -339,7 +340,7 @@ button {
   border: 1px solid rgba(180, 255, 0, 0.22);
   background: rgba(180, 255, 0, 0.06);
   color: var(--lime);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
 }
 
 .message-route {
@@ -349,7 +350,7 @@ button {
   flex-wrap: wrap;
   gap: 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   letter-spacing: 0;
 }
 
@@ -365,7 +366,7 @@ button {
 
 .message-route strong {
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   text-transform: uppercase;
 }
 
@@ -404,7 +405,7 @@ button {
   align-items: center;
   gap: 7px;
   color: var(--lime);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -419,7 +420,7 @@ button {
 .prompt-block header small {
   margin-left: auto;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -430,7 +431,7 @@ button {
   background: transparent;
   color: var(--lime);
   border: 1px solid #364700;
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 900;
 }
 
@@ -454,7 +455,7 @@ button {
 
 .prompt-block dt {
   color: var(--dim);
-  font-size: 8px;
+  font-size: calc(8px + var(--font-boost, 0px));
   font-weight: 900;
 }
 
@@ -462,7 +463,7 @@ button {
   margin: 2px 0 0;
   overflow-wrap: anywhere;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
 }
 
 .prompt-block-warning {
@@ -471,7 +472,7 @@ button {
   border-bottom: 1px solid #3d3000;
   color: var(--lime);
   background: #111000;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .prompt-block pre {
@@ -480,7 +481,7 @@ button {
   overflow: auto;
   padding: 14px 16px;
   color: var(--text);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
@@ -510,7 +511,7 @@ button {
   border: 1px solid var(--line);
   border-left: 3px solid var(--lime);
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
 }
 
 .tool-card span {
@@ -554,7 +555,7 @@ button {
   padding-left: 14px;
   padding-right: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
 }
 
 .terminal-input input {
@@ -565,7 +566,7 @@ button {
   background: transparent;
   color: var(--text);
   caret-color: var(--lime);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-boost, 0px));
 }
 
 .terminal-input input::placeholder {
@@ -581,7 +582,7 @@ button {
   padding: 0 10px;
   color: var(--muted);
   border-left: 1px solid var(--line);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 800;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -608,7 +609,7 @@ button {
   background: var(--black);
   color: var(--lime);
   border: 1px solid var(--line);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 900;
 }
 
@@ -619,7 +620,7 @@ button {
   background: var(--black);
   color: var(--lime);
   border: 1px solid var(--line);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   letter-spacing: 0.04em;
 }
 
@@ -642,7 +643,7 @@ button {
   background: #252525;
   color: var(--muted);
   border-left: 1px solid var(--line);
-  font-size: 18px;
+  font-size: calc(18px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -673,7 +674,7 @@ button {
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 900;
   letter-spacing: 0.16em;
 }
@@ -690,12 +691,13 @@ button {
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 900;
   letter-spacing: 0.12em;
 }
 
 .settings-form input,
+.settings-form select,
 .connection-form input,
 .connection-form select {
   width: 100%;
@@ -709,6 +711,7 @@ button {
 }
 
 .settings-form input:focus,
+.settings-form select:focus,
 .connection-form input:focus,
 .connection-form select:focus {
   border-color: var(--lime);
@@ -720,7 +723,7 @@ button {
   background: var(--black);
   color: var(--lime);
   border: 1px solid var(--line);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 900;
   letter-spacing: 0.1em;
 }
@@ -765,7 +768,7 @@ button {
 
 .connection-split-section > header strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -773,14 +776,14 @@ button {
 .connection-split-section > header p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.4;
 }
 
 .connection-split-section > header span {
   flex: 0 0 auto;
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -798,6 +801,211 @@ button {
   grid-template-columns: 1fr;
 }
 
+.model-add-panel,
+.model-roster,
+.model-provider-group {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.model-add-panel > header,
+.model-roster > header,
+.model-provider-group > header,
+.model-roster-row {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.model-add-panel strong,
+.model-roster strong,
+.model-provider-group strong,
+.model-roster-row strong {
+  color: var(--text);
+}
+
+.model-add-panel p,
+.model-roster p,
+.model-provider-group p,
+.model-roster-row p,
+.model-roster-row small,
+.model-add-actions span {
+  margin: 0;
+  color: var(--muted);
+  font-size: calc(10px + var(--font-boost, 0px));
+  line-height: 1.45;
+}
+
+.model-health {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: calc(9px + var(--font-boost, 0px));
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.model-health i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.model-health.connected,
+.model-health.connected i {
+  color: var(--lime);
+}
+
+.model-health.connected i {
+  background: var(--lime);
+  box-shadow: 0 0 10px rgba(200, 255, 0, 0.55);
+}
+
+.model-health.checking,
+.model-health.checking i {
+  color: #ffd166;
+}
+
+.model-health.checking i {
+  background: #ffd166;
+}
+
+.model-health.failed,
+.model-health.auth_error,
+.model-health.endpoint_unreachable,
+.model-health.model_not_found,
+.model-health.tls_error {
+  color: #ff7b7b;
+}
+
+.model-health.failed i,
+.model-health.auth_error i,
+.model-health.endpoint_unreachable i,
+.model-health.model_not_found i,
+.model-health.tls_error i {
+  background: #ff7b7b;
+}
+
+.model-add-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.model-add-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.oauth-connect-box {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid var(--line-soft);
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.oauth-connect-box div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.model-add-grid span,
+.model-lanes legend {
+  color: var(--muted);
+  font-size: calc(9px + var(--font-boost, 0px));
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.model-add-grid input,
+.model-add-grid select {
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--black);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(10px + var(--font-boost, 0px));
+}
+
+.model-lanes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 9px;
+  border: 1px solid var(--line-soft);
+}
+
+.model-lanes legend {
+  padding: 0 5px;
+}
+
+.model-lanes label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--text);
+  font-size: calc(9px + var(--font-boost, 0px));
+  text-transform: uppercase;
+}
+
+.model-lanes input {
+  width: 12px;
+  height: 12px;
+}
+
+.model-add-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.model-add-actions button,
+.model-roster-row button {
+  padding: 7px 9px;
+}
+
+.model-row-list {
+  display: grid;
+  gap: 6px;
+}
+
+.model-roster-row {
+  padding: 8px;
+  border-left: 2px solid rgba(200, 255, 0, 0.28);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.model-roster-row > div {
+  min-width: 0;
+}
+
+.model-roster-row > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .connections-panel .scope-note,
 .connection-empty p,
 .connection-card p,
@@ -805,7 +1013,7 @@ button {
 .connection-test {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.5;
 }
 
@@ -866,7 +1074,7 @@ button {
 .connection-mode-hint {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.45;
 }
 
@@ -882,7 +1090,7 @@ button {
 .connection-purposes legend {
   padding: 0 5px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 900;
   letter-spacing: 0.12em;
 }
@@ -892,7 +1100,7 @@ button {
   grid-template-columns: none;
   gap: 6px;
   align-items: center;
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -929,7 +1137,7 @@ button {
 .routing-default p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .lane-routing-grid {
@@ -953,7 +1161,7 @@ button {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -969,14 +1177,14 @@ button {
   border: 1px solid var(--line);
   color: var(--text);
   font: inherit;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .lane-route-row em {
   min-width: 0;
   overflow: hidden;
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -988,7 +1196,7 @@ button {
   justify-content: space-between;
   gap: 8px;
   color: var(--text);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   letter-spacing: 0.12em;
 }
 
@@ -1015,7 +1223,7 @@ button {
 .lane-routing > span em {
   min-width: 0;
   overflow: hidden;
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1074,7 +1282,7 @@ button {
 
 .connection-setup-card > header strong {
   color: var(--text);
-  font-size: 15px;
+  font-size: calc(15px + var(--font-boost, 0px));
   letter-spacing: 0.06em;
 }
 
@@ -1082,7 +1290,7 @@ button {
 .connection-setup-card .scope-note {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.5;
 }
 
@@ -1112,7 +1320,7 @@ button {
 
 .saved-connection-choices strong {
   color: var(--text);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -1161,14 +1369,14 @@ button {
 
 .connection-methods strong {
   color: var(--lime);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .connection-methods span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.45;
 }
 
@@ -1178,7 +1386,7 @@ button {
   border: 1px solid rgba(255, 209, 102, 0.5);
   color: #ffd166;
   background: rgba(255, 209, 102, 0.08);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.45;
 }
 
@@ -1202,7 +1410,9 @@ button {
   .connection-methods,
   .connection-form,
   .saved-connection-choices button,
-  .connection-panel-actions {
+  .connection-panel-actions,
+  .model-add-grid,
+  .model-lanes {
     grid-template-columns: 1fr;
   }
 }
@@ -1298,7 +1508,7 @@ button {
   height: 24px;
   background: var(--panel);
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
 }
 
 .terminal-app.ops-expanded .collapse,
@@ -1309,7 +1519,7 @@ button {
 .ops-tab {
   display: none;
   border-left: 1px solid var(--line-soft);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -1353,7 +1563,7 @@ button {
   padding: 0 14px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -1375,7 +1585,7 @@ button {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--lime);
-  font-size: 14px;
+  font-size: calc(14px + var(--font-boost, 0px));
   font-weight: 800;
   line-height: 1;
 }
@@ -1407,7 +1617,7 @@ button {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--lime);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -1438,7 +1648,7 @@ button {
 .workspace-empty {
   padding: 14px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
 }
 
 .workspace-tree,
@@ -1470,7 +1680,7 @@ button {
   border: 0;
   border-left: 2px solid transparent;
   text-align: left;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   font-weight: 700;
 }
 
@@ -1494,7 +1704,7 @@ button {
 
 .workspace-tree small {
   color: var(--dim);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -1518,7 +1728,7 @@ button {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1526,7 +1736,7 @@ button {
 .file-preview span {
   flex: 0 0 auto;
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1537,7 +1747,7 @@ button {
   overflow: auto;
   padding: 12px;
   color: var(--text);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1546,7 +1756,7 @@ button {
 .tools li {
   border-bottom: 1px solid var(--line-soft);
   color: var(--text);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
   font-weight: 700;
 }
 
@@ -1574,7 +1784,7 @@ button {
   margin: 0;
   padding: 0 12px 12px 24px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   line-height: 1.4;
 }
 
@@ -1610,7 +1820,7 @@ button {
   background: #050505;
   border: 1px solid #263400;
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -1647,13 +1857,13 @@ button {
 .read-only-summary strong,
 .read-only-summary dt {
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   text-transform: uppercase;
 }
 
 .read-only-summary header span {
   color: var(--dim);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
 }
 
 .provenance-strip {
@@ -1663,7 +1873,7 @@ button {
   gap: 4px;
   margin: 0 0 6px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: calc(8px + var(--font-boost, 0px));
 }
 
 .provenance-strip b {
@@ -1697,7 +1907,7 @@ button {
   min-width: 0;
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -1712,7 +1922,7 @@ button {
 .empty-tasks {
   padding: 12px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
 }
 
 .task {
@@ -1780,14 +1990,14 @@ button {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .task header span {
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1797,7 +2007,7 @@ button {
   display: block;
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .task div {
@@ -1826,7 +2036,7 @@ button {
 
 .task-detail dt {
   color: var(--dim);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -1835,7 +2045,7 @@ button {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .task-detail pre {
@@ -1846,7 +2056,7 @@ button {
   background: #050505;
   border: 1px solid var(--line);
   color: var(--text);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -1875,7 +2085,7 @@ button {
   border: 1px solid var(--line);
   background: #050505;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -1940,13 +2150,13 @@ button {
 
 .task-conclusion strong {
   color: var(--lime);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   text-transform: uppercase;
 }
 
 .task-conclusion header span {
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -1970,7 +2180,7 @@ button {
 .task-conclusion p {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   line-height: 1.4;
 }
 
@@ -2044,7 +2254,7 @@ button {
 .retrieval-detail strong {
   display: block;
   color: var(--lime);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   text-transform: uppercase;
 }
 
@@ -2052,14 +2262,14 @@ button {
 .trial-detail header span,
 .adapter-detail header span {
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .trace-map-detail header span {
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -2099,7 +2309,7 @@ button {
 .adapter-detail p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.45;
 }
 
@@ -2135,7 +2345,7 @@ button {
 
 .go-no-go b {
   color: var(--lime);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .go-no-go.no_go b {
@@ -2145,7 +2355,7 @@ button {
 .go-no-go span,
 .go-no-go small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   line-height: 1.35;
 }
 
@@ -2161,13 +2371,13 @@ button {
 
 .gate-blockers strong {
   color: #ff9999;
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   text-transform: uppercase;
 }
 
 .gate-blockers span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   line-height: 1.35;
 }
 
@@ -2188,14 +2398,14 @@ button {
 .trial-list b {
   display: block;
   color: var(--text);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .trial-list small,
 .trial-list p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   line-height: 1.45;
 }
 
@@ -2216,7 +2426,7 @@ button {
 .gate-column strong {
   grid-row: 1 / span 20;
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 900;
 }
 
@@ -2229,7 +2439,7 @@ button {
   background: #111111;
   border: 1px solid var(--line);
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   line-height: 1.35;
 }
 
@@ -2261,7 +2471,7 @@ button {
   background: #0d0d0d;
   border: 1px solid #243000;
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -2279,7 +2489,7 @@ button {
   display: block;
   margin-bottom: 6px;
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2298,14 +2508,14 @@ button {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--text);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
 .trace-owner-list article small {
   margin: 0;
   color: var(--lime);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -2314,7 +2524,7 @@ button {
 .trace-owner-list article i {
   grid-column: 1 / -1;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-style: normal;
   line-height: 1.4;
 }
@@ -2326,7 +2536,7 @@ button {
 .trace-list p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -2351,12 +2561,12 @@ button {
 
 .task-trace strong {
   color: var(--lime);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .task-trace span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -2371,7 +2581,7 @@ button {
   background: #111111;
   border: 1px solid var(--line);
   color: var(--text);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -2426,7 +2636,7 @@ button {
   display: block;
   overflow: hidden;
   color: var(--text);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-boost, 0px));
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -2436,7 +2646,7 @@ button {
   justify-content: space-between;
   margin-top: 5px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-style: normal;
 }
 
@@ -2449,7 +2659,7 @@ button {
 .new-session {
   min-height: 34px;
   color: var(--lime);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   font-weight: 800;
 }
 
@@ -2469,7 +2679,7 @@ button {
 
 .system dt {
   color: var(--dim);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 800;
   letter-spacing: 0.08em;
 }
@@ -2480,7 +2690,7 @@ button {
   align-items: center;
   gap: 7px;
   color: var(--text);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-boost, 0px));
   font-weight: 700;
 }
 
@@ -2511,7 +2721,7 @@ button {
 
 .cyst-activity header strong {
   color: var(--dim);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 900;
   letter-spacing: 0.12em;
 }
@@ -2520,7 +2730,7 @@ button {
 .cyst-activity p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .cyst-activity ol {
@@ -2601,7 +2811,7 @@ button {
 
 .cyst-activity li > span {
   color: var(--lime);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
   font-weight: 900;
 }
 
@@ -2628,14 +2838,14 @@ button {
 
 .cyst-activity li strong {
   color: var(--text);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .cyst-activity li small,
 .cyst-activity li em {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
   font-style: normal;
 }
 
@@ -2654,19 +2864,19 @@ button {
 
 .cyst-evidence-meta b {
   color: var(--lime);
-  font-size: 8px;
+  font-size: calc(8px + var(--font-boost, 0px));
 }
 
 .cyst-evidence-meta span {
   margin-top: 2px;
   color: #c9d870;
-  font-size: 9px;
+  font-size: calc(9px + var(--font-boost, 0px));
 }
 
 .cyst-evidence-meta i {
   margin-top: 2px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: calc(8px + var(--font-boost, 0px));
   font-style: normal;
 }
 
@@ -2678,7 +2888,7 @@ button {
   background: var(--black);
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-boost, 0px));
 }
 
 .statusbar span {
