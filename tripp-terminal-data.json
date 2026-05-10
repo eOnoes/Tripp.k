@@ -3,20 +3,20 @@
     {
       "speaker": "tripp>",
       "time": "10:59",
-      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."
+      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO read-only tasks, and prompt testing."
     }
   ],
   "tools": [
     { "name": "filesystem_read", "enabled": true, "description": "Read files from the active workspace." },
-    { "name": "filesystem_write", "enabled": true, "description": "Write scoped changes into approved workspace paths." },
+    { "name": "filesystem_write", "enabled": false, "description": "Write-capable file changes are outside the current read-only scope." },
     { "name": "filesystem_list", "enabled": true, "description": "List directories and inspect project structure." },
     { "name": "shell_execute", "enabled": true, "description": "Run bounded shell commands with permission awareness." },
     { "name": "web_search", "enabled": true, "description": "Search current web sources when freshness matters." },
     { "name": "web_fetch", "enabled": true, "description": "Open and read specific URLs." },
     { "name": "code_analyze", "enabled": true, "description": "Inspect code paths and summarize architecture." },
-    { "name": "code_format", "enabled": true, "description": "Apply formatting to supported source files." },
+    { "name": "code_format", "enabled": false, "description": "Formatting changes are outside the current read-only scope." },
     { "name": "git_status", "enabled": true, "description": "Review repository state before edits." },
-    { "name": "git_commit", "enabled": true, "description": "Create scoped commits when explicitly approved." },
+    { "name": "git_commit", "enabled": false, "description": "Commits are outside the current read-only scope." },
     { "name": "memory_store", "enabled": true, "description": "Persist selected project context." },
     { "name": "memory_retrieve", "enabled": true, "description": "Retrieve stored context for continuity." }
   ],
@@ -38,5 +38,37 @@
     "latency": "679ms",
     "mode": "CHAT",
     "version": "v1.0.0"
+  },
+  "connections": {
+    "available": false,
+    "connections": [],
+    "defaultPromptConnectionId": null,
+    "laneRouting": {},
+    "providerSupport": {
+      "openai": { "account_linked": false, "api_key": true, "local_runtime": false },
+      "anthropic": { "account_linked": false, "api_key": true, "local_runtime": false },
+      "deepseek": { "account_linked": false, "api_key": true, "local_runtime": false },
+      "openrouter": { "account_linked": false, "api_key": true, "local_runtime": false },
+      "ollama": { "account_linked": false, "api_key": false, "local_runtime": true },
+      "custom": { "account_linked": false, "api_key": true, "local_runtime": true },
+      "backend": { "account_linked": false, "api_key": false, "local_runtime": false, "backend_managed": true }
+    },
+    "scopeNote": "Connections configure model access only. They do not change Tripp's current read-only scope.",
+    "reset": {
+      "resetVersion": null,
+      "browserStorageKeys": [
+        "tripp.firstBootComplete",
+        "tripp.connections.firstBootDismissed",
+        "tripp.defaultPromptConnectionId"
+      ]
+    }
+  },
+  "firstBootReset": {
+    "resetVersion": null,
+    "browserStorageKeys": [
+      "tripp.firstBootComplete",
+      "tripp.connections.firstBootDismissed",
+      "tripp.defaultPromptConnectionId"
+    ]
   }
 }

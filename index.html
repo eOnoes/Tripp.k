@@ -43,6 +43,17 @@
             <label for="command" id="inputPrompt">chat&gt;</label>
             <input id="command" type="text" placeholder="Enter command..." />
             <div class="input-telemetry" id="inputTelemetry" aria-label="Current model and context">
+              <select id="promptLane" title="Prompt lane">
+                <option value="default_prompt_testing">prompt test</option>
+                <option value="default_chat">chat</option>
+                <option value="warden">warden</option>
+                <option value="read_only_planning">planning</option>
+                <option value="synthesis">synthesis</option>
+                <option value="coder_primary">coder primary</option>
+                <option value="coder_secondary">coder secondary</option>
+                <option value="verifier">verifier</option>
+                <option value="fallback">fallback</option>
+              </select>
               <span id="inputModel">model: --</span>
               <button class="compact-context" type="button" title="Compact current chat context">CTX -- / --</button>
             </div>
@@ -55,6 +66,7 @@
             <button class="collapse" type="button">«</button>
             <button class="ops-tab" type="button" data-ops-tab="tools">TOOLS</button>
             <button class="ops-tab active" type="button" data-ops-tab="workspace">WORKSPACE</button>
+            <button class="ops-tab" type="button" data-ops-tab="connections">CONNECTIONS</button>
             <button class="ops-tab" type="button" data-ops-tab="status">STATUS</button>
           </div>
 
@@ -118,8 +130,119 @@
             </form>
             <div id="cystRoot" class="cyst-activity"></div>
           </section>
+
+          <section class="panel-section connections-view">
+            <h2>
+              <span>CONNECTIONS</span>
+              <span id="connectionState">setup</span>
+            </h2>
+            <section class="connections-panel" id="connectionsPanel">
+              <p class="scope-note">Connections configure model access only. They do not change Tripp's current read-only scope.</p>
+              <div class="connection-panel-actions">
+                <button type="button" data-open-connection-modal data-method="backend_managed">ADD BACKEND</button>
+                <button type="button" data-open-connection-modal data-method="api_key">ADD CONNECTION</button>
+              </div>
+              <div id="connectionRoot"></div>
+              <div class="lane-routing" id="laneRouting"></div>
+            </section>
+          </section>
         </aside>
       </div>
+
+      <section class="connection-setup-modal hidden" id="connectionSetupModal" role="dialog" aria-modal="true" aria-labelledby="connectionSetupTitle">
+        <div class="connection-setup-card">
+          <header>
+            <div>
+              <strong id="connectionSetupTitle">Set up Tripp model access</strong>
+              <p>Choose how Tripp should connect for prompt testing and read-only planning.</p>
+            </div>
+            <button type="button" id="closeConnectionSetup" aria-label="Close connection setup">×</button>
+          </header>
+          <p class="scope-note">Connections configure model access only. They do not change Tripp's current read-only scope.</p>
+          <section class="saved-connection-choices" id="savedConnectionChoices" aria-label="Saved usable connections"></section>
+          <section class="connection-methods" aria-label="Connection method choices">
+            <button type="button" data-connection-method="backend_managed">
+              <strong>Use backend-managed provider access</strong>
+              <span>Managed by local/server-side Tripp backend. No provider key is entered in the browser for this connection.</span>
+            </button>
+            <button type="button" data-connection-method="api_key">
+              <strong>Use provider API key</strong>
+              <span>Configure provider access with an API key for prompt testing and read-only planning.</span>
+            </button>
+            <button type="button" data-connection-method="local_runtime">
+              <strong>Use local runtime</strong>
+              <span>Connect a local runtime such as Ollama with a local endpoint and model.</span>
+            </button>
+            <button type="button" data-connection-method="account_linked">
+              <strong>Connect provider account</strong>
+              <span>Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.</span>
+            </button>
+          </section>
+          <p class="connection-mode-hint" id="connectionUnsupportedHint">Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.</p>
+              <form class="connection-form" id="connectionForm">
+                <input id="connectionId" type="hidden" />
+                <label id="connectionNameField">
+                  <span>NAME</span>
+                  <input id="connectionName" type="text" placeholder="Prompt testing" />
+                </label>
+                <label id="connectionProviderField">
+                  <span>PROVIDER</span>
+                  <select id="connectionProvider">
+                    <option value="openai">openai</option>
+                    <option value="anthropic">anthropic</option>
+                    <option value="deepseek">deepseek</option>
+                    <option value="openrouter">openrouter</option>
+                    <option value="ollama">ollama</option>
+                    <option value="custom">custom</option>
+                    <option value="backend">backend</option>
+                  </select>
+                </label>
+                <label id="connectionModeField">
+                  <span>MODE</span>
+                  <select id="connectionMode">
+                    <option value="api_key">Use provider API key</option>
+                    <option value="backend_managed">Use backend-managed provider access</option>
+                    <option value="account_linked">Connect provider account</option>
+                    <option value="local_runtime">Local runtime connection</option>
+                  </select>
+                </label>
+                <label id="connectionModelField">
+                  <span>MODEL</span>
+                  <input id="connectionModel" type="text" placeholder="gpt-4.1-mini" />
+                </label>
+                <label id="connectionBaseUrlField">
+                  <span>BASE URL</span>
+                  <input id="connectionBaseUrl" type="text" placeholder="optional provider endpoint" />
+                </label>
+                <label id="connectionApiKeyField">
+                  <span>API KEY</span>
+                  <input id="connectionApiKey" type="password" placeholder="provider API key or token" autocomplete="off" />
+                </label>
+                <p class="connection-mode-hint" id="connectionModeHint">Use provider API key for prompt testing and read-only planning.</p>
+                <fieldset class="connection-purposes" id="connectionPurposes">
+                  <legend>LANES</legend>
+                  <label><input type="checkbox" value="default_prompt_testing" checked /> prompt test</label>
+                  <label><input type="checkbox" value="default_chat" /> chat</label>
+                  <label><input type="checkbox" value="read_only_planning" /> planning</label>
+                  <label><input type="checkbox" value="synthesis" /> synthesis</label>
+                  <label><input type="checkbox" value="warden" /> warden</label>
+                  <label><input type="checkbox" value="coder_primary" /> coder primary</label>
+                  <label><input type="checkbox" value="coder_secondary" /> coder secondary</label>
+                  <label><input type="checkbox" value="verifier" /> verifier</label>
+                  <label><input type="checkbox" value="fallback" /> fallback</label>
+                </fieldset>
+                <label class="inline-toggle">
+                  <input id="connectionEnabled" type="checkbox" checked />
+                  <span>ENABLED</span>
+                </label>
+                <div class="connection-actions">
+                  <button type="submit">SAVE CONNECTION</button>
+                  <button type="button" id="testConnection">TEST</button>
+                  <button type="button" id="resetConnection">NEW</button>
+                </div>
+              </form>
+        </div>
+      </section>
 
       <footer class="statusbar">
         <span><i></i> <span id="footerConnection">CONNECTED</span></span>

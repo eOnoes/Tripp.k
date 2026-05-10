@@ -1,6 +1,7 @@
 (async function bootTrippTerminal() {
   const runtime = createTrippRuntime();
   const data = await runtime.bootstrap();
+  applyFirstBootResetAwareness(data);
   const now = () =>
     new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
@@ -13,11 +14,35 @@
     form: document.querySelector("#terminalForm"),
     command: document.querySelector("#command"),
     inputPrompt: document.querySelector("#inputPrompt"),
+    promptLane: document.querySelector("#promptLane"),
     inputModel: document.querySelector("#inputModel"),
     compactContext: document.querySelector(".compact-context"),
     reviewChanges: document.querySelector("#reviewChanges"),
     reviewSummary: document.querySelector("#reviewSummary"),
     settingsForm: document.querySelector("#settingsForm"),
+    connectionState: document.querySelector("#connectionState"),
+    connectionRoot: document.querySelector("#connectionRoot"),
+    connectionSetupModal: document.querySelector("#connectionSetupModal"),
+    closeConnectionSetup: document.querySelector("#closeConnectionSetup"),
+    connectionUnsupportedHint: document.querySelector("#connectionUnsupportedHint"),
+    savedConnectionChoices: document.querySelector("#savedConnectionChoices"),
+    connectionForm: document.querySelector("#connectionForm"),
+    connectionId: document.querySelector("#connectionId"),
+    connectionName: document.querySelector("#connectionName"),
+    connectionProvider: document.querySelector("#connectionProvider"),
+    connectionMode: document.querySelector("#connectionMode"),
+    connectionModel: document.querySelector("#connectionModel"),
+    connectionBaseUrl: document.querySelector("#connectionBaseUrl"),
+    connectionApiKey: document.querySelector("#connectionApiKey"),
+    connectionApiKeyField: document.querySelector("#connectionApiKeyField"),
+    connectionBaseUrlField: document.querySelector("#connectionBaseUrlField"),
+    connectionProviderField: document.querySelector("#connectionProviderField"),
+    connectionModeHint: document.querySelector("#connectionModeHint"),
+    connectionPurposes: document.querySelector("#connectionPurposes"),
+    laneRouting: document.querySelector("#laneRouting"),
+    connectionEnabled: document.querySelector("#connectionEnabled"),
+    testConnection: document.querySelector("#testConnection"),
+    resetConnection: document.querySelector("#resetConnection"),
     autoCompactAt: document.querySelector("#autoCompactAt"),
     contextLimit: document.querySelector("#contextLimit"),
     compactPolicyState: document.querySelector("#compactPolicyState"),
@@ -75,6 +100,21 @@
       enabled: data.settings?.compact?.enabled !== false,
       lastCompactedAt: null,
     },
+    connections: {
+      available: data.connections?.available === true,
+      items: data.connections?.connections || [],
+      defaultPromptConnectionId: data.connections?.defaultPromptConnectionId || null,
+      laneRouting: data.connections?.laneRouting || {},
+      providerSupport: data.connections?.providerSupport || {},
+      resetVersion: data.connections?.reset?.resetVersion || data.firstBootReset?.resetVersion || null,
+      lastTest: null,
+    },
+    connectionSetup: {
+      open: false,
+      blocking: false,
+      method: "backend_managed",
+    },
+    promptLane: "default_prompt_testing",
     runtime: data.runtime || { mode: "static", bridge: "json-fallback" },
     munch: data.munch || null,
     cystEvents: [],
@@ -91,6 +131,7 @@
 
   bindEvents();
   render();
+  maybeShowConnectionFirstBoot();
   loadCystEvents();
   loadReviewChanges();
 
@@ -124,6 +165,21 @@
     elements.compactContext.addEventListener("click", compactCurrentChat);
     elements.reviewChanges.querySelector("button").addEventListener("click", openReviewChanges);
     elements.settingsForm.addEventListener("submit", saveCompactSettings);
+    elements.connectionForm.addEventListener("submit", saveConnection);
+    elements.testConnection.addEventListener("click", testSelectedConnection);
+    elements.resetConnection.addEventListener("click", resetConnectionForm);
+    elements.connectionRoot.addEventListener("click", handleConnectionClick);
+    document.querySelectorAll("[data-open-connection-modal]").forEach((button) => {
+      button.addEventListener("click", () => openConnectionSetup(button.dataset.method || "api_key", { blocking: false }));
+    });
+    elements.connectionSetupModal.addEventListener("click", handleConnectionSetupClick);
+    elements.closeConnectionSetup.addEventListener("click", () => closeConnectionSetup());
+    elements.connectionProvider.addEventListener("change", updateConnectionModeHint);
+    elements.connectionMode.addEventListener("change", updateConnectionModeHint);
+    elements.promptLane.addEventListener("change", () => {
+      state.promptLane = elements.promptLane.value;
+      renderConnections();
+    });
     elements.feed.addEventListener("scroll", updateChatFollowState);
     elements.messageRoot.addEventListener("click", handleMessageClick);
 
@@ -144,10 +200,13 @@
     renderSessions();
     renderStatus();
     renderSettings();
+    renderConnections();
+    renderConnectionSetup();
   }
 
   function renderShell() {
     elements.app.classList.toggle("ops-expanded", state.opsExpanded);
+    elements.app.classList.toggle("connection-setup-blocked", state.connectionSetup.open && state.connectionSetup.blocking);
     elements.inputModel.closest(".input-telemetry")?.setAttribute("aria-hidden", state.opsExpanded ? "false" : "true");
     elements.app.dataset.panelFocus = state.panelFocus;
     elements.app.dataset.opsTab = state.opsTab;
@@ -166,8 +225,16 @@
   function renderModes() {
     elements.modeButtons.forEach((button) => {
       button.classList.toggle("active", button.dataset.mode === state.mode);
+      button.title =
+        button.dataset.mode === "AUTO"
+          ? "AUTO changes supervised task routing. It does not change read-only, Warden, evidence, or gate boundaries."
+          : "CHAT changes conversational routing. It does not change read-only, Warden, evidence, or gate boundaries.";
     });
     elements.inputPrompt.textContent = `${state.mode.toLowerCase()}>`;
+    elements.promptLane.title =
+      state.mode === "AUTO"
+        ? "AUTO changes supervised task routing. It does not change read-only, Warden, evidence, or gate boundaries."
+        : "CHAT changes conversational routing. It does not change read-only, Warden, evidence, or gate boundaries.";
   }
 
   function renderRail() {
@@ -1013,6 +1080,98 @@
       state.context.enabled && used >= state.context.autoCompactAt ? "threshold reached" : "armed";
   }
 
+  function renderConnections() {
+    const items = state.connections.items;
+    elements.connectionState.textContent = state.connections.available ? `${items.length} saved` : "server required";
+    renderLaneRouting();
+    updateConnectionModeHint();
+    if (!state.connections.available) {
+      elements.connectionRoot.innerHTML = `
+        <article class="connection-empty">
+          <strong>Start local server for connections</strong>
+          <p>Saving and testing provider connections requires Tripp's local server. Open through <code>node .\\server.mjs</code>.</p>
+        </article>
+      `;
+      return;
+    }
+    if (!items.length) {
+      elements.connectionRoot.innerHTML = `
+        <article class="connection-empty">
+          <strong>No usable model access configured</strong>
+          <p>First boot now uses the setup modal instead of this panel. Use Add backend or Add connection to reopen it.</p>
+          <p>Connections configure model access only. They do not change Tripp's current read-only scope.</p>
+        </article>
+      `;
+      return;
+    }
+    elements.connectionRoot.innerHTML = items
+      .map(
+        (connection) => `
+          <article class="connection-card ${connection.enabled ? "enabled" : "disabled"}">
+            <header>
+              <strong>${escapeHtml(connection.name)}</strong>
+              <span>${escapeHtml(connection.mode === "backend_managed" ? "BACKEND MANAGED" : connection.purposes?.includes("default_prompt_testing") || connection.isDefaultPromptTesting ? "PROMPT DEFAULT" : connection.status || "unknown")}</span>
+            </header>
+            <p>${escapeHtml(connection.provider)} / ${escapeHtml(connection.mode || "api_key")} / ${escapeHtml(connection.model)}</p>
+            <small>${escapeHtml(connectionDisplayMeta(connection))}</small>
+            <small>lanes: ${escapeHtml((connection.purposes || []).map(formatLaneName).join(", ") || "none assigned")}</small>
+            <div>
+              <button type="button" data-connection-edit="${escapeHtml(connection.id)}">EDIT</button>
+              <button type="button" data-connection-test="${escapeHtml(connection.id)}">TEST</button>
+              <button type="button" data-connection-default="${escapeHtml(connection.id)}">DEFAULT</button>
+              <button type="button" data-connection-delete="${escapeHtml(connection.id)}">DELETE</button>
+            </div>
+          </article>
+        `,
+      )
+      .join("");
+    if (state.connections.lastTest) {
+      elements.connectionRoot.insertAdjacentHTML(
+        "beforeend",
+        `<p class="connection-test ${escapeHtml(state.connections.lastTest.status)}">${escapeHtml(state.connections.lastTest.message)}</p>`,
+      );
+    }
+  }
+
+  function renderLaneRouting() {
+    const lanes = [
+      "default_prompt_testing",
+      "default_chat",
+      "read_only_planning",
+      "synthesis",
+      "warden",
+      "coder_primary",
+      "coder_secondary",
+      "verifier",
+      "fallback",
+    ];
+    elements.laneRouting.innerHTML = `
+      <strong>Lane routing <em>active: ${escapeHtml(formatLaneName(state.promptLane))}</em></strong>
+      ${lanes
+        .map((lane) => {
+          const connection = state.connections.items.find((item) => (item.purposes || []).includes(lane) && item.enabled);
+          const route = connection
+            ? `${connection.name} | ${connection.provider} | ${connection.mode || "api_key"} | ${connection.model}`
+            : "unassigned";
+          return `<span class="${lane === state.promptLane ? "active" : ""}"><b>${escapeHtml(formatLaneName(lane))}</b><em>${escapeHtml(route)}</em></span>`;
+        })
+        .join("")}
+    `;
+  }
+
+  function connectionDisplayMeta(connection) {
+    if (connection.mode === "backend_managed") {
+      return connection.managedDescription || "Managed by local/server-side Tripp backend. No provider key is entered in the browser for this connection.";
+    }
+    if (connection.mode === "account_linked") {
+      return connection.supportsAccountLink
+        ? "account link metadata saved"
+        : "Account linking is not currently supported for this provider";
+    }
+    if (connection.mode === "local_runtime") return "Local runtime connection";
+    return connection.hasToken ? connection.maskedToken || "token saved" : "API key missing";
+  }
+
   function renderCystActivity() {
     const events = latestCystTimeline(state.cystEvents, 8);
     const rows = groupCystTimeline(events);
@@ -1678,6 +1837,10 @@
   async function submitCommand() {
     const value = elements.command.value.trim();
     if (!value || state.busy) return;
+    if (state.connectionSetup.open && state.connectionSetup.blocking) {
+      pushConnectionMessage("Set up Tripp model access before prompt testing. Connections configure model access only and do not change Tripp's current read-only scope.");
+      return;
+    }
 
     elements.command.value = "";
     pushMessage({ kind: "user", speaker: "you>", time: now(), body: value });
@@ -1689,6 +1852,7 @@
       prompt: value,
       mode: state.mode,
       sessionId: activeSession().id,
+      lane: state.promptLane,
     });
 
     reply.messages.forEach((message) => {
@@ -2075,6 +2239,375 @@
     }
   }
 
+  async function saveConnection(event) {
+    event.preventDefault();
+    if (!state.connections.available) {
+      pushConnectionMessage("Saving connections requires the local Tripp server. Start with node .\\server.mjs.");
+      return;
+    }
+    const payload = readConnectionForm();
+    const result = await runtime.saveConnection(payload);
+    if (result.connections) state.connections.items = result.connections;
+    if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
+    if (result.connection?.isDefaultPromptTesting) state.connections.defaultPromptConnectionId = result.connection.id;
+    elements.connectionApiKey.value = "";
+    state.connections.lastTest = { status: result.error ? "failed" : "connected", message: result.error || `Saved ${result.connection?.name || payload.name}.` };
+    pushConnectionMessage(result.error || `${result.connection?.name || payload.name} saved for prompt testing.`);
+    if (!result.error && result.connection) {
+      state.connectionSetup.open = false;
+      state.connectionSetup.blocking = false;
+    }
+    renderShell();
+    renderConnections();
+    renderConnectionSetup();
+  }
+
+  async function testSelectedConnection() {
+    if (!state.connections.available) {
+      pushConnectionMessage("Testing connections requires the local Tripp server.");
+      return;
+    }
+    let id = elements.connectionId.value;
+    if (!id) {
+      const result = await runtime.saveConnection(readConnectionForm());
+      if (result.connections) state.connections.items = result.connections;
+      if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
+      id = result.connection?.id;
+      elements.connectionId.value = id || "";
+    }
+    if (!id) return;
+    const result = await runtime.testConnection(id);
+    if (result.connection) replaceConnection(result.connection);
+    state.connections.lastTest = {
+      status: result.status,
+      message: `${result.connection?.name || "Connection"} test: ${result.status}${result.error ? ` - ${result.error}` : ""}`,
+    };
+    pushConnectionMessage(state.connections.lastTest.message);
+    renderConnections();
+  }
+
+  async function handleConnectionClick(event) {
+    const button = event.target.closest("button");
+    if (!button) return;
+    if (button.dataset.connectionNew !== undefined) {
+      resetConnectionForm();
+      openConnectionSetup("api_key", { blocking: false });
+      return;
+    }
+    const editId = button.dataset.connectionEdit;
+    const testId = button.dataset.connectionTest;
+    const defaultId = button.dataset.connectionDefault;
+    const deleteId = button.dataset.connectionDelete;
+    if (editId) {
+      fillConnectionForm(state.connections.items.find((connection) => connection.id === editId));
+      state.connectionSetup.open = true;
+      state.connectionSetup.blocking = false;
+      state.connectionSetup.method = elements.connectionMode.value || "api_key";
+      renderShell();
+      renderConnectionSetup();
+    }
+    if (testId) {
+      const result = await runtime.testConnection(testId);
+      if (result.connection) replaceConnection(result.connection);
+      state.connections.lastTest = {
+        status: result.status,
+        message: `${result.connection?.name || "Connection"} test: ${result.status}${result.error ? ` - ${result.error}` : ""}`,
+      };
+      renderConnections();
+    }
+    if (defaultId) {
+    const result = await runtime.setDefaultConnection(defaultId);
+      if (result.connections) state.connections.items = result.connections;
+      if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
+      state.connections.defaultPromptConnectionId = defaultId;
+      pushConnectionMessage("Default prompt-testing connection updated.");
+      renderConnections();
+    }
+    if (deleteId) {
+      const result = await runtime.deleteConnection(deleteId);
+      if (result.connections) state.connections.items = result.connections;
+      if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
+      resetConnectionForm();
+      pushConnectionMessage(result.deleted ? "Connection deleted." : "Connection was not found.");
+      renderConnections();
+    }
+  }
+
+  function readConnectionForm() {
+    return {
+      id: elements.connectionId.value || undefined,
+      name: elements.connectionName.value || "Prompt testing",
+      provider: elements.connectionProvider.value,
+      mode: elements.connectionMode.value,
+      model: elements.connectionModel.value || "model",
+      baseUrl: elements.connectionBaseUrl.value,
+      apiKey: elements.connectionApiKey.value,
+      enabled: elements.connectionEnabled.checked,
+      purposes: readConnectionPurposes(),
+      isDefaultPromptTesting: readConnectionPurposes().includes("default_prompt_testing"),
+    };
+  }
+
+  function fillConnectionForm(connection) {
+    if (!connection) return;
+    elements.connectionId.value = connection.id;
+    elements.connectionName.value = connection.name || "";
+    elements.connectionProvider.value = connection.provider || "custom";
+    elements.connectionMode.value = connection.mode || "api_key";
+    elements.connectionModel.value = connection.model || "";
+    elements.connectionBaseUrl.value = connection.baseUrl || "";
+    elements.connectionApiKey.value = "";
+    elements.connectionApiKey.placeholder = connection.hasToken ? connection.maskedToken || "saved token" : "provider API key or token";
+    elements.connectionEnabled.checked = connection.enabled !== false;
+    setConnectionPurposes(connection.purposes || connection.purposeTags || []);
+    updateConnectionModeHint();
+  }
+
+  function resetConnectionForm() {
+    elements.connectionId.value = "";
+    elements.connectionName.value = "";
+    elements.connectionProvider.value = "openai";
+    elements.connectionMode.value = "api_key";
+    elements.connectionModel.value = "gpt-4.1-mini";
+    elements.connectionBaseUrl.value = "";
+    elements.connectionApiKey.value = "";
+    elements.connectionApiKey.placeholder = "provider API key or token";
+    elements.connectionEnabled.checked = true;
+    setConnectionPurposes(["default_prompt_testing"]);
+    updateConnectionModeHint();
+  }
+
+  function replaceConnection(connection) {
+    const index = state.connections.items.findIndex((item) => item.id === connection.id);
+    if (index >= 0) state.connections.items[index] = connection;
+    else state.connections.items.push(connection);
+  }
+
+  function pushConnectionMessage(body) {
+    pushMessage({ kind: "system", speaker: "connections>", time: now(), body });
+    renderMessages();
+  }
+
+  function maybeShowConnectionFirstBoot() {
+    if (!state.connections.available || hasUsableConnection()) return;
+    pushMessage({
+      kind: "system",
+      speaker: "connections>",
+      time: now(),
+      body: "Tripp needs model access before prompt testing. The setup modal is open; connections configure model access only and do not change Tripp's current read-only scope.",
+    });
+    openConnectionSetup(preferredFirstBootMethod(), { blocking: true });
+    renderMessages();
+  }
+
+  function hasUsableConnection() {
+    return state.connections.items.some((connection) => connectionUsable(connection));
+  }
+
+  function connectionUsable(connection) {
+    const support = state.connections.providerSupport?.[connection.provider] || {};
+    return Boolean(
+      connection &&
+      connection.enabled !== false &&
+      connection.status !== "disabled" &&
+      connection.status !== "not_supported" &&
+      support[connection.mode || "api_key"] !== false,
+    );
+  }
+
+  function preferredFirstBootMethod() {
+    return state.connections.providerSupport?.backend?.backend_managed ? "backend_managed" : "api_key";
+  }
+
+  function openConnectionSetup(method = "api_key", options = {}) {
+    state.connectionSetup.open = true;
+    state.connectionSetup.blocking = Boolean(options.blocking);
+    applyConnectionMethod(method);
+    renderShell();
+    renderConnectionSetup();
+  }
+
+  function closeConnectionSetup() {
+    if (state.connectionSetup.blocking && !hasUsableConnection()) {
+      pushConnectionMessage("A usable connection is required before prompt testing can continue.");
+      return;
+    }
+    state.connectionSetup.open = false;
+    state.connectionSetup.blocking = false;
+    renderShell();
+    renderConnectionSetup();
+  }
+
+  function renderConnectionSetup() {
+    elements.connectionSetupModal.classList.toggle("hidden", !state.connectionSetup.open);
+    elements.connectionSetupModal.classList.toggle("blocking", state.connectionSetup.blocking);
+    elements.closeConnectionSetup.hidden = state.connectionSetup.blocking && !hasUsableConnection();
+    elements.command.disabled = state.connectionSetup.open && state.connectionSetup.blocking;
+    renderSavedConnectionChoices();
+    elements.connectionSetupModal.querySelectorAll("[data-connection-method]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.connectionMethod === state.connectionSetup.method);
+    });
+    updateConnectionModeHint();
+  }
+
+  function renderSavedConnectionChoices() {
+    const usable = state.connections.items.filter(connectionUsable);
+    if (!usable.length) {
+      elements.savedConnectionChoices.innerHTML = "";
+      return;
+    }
+    elements.savedConnectionChoices.innerHTML = `
+      <strong>Use saved connection</strong>
+      ${usable
+        .slice(0, 4)
+        .map(
+          (connection) => `
+            <button type="button" data-use-saved-connection="${escapeHtml(connection.id)}">
+              <span>${escapeHtml(connection.mode === "backend_managed" ? "Use saved backend" : "Use saved connection")}</span>
+              <em>${escapeHtml(connection.name)} · ${escapeHtml(connection.provider)} · ${escapeHtml(connection.model)}</em>
+            </button>
+          `,
+        )
+        .join("")}
+    `;
+  }
+
+  function handleConnectionSetupClick(event) {
+    const methodButton = event.target.closest("[data-connection-method]");
+    if (methodButton) {
+      applyConnectionMethod(methodButton.dataset.connectionMethod);
+      renderConnectionSetup();
+      return;
+    }
+    const savedButton = event.target.closest("[data-use-saved-connection]");
+    if (savedButton) {
+      useSavedConnection(savedButton.dataset.useSavedConnection);
+      return;
+    }
+    if (event.target === elements.connectionSetupModal && !state.connectionSetup.blocking) {
+      closeConnectionSetup();
+    }
+  }
+
+  async function useSavedConnection(connectionId) {
+    if (!connectionId) return;
+    const result = await runtime.setDefaultConnection(connectionId);
+    if (result.connections) state.connections.items = result.connections;
+    if (result.laneRouting) state.connections.laneRouting = result.laneRouting;
+    state.connections.defaultPromptConnectionId = connectionId;
+    state.connectionSetup.open = false;
+    state.connectionSetup.blocking = false;
+    pushConnectionMessage("Saved connection selected for prompt testing.");
+    renderShell();
+    renderConnections();
+    renderConnectionSetup();
+  }
+
+  function applyConnectionMethod(method = "api_key") {
+    state.connectionSetup.method = method;
+    if (method === "backend_managed") {
+      elements.connectionName.value = "Local Tripp bridge";
+      elements.connectionProvider.value = "backend";
+      elements.connectionMode.value = "backend_managed";
+      elements.connectionModel.value = "tripp-adapter/backend";
+      elements.connectionBaseUrl.value = "";
+      elements.connectionApiKey.value = "";
+      setConnectionPurposes(["default_prompt_testing", "default_chat", "warden"]);
+    } else if (method === "local_runtime") {
+      elements.connectionName.value = "Local runtime";
+      elements.connectionProvider.value = "ollama";
+      elements.connectionMode.value = "local_runtime";
+      elements.connectionModel.value = "llama3.1";
+      elements.connectionApiKey.value = "";
+      setConnectionPurposes(["default_prompt_testing", "fallback"]);
+    } else if (method === "account_linked") {
+      elements.connectionName.value = "Provider account";
+      elements.connectionProvider.value = "openai";
+      elements.connectionMode.value = "account_linked";
+      elements.connectionModel.value = "gpt-4.1-mini";
+      elements.connectionApiKey.value = "";
+      setConnectionPurposes(["default_prompt_testing"]);
+    } else {
+      elements.connectionName.value = "Prompt testing";
+      elements.connectionProvider.value = elements.connectionProvider.value === "backend" ? "openai" : elements.connectionProvider.value;
+      elements.connectionMode.value = "api_key";
+      elements.connectionModel.value = "gpt-4.1-mini";
+      setConnectionPurposes(["default_prompt_testing"]);
+    }
+    updateConnectionModeHint();
+  }
+
+  function readConnectionPurposes() {
+    return [...elements.connectionPurposes.querySelectorAll("input[type='checkbox']:checked")].map((input) => input.value);
+  }
+
+  function setConnectionPurposes(purposes) {
+    const selected = new Set(purposes.length ? purposes : ["default_prompt_testing"]);
+    for (const input of elements.connectionPurposes.querySelectorAll("input[type='checkbox']")) {
+      input.checked = selected.has(input.value);
+    }
+  }
+
+  function updateConnectionModeHint() {
+    const provider = elements.connectionProvider.value;
+    const mode = elements.connectionMode.value;
+    const support = state.connections.providerSupport?.[provider] || {};
+    const unsupportedAccountLink = mode === "account_linked" && support[mode] !== true;
+    elements.connectionUnsupportedHint.hidden = !unsupportedAccountLink;
+    elements.connectionForm.classList.toggle("unsupported-account-link", unsupportedAccountLink);
+    elements.connectionApiKeyField.hidden = mode !== "api_key";
+    elements.connectionBaseUrlField.hidden = mode === "backend_managed" || mode === "account_linked";
+    elements.connectionProviderField.hidden = mode === "backend_managed";
+    if (support[mode] === false) {
+      elements.connectionModeHint.textContent = mode === "account_linked"
+        ? "Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead."
+        : `${formatLaneName(mode)} mode is not currently supported for ${provider}.`;
+      elements.connectionApiKey.disabled = true;
+      return;
+    }
+    if (mode === "backend_managed") {
+      elements.connectionModeHint.textContent = "Backend-managed connection. Managed by local/server-side Tripp backend; no provider key is entered in the browser for this connection.";
+      elements.connectionApiKey.disabled = true;
+      elements.connectionApiKey.value = "";
+      return;
+    }
+    if (mode === "account_linked") {
+      elements.connectionModeHint.textContent = "Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.";
+      elements.connectionApiKey.disabled = true;
+      return;
+    }
+    if (mode === "local_runtime") {
+      elements.connectionModeHint.textContent = provider === "ollama"
+        ? "Local runtime connection for prompt testing and read-only planning."
+        : "Local runtime mode is intended for local providers such as Ollama.";
+      elements.connectionApiKey.disabled = true;
+      return;
+    }
+    elements.connectionModeHint.textContent = "Use provider API key for prompt testing and read-only planning.";
+    elements.connectionApiKey.disabled = false;
+  }
+
+  function formatLaneName(lane) {
+    return String(lane || "").replace(/_/g, " ");
+  }
+
+  function applyFirstBootResetAwareness(data) {
+    const reset = data?.connections?.reset || data?.firstBootReset || {};
+    const resetVersion = reset.resetVersion;
+    if (!resetVersion) return;
+    try {
+      const versionKey = "tripp.firstBootResetVersion";
+      if (window.localStorage.getItem(versionKey) === resetVersion) return;
+      for (const key of reset.browserStorageKeys || []) {
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+      }
+      window.localStorage.setItem(versionKey, resetVersion);
+    } catch (error) {
+      console.warn("Tripp first-boot reset browser-state invalidation was skipped.", error);
+    }
+  }
+
   function formatBytes(value) {
     const bytes = Number(value) || 0;
     if (bytes < 1024) return `${bytes}b`;
@@ -2194,6 +2727,42 @@ function createTrippRuntime() {
       });
     },
 
+    async saveConnection(payload) {
+      try {
+        return await fetchJson("./api/tripp/connections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch {
+        return { error: "Connections require the local Tripp server.", status: "failed" };
+      }
+    },
+
+    async testConnection(connectionId) {
+      try {
+        return await fetchJson(`./api/tripp/connections/${encodeURIComponent(connectionId)}/test`, { method: "POST" });
+      } catch {
+        return { status: "failed", error: "Connection testing requires the local Tripp server." };
+      }
+    },
+
+    async setDefaultConnection(connectionId) {
+      try {
+        return await fetchJson(`./api/tripp/connections/${encodeURIComponent(connectionId)}/default-prompt`, { method: "POST" });
+      } catch {
+        return { status: "failed", error: "Default connection updates require the local Tripp server." };
+      }
+    },
+
+    async deleteConnection(connectionId) {
+      try {
+        return await fetchJson(`./api/tripp/connections/${encodeURIComponent(connectionId)}`, { method: "DELETE" });
+      } catch {
+        return { status: "failed", error: "Deleting connections requires the local Tripp server." };
+      }
+    },
+
     async runReadOnlyTrials() {
       return fetchJson("./api/tripp/trials/read-only", {
         method: "POST",
@@ -2223,20 +2792,20 @@ async function loadStaticData() {
           speaker: "tripp>",
           time: "10:59",
           body:
-            "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin.",
+            "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready for prompt testing and read-only planning.",
         },
       ],
       tools: [
         { name: "filesystem_read", enabled: true, description: "Read files from the active workspace." },
-        { name: "filesystem_write", enabled: true, description: "Write scoped changes into approved workspace paths." },
+        { name: "filesystem_write", enabled: false, description: "Write-capable file changes are outside the current read-only scope." },
         { name: "filesystem_list", enabled: true, description: "List directories and inspect project structure." },
         { name: "shell_execute", enabled: true, description: "Run bounded shell commands with permission awareness." },
         { name: "web_search", enabled: true, description: "Search current web sources when freshness matters." },
         { name: "web_fetch", enabled: true, description: "Open and read specific URLs." },
         { name: "code_analyze", enabled: true, description: "Inspect code paths and summarize architecture." },
-        { name: "code_format", enabled: true, description: "Apply formatting to supported source files." },
+        { name: "code_format", enabled: false, description: "Formatting changes are outside the current read-only scope." },
         { name: "git_status", enabled: true, description: "Review repository state before edits." },
-        { name: "git_commit", enabled: true, description: "Create scoped commits when explicitly approved." },
+        { name: "git_commit", enabled: false, description: "Commits are outside the current read-only scope." },
         { name: "memory_store", enabled: true, description: "Persist selected project context." },
         { name: "memory_retrieve", enabled: true, description: "Retrieve stored context for continuity." },
       ],
@@ -2258,6 +2827,38 @@ async function loadStaticData() {
         latency: "679ms",
         mode: "CHAT",
         version: "v1.0.0",
+      },
+      connections: {
+        available: false,
+        connections: [],
+        defaultPromptConnectionId: null,
+        laneRouting: {},
+        providerSupport: {
+          openai: { account_linked: false, api_key: true, local_runtime: false },
+          anthropic: { account_linked: false, api_key: true, local_runtime: false },
+          deepseek: { account_linked: false, api_key: true, local_runtime: false },
+          openrouter: { account_linked: false, api_key: true, local_runtime: false },
+          ollama: { account_linked: false, api_key: false, local_runtime: true },
+          custom: { account_linked: false, api_key: true, local_runtime: true },
+          backend: { account_linked: false, api_key: false, local_runtime: false, backend_managed: true },
+        },
+        scopeNote: "Connections configure model access only. They do not change Tripp's current read-only scope.",
+        reset: {
+          resetVersion: null,
+          browserStorageKeys: [
+            "tripp.firstBootComplete",
+            "tripp.connections.firstBootDismissed",
+            "tripp.defaultPromptConnectionId",
+          ],
+        },
+      },
+      firstBootReset: {
+        resetVersion: null,
+        browserStorageKeys: [
+          "tripp.firstBootComplete",
+          "tripp.connections.firstBootDismissed",
+          "tripp.defaultPromptConnectionId",
+        ],
       },
       munch: {
         bridge_name: "TripCore.Munch.g",

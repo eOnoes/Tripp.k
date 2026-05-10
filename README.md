@@ -26,6 +26,26 @@ node .\scripts\verify.mjs
 
 The verifier uses an isolated temporary runtime directory so test tasks and sessions do not appear in the local app.
 
+Reset local Connections first boot:
+
+```powershell
+node .\scripts\reset-first-boot.mjs
+```
+
+The reset is local/dev only. It clears Tripp-local saved model/provider connections, connection secrets, default prompt-testing selection, and first-boot browser suppression keys. It writes `.tripp-runtime/first-boot-reset.json` so the frontend can invalidate relevant `localStorage`/`sessionStorage` keys on the next load. A server restart is not required for the script path, but reload or reopen the app afterward. Expected result: the Connections first-boot setup state appears again, and prompt testing remains unavailable until a connection is configured.
+
+Connections support four modeled modes: API-key provider access, local runtime access, backend-managed provider access, and account-linked provider access. In the current local prototype, API-key, local runtime, and backend-managed modes are operational for prompt testing and read-only planning. Backend-managed mode routes through the trusted local/server-side Tripp backend and does not require a provider key in the browser. Account-linked mode is represented so lane routing can model the intended architecture, but it is explicitly marked `not_supported` until a real provider account-link flow exists; the UI must not imply ChatGPT subscription reuse or fake browser login support.
+
+## Chat, Auto, And Lane Routing
+
+CHAT changes conversational routing. It can use the selected prompt lane and configured connection to produce conversational or prompt-testing output with lane, connection, provider, and model metadata.
+
+AUTO changes whether supervised task routing can occur. It can create task cards, route through Supervisor/agent ownership, attach Warden/permission decisions, and run allowed read-only adapter paths.
+
+Neither CHAT nor AUTO changes Tripp's read-only product scope, Warden authority, blocked-state rules, evidence provenance rules, Cyst audit-only role, TASKS interpretation role, Current Understanding synthesis role, Read-Only Gate semantics, live-write availability, approval/apply runtime behavior, edit/build readiness, or broad Goose parity boundaries.
+
+Prompt lane selection is explicit when the app is expanded. If a selected lane has an assigned enabled connection, that connection is used. If the selected lane is unassigned, prompt testing falls back to the default prompt-testing connection and the result metadata still reports the lane used and the connection/provider/model that answered. If no usable connection exists, prompt testing fails with a bounded setup message.
+
 Run the linked Tripp bridge verifier:
 
 ```powershell

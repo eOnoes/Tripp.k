@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -114,6 +114,7 @@ try {
     health.capabilities?.swarm === "manifest-local" &&
     health.capabilities?.permissions === "policy-local" &&
     health.capabilities?.codingModes === "policy-local" &&
+    health.capabilities?.connections === "runtime-local" &&
     health.capabilities?.workspace === "repo-local-readonly" &&
     health.capabilities?.munch === "mock-contract" &&
     health.capabilities?.executorAdapter === "tripp-readonly-v0.1";
@@ -178,7 +179,10 @@ try {
   const appHtml = await getText("/");
   const appScript = await getText("/script.js");
   const appCss = await getText("/styles.css");
+  const connectionsPanelHtml = appHtml.slice(appHtml.indexOf('id="connectionsPanel"'), appHtml.indexOf('id="connectionSetupModal"'));
+  const connectionSetupModalHtml = appHtml.slice(appHtml.indexOf('id="connectionSetupModal"'), appHtml.indexOf('id="footerConnection"'));
   const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
   const readinessScoreboard = readFileSync(new URL("../docs/tripp-readiness-scoreboard-v0.1.md", import.meta.url), "utf8");
   const betaRegressionHarness = readFileSync(new URL("../docs/read-only-beta-regression-harness-v0.1.md", import.meta.url), "utf8");
   const betaReleaseNotes = readFileSync(new URL("../docs/read-only-beta-release-v0.1.md", import.meta.url), "utf8");
@@ -203,8 +207,14 @@ try {
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const claimRegressionScript = readFileSync(new URL("./verify-claim-regression.mjs", import.meta.url), "utf8");
   const promptBlockFormatDoc = readFileSync(new URL("../docs/prompt-block-format-v0.1.md", import.meta.url), "utf8");
+  const harnessModeTransitionsDoc = readFileSync(new URL("../docs/harness-mode-transitions.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
+  const resetDocsPass =
+    readme.includes("node .\\scripts\\reset-first-boot.mjs") &&
+    readme.includes("clears Tripp-local saved model/provider connections") &&
+    readme.includes("writes `.tripp-runtime/first-boot-reset.json`") &&
+    readme.includes("first-boot setup state appears again");
   const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
   const conclusionForbiddenTerms = [
     "approved",
@@ -281,8 +291,46 @@ try {
     appHtml.includes("cystRoot") &&
     appHtml.includes("reviewChanges") &&
     appHtml.includes("settingsForm") &&
+    appHtml.includes("connectionsPanel") &&
+    appHtml.includes('data-ops-tab="connections"') &&
+    appHtml.includes("connections-view") &&
+    appHtml.includes("connectionSetupModal") &&
+    appHtml.includes("Set up Tripp model access") &&
+    appHtml.includes("Choose how Tripp should connect for prompt testing and read-only planning.") &&
+    appHtml.includes("savedConnectionChoices") &&
+    appHtml.includes("Use backend-managed provider access") &&
+    appHtml.includes("Managed by local/server-side Tripp backend") &&
+    appHtml.includes("No provider key is entered in the browser for this connection") &&
+    appHtml.includes("Provider account linking is not currently supported for this provider.") &&
+    connectionsPanelHtml.includes("ADD BACKEND") &&
+    connectionsPanelHtml.includes("ADD CONNECTION") &&
+    !connectionsPanelHtml.includes('id="connectionForm"') &&
+    connectionSetupModalHtml.includes('id="connectionForm"') &&
+    connectionSetupModalHtml.includes("connection-methods") &&
+    appHtml.includes("Connections configure model access only. They do not change Tripp's current read-only scope.") &&
+    appHtml.includes("provider API key or token") &&
+    appHtml.includes("connectionMode") &&
+    appHtml.includes("Connect provider account") &&
+    appHtml.includes("Use provider API key") &&
+    appHtml.includes("Use backend-managed provider access") &&
+    appHtml.includes("Local runtime connection") &&
+    appHtml.includes("promptLane") &&
+    appHtml.includes("default_chat") &&
+    appHtml.includes("coder_primary") &&
     appHtml.includes("planningSummary") &&
     appScript.includes("renderCystActivity") &&
+    appScript.includes("state.promptLane") &&
+    appScript.includes("lane: state.promptLane") &&
+    appScript.includes("openConnectionSetup") &&
+    appScript.includes("renderConnectionSetup") &&
+    appScript.includes("renderSavedConnectionChoices") &&
+    appScript.includes("Use saved backend") &&
+    appScript.includes("hasUsableConnection") &&
+    appScript.includes("connection-setup-blocked") &&
+    appScript.includes("Set up Tripp model access before prompt testing") &&
+    appScript.includes("CHAT changes conversational routing") &&
+    appScript.includes("AUTO changes supervised task routing") &&
+    appScript.includes("active:") &&
     appScript.includes("renderCystEvidenceMeta") &&
     appScript.includes("latestCystTimeline") &&
     appScript.includes("orderCystEvents") &&
@@ -432,7 +480,20 @@ try {
     appScript.includes("APPLY BLOCKED") &&
     appScript.includes("renderReviewChanges") &&
     appScript.includes("saveCompactSettings") &&
+    appScript.includes("renderConnections") &&
+    appScript.includes("renderLaneRouting") &&
+    appScript.includes("Provider account linking is not currently supported for this provider. Use backend-managed or API-key access instead.") &&
+    appScript.includes("Use provider API key for prompt testing and read-only planning.") &&
+    appScript.includes("Backend-managed connection") &&
+    appScript.includes("Managed by local/server-side Tripp backend") &&
+    appScript.includes("lanes:") &&
+    appScript.includes("Lane routing") &&
+    appScript.includes("maybeShowConnectionFirstBoot") &&
+    appScript.includes("Tripp needs model access before prompt testing") &&
+    appScript.includes("Saving connections requires the local Tripp server") &&
+    appScript.includes("Connections configure model access only and do not change Tripp's current read-only scope.") &&
     appScript.includes("/api/tripp/cyst/events") &&
+    appScript.includes("/api/tripp/connections") &&
     appCss.includes(".cyst-activity li.group-start") &&
     appCss.includes(".cyst-activity li.group-middle") &&
     appCss.includes(".cyst-activity li.group-end") &&
@@ -447,6 +508,12 @@ try {
     appCss.includes(".go-no-go.no_go") &&
     appCss.includes(".go-no-go small + small") &&
     appCss.includes(".terminal-app:not(.ops-expanded) .input-telemetry") &&
+    appCss.includes(".input-telemetry select") &&
+    appCss.includes(".lane-routing span.active") &&
+    appCss.includes(".connection-setup-modal") &&
+    appCss.includes(".connection-methods button.active") &&
+    appCss.includes(".saved-connection-choices") &&
+    appCss.includes(".connections-view .connections-panel") &&
     appCss.includes("display: none !important;") &&
     appScript.includes("aria-hidden\", state.opsExpanded ? \"false\" : \"true\"") &&
     appScript.includes("Task ${action} was not persisted because the Tripp API is unavailable.") &&
@@ -456,8 +523,40 @@ try {
     !serverSource.includes("Goose.Prompt") &&
     !serverSource.includes("Goose-style") &&
     !serverSource.includes("goose-readonly-v0.1") &&
+    serverSource.includes("/api/tripp/connections") &&
+    serverSource.includes("/api/tripp/prompt-test") &&
+    serverSource.includes("connection-secrets.json") &&
+    serverSource.includes("sanitizeConnection") &&
+    serverSource.includes("createPromptTestReply") &&
+    serverSource.includes("account_linked") &&
+    serverSource.includes("local_runtime") &&
+    serverSource.includes("backend_managed") &&
+    serverSource.includes("callBackendManagedConnection") &&
+    serverSource.includes("testBackendManagedConnection") &&
+    serverSource.includes("routeSummary") &&
+    serverSource.includes("resolvePromptConnectionRoute") &&
+    serverSource.includes("fallbackUsed") &&
+    serverSource.includes("Requested lane: ${requestedLane}") &&
+    serverSource.includes("Lane: ${lane}") &&
+    serverSource.includes("deepseek") &&
+    serverSource.includes("openrouter") &&
+    serverSource.includes("/api/tripp/connections/routing") &&
+    serverSource.includes("/api/tripp/connections/account-link/start") &&
+    serverSource.includes("/api/tripp/dev/reset-first-boot") &&
+    serverSource.includes("resetFirstBootState") &&
+    appScript.includes("applyFirstBootResetAwareness") &&
+    readme.includes("node .\\scripts\\reset-first-boot.mjs") &&
+    !/Sign in with ChatGPT|Use your ChatGPT subscription|Ready for build|Enable writing/i.test(`${appHtml}\n${appScript}\n${serverSource}`) &&
     promptBlockFormatDoc.includes("Tripp.Prompt") &&
     !promptBlockFormatDoc.includes("Goose.Prompt") &&
+    harnessModeTransitionsDoc.includes("CHAT changes conversational routing") &&
+    harnessModeTransitionsDoc.includes("AUTO changes whether supervised task routing can occur") &&
+    harnessModeTransitionsDoc.includes("Neither `CHAT` nor `AUTO` changes") &&
+    harnessModeTransitionsDoc.includes("read-only scope") &&
+    harnessModeTransitionsDoc.includes("Warden authority") &&
+    harnessModeTransitionsDoc.includes("blocked-state rules") &&
+    harnessModeTransitionsDoc.includes("evidence provenance rules") &&
+    harnessModeTransitionsDoc.includes("Read-Only Gate semantics") &&
     readinessScoreboard.includes("Primary read-only console beta") &&
     readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
@@ -1137,6 +1236,180 @@ try {
     failures.push({ name: "prompt block" });
   }
 
+  const initialConnections = await getJson("/api/tripp/connections");
+  const createdConnection = await postJson("/api/tripp/connections", {
+    name: "Prompt Test Local",
+    provider: "custom",
+    mode: "api_key",
+    model: "tripp-mock-model",
+    baseUrl: `${baseUrl}/api/tripp/mock-provider/prompt`,
+    apiKey: "test-token",
+    enabled: true,
+    purposes: ["default_prompt_testing", "default_chat", "warden"],
+    isDefaultPromptTesting: true,
+  });
+  const connectionId = createdConnection.connection?.id;
+  const testedConnection = await postJson(`/api/tripp/connections/${encodeURIComponent(connectionId || "")}/test`, {});
+  const defaultConnection = await postJson(`/api/tripp/connections/${encodeURIComponent(connectionId || "")}/default-prompt`, {});
+  const coderConnection = await postJson("/api/tripp/connections", {
+    name: "Coder DeepSeek",
+    provider: "deepseek",
+    mode: "api_key",
+    model: "deepseek-chat",
+    apiKey: "deepseek-token",
+    enabled: true,
+    purposes: ["coder_primary", "verifier"],
+  });
+  const localConnection = await postJson("/api/tripp/connections", {
+    name: "Local Ollama",
+    provider: "ollama",
+    mode: "local_runtime",
+    model: "llama3.1",
+    baseUrl: `${baseUrl}/api/tripp/mock-provider/prompt`,
+    enabled: true,
+    purposes: ["fallback"],
+  });
+  const accountLinkedConnection = await postJson("/api/tripp/connections", {
+    name: "OpenAI Account Link",
+    provider: "openai",
+    mode: "account_linked",
+    model: "gpt-4.1-mini",
+    enabled: true,
+    purposes: ["synthesis"],
+  });
+  const accountLinkedTest = await postJson(`/api/tripp/connections/${encodeURIComponent(accountLinkedConnection.connection?.id || "")}/test`, {});
+  const accountLinkStart = await postJson("/api/tripp/connections/account-link/start", { provider: "openai" });
+  const routingUpdate = await postJson("/api/tripp/connections/routing", {
+    assignments: [
+      { lane: "coder_primary", connectionId: coderConnection.connection?.id },
+      { lane: "fallback", connectionId: localConnection.connection?.id },
+      { lane: "warden", connectionId },
+    ],
+  });
+  const missingKeyConnection = await postJson("/api/tripp/connections", {
+    name: "Missing Key",
+    provider: "openai",
+    mode: "api_key",
+    model: "gpt-4.1-mini",
+    enabled: true,
+    purposes: ["read_only_planning"],
+  });
+  const missingKeyTest = await postJson(`/api/tripp/connections/${encodeURIComponent(missingKeyConnection.connection?.id || "")}/test`, {});
+  const routedPrompt = await postJson("/api/tripp/reply", {
+    prompt: "Who are you in read-only scope?",
+    mode: "CHAT",
+    sessionId: "verify-connection-prompt",
+  });
+  const fallbackPrompt = await postJson("/api/tripp/prompt-test", {
+    prompt: "Use an unassigned lane and show routing truth.",
+    lane: "coder_secondary",
+  });
+  const connectionPayloadText = JSON.stringify({ createdConnection, testedConnection, defaultConnection, routedPrompt });
+  const connectionPass =
+    initialConnections.available === true &&
+    Array.isArray(initialConnections.connections) &&
+    initialConnections.connections.length === 0 &&
+    initialConnections.scopeNote === "Connections configure model access only. They do not change Tripp's current read-only scope." &&
+    createdConnection.connection?.name === "Prompt Test Local" &&
+    createdConnection.connection?.provider === "custom" &&
+    createdConnection.connection?.mode === "api_key" &&
+    createdConnection.connection?.model === "tripp-mock-model" &&
+    createdConnection.connection?.purposes?.includes("warden") &&
+    initialConnections.providerSupport?.openai?.account_linked === false &&
+    initialConnections.providerSupport?.deepseek?.api_key === true &&
+    initialConnections.providerSupport?.ollama?.local_runtime === true &&
+    initialConnections.providerSupport?.backend?.backend_managed === true &&
+    coderConnection.connection?.provider === "deepseek" &&
+    coderConnection.connection?.purposes?.includes("coder_primary") &&
+    localConnection.connection?.mode === "local_runtime" &&
+    localConnection.connection?.supportsLocalRuntime === true &&
+    accountLinkedConnection.connection?.status === "not_supported" &&
+    accountLinkedConnection.connection?.supportsAccountLink === false &&
+    accountLinkedTest.status === "not_supported" &&
+    accountLinkedTest.error?.includes("not currently supported") &&
+    accountLinkStart.status === "not_supported" &&
+    accountLinkStart.message?.includes("Account linking is not currently supported for this provider") &&
+    routingUpdate.laneRouting?.coder_primary?.name === "Coder DeepSeek" &&
+    routingUpdate.laneRouting?.fallback?.name === "Local Ollama" &&
+    createdConnection.connection?.hasToken === true &&
+    createdConnection.connection?.maskedToken === "test...oken" &&
+    !connectionPayloadText.includes("test-token") &&
+    testedConnection.status === "connected" &&
+    testedConnection.connection?.status === "connected" &&
+    defaultConnection.connection?.isDefaultPromptTesting === true &&
+    missingKeyTest.status === "auth_error" &&
+    routedPrompt.status?.connectionName === "Prompt Test Local" &&
+    routedPrompt.status?.provider === "custom" &&
+    routedPrompt.status?.lane === "default_prompt_testing" &&
+    routedPrompt.status?.model === "tripp-mock-model" &&
+    fallbackPrompt.status === "connected" &&
+    fallbackPrompt.requestedLane === "coder_secondary" &&
+    fallbackPrompt.lane === "default_prompt_testing" &&
+    fallbackPrompt.fallbackUsed === true &&
+    fallbackPrompt.routeSummary?.includes("Requested lane: coder_secondary") &&
+    fallbackPrompt.routeSummary?.includes("Fallback: No usable connection is assigned to coder_secondary") &&
+    routedPrompt.messages?.some(
+      (message) =>
+        message.speaker === "tripp.model>" &&
+        message.body.includes("Route: default_prompt_testing via Prompt Test Local (custom, tripp-mock-model)."),
+    ) &&
+    !connectionPayloadText.includes("ChatGPT subscription") &&
+    !connectionPayloadText.includes("Sign in with ChatGPT") &&
+    !connectionPayloadText.includes("Enable writing");
+  console.log(`${connectionPass ? "PASS" : "FAIL"} connections: first boot, safe persistence, test, default, and prompt routing`);
+  if (!connectionPass) {
+    failures.push({ name: "connections" });
+  }
+
+  const resetScriptRuntimeDir = mkdtempSync(join(tmpdir(), "tripp-first-boot-reset-script-"));
+  extraRuntimeDirs.push(resetScriptRuntimeDir);
+  writeFileSync(join(resetScriptRuntimeDir, "connections.json"), JSON.stringify({ connections: [{ id: "seeded", provider: "custom" }] }), "utf8");
+  writeFileSync(join(resetScriptRuntimeDir, "connection-secrets.json"), JSON.stringify({ secrets: { seeded: "secret" } }), "utf8");
+  const resetScript = spawnSync(process.execPath, ["scripts/reset-first-boot.mjs"], {
+    cwd: new URL("..", import.meta.url),
+    env: { ...process.env, TRIPP_RUNTIME_DIR: resetScriptRuntimeDir },
+    encoding: "utf8",
+  });
+  const resetMetadataFile = join(resetScriptRuntimeDir, "first-boot-reset.json");
+  const resetScriptMetadata = existsSync(resetMetadataFile) ? JSON.parse(readFileSync(resetMetadataFile, "utf8")) : {};
+  const resetScriptPass =
+    resetScript.status === 0 &&
+    !existsSync(join(resetScriptRuntimeDir, "connections.json")) &&
+    !existsSync(join(resetScriptRuntimeDir, "connection-secrets.json")) &&
+    resetScriptMetadata.artifactType === "tripp_first_boot_reset" &&
+    resetScriptMetadata.clearedStores?.includes("connections") &&
+    resetScriptMetadata.clearedStores?.includes("defaultPromptTestingConnection") &&
+    resetScriptMetadata.browserStorageKeys?.includes("tripp.connections.firstBootDismissed") &&
+    resetScript.stdout.includes("Tripp first-boot reset complete.");
+  console.log(`${resetScriptPass ? "PASS" : "FAIL"} connections: deterministic first-boot reset script`);
+  if (!resetScriptPass) {
+    failures.push({ name: "first-boot reset script" });
+  }
+
+  const endpointReset = await postJson("/api/tripp/dev/reset-first-boot", {});
+  const resetConnections = await getJson("/api/tripp/connections");
+  const resetPromptTest = await postJson("/api/tripp/prompt-test", { prompt: "after reset" });
+  const resetBootstrap = await getJson("/api/tripp/bootstrap");
+  const resetEndpointPass =
+    endpointReset.artifactType === "tripp_first_boot_reset" &&
+    endpointReset.clearedStores?.includes("connectionSecrets") &&
+    endpointReset.browserStorageKeys?.includes("tripp.defaultPromptConnectionId") &&
+    resetConnections.connections?.length === 0 &&
+    resetConnections.defaultPromptConnectionId === null &&
+    resetConnections.reset?.resetVersion === endpointReset.resetVersion &&
+    resetPromptTest.status === "failed" &&
+    resetPromptTest.error === "No usable prompt-testing connection is configured." &&
+    resetBootstrap.connections?.connections?.length === 0 &&
+    resetBootstrap.firstBootReset?.resetVersion === endpointReset.resetVersion &&
+    appScript.includes("applyFirstBootResetAwareness") &&
+    appScript.includes("tripp.firstBootResetVersion") &&
+    appScript.includes("tripp.connections.firstBootDismissed") &&
+    resetDocsPass;
+  console.log(`${resetEndpointPass ? "PASS" : "FAIL"} connections: reset endpoint clears first-boot state`);
+  if (!resetEndpointPass) {
+    failures.push({ name: "first-boot reset endpoint" });
+  }
+
   const promptBlock = promptBlockReply.messages?.find((message) => message.promptBlock)?.promptBlock;
   const promptValidation = await postJson("/api/tripp/prompt-block/validate", { promptBlock });
   const staleRootValidation = await postJson("/api/tripp/prompt-block/validate", {
@@ -1447,9 +1720,14 @@ try {
     failures.push({ name: "read-only trials" });
   }
 
+  const postResetMockWriteReply = await postJson("/api/tripp/reply", {
+    prompt: "where should I change Munch health routing",
+    mode: "AUTO",
+    sessionId: "verify-post-reset-cyst-events",
+  });
   const cystAfterTrial = await getJson("/api/tripp/cyst/events");
   const mockWriteEvents = orderCystEvents(
-    cystAfterTrial.events?.filter((event) => event.descriptorId === mockWriteReply.task?.id) || [],
+    cystAfterTrial.events?.filter((event) => event.descriptorId === postResetMockWriteReply.task?.id) || [],
   );
   const mockWriteRetrievalIndex = mockWriteEvents.findIndex((event) => event.eventType === "retrieval_event");
   const mockWriteBlockIndex = mockWriteEvents.findIndex((event) => event.eventType === "write_escalation_blocked");
@@ -1502,7 +1780,7 @@ try {
     cystAfterTrial.events?.some(
       (event) =>
         event.eventType === "write_escalation_blocked" &&
-        event.descriptorId === mockWriteReply.task?.id &&
+        event.descriptorId === postResetMockWriteReply.task?.id &&
         event.errorCode === "MOCK_EVIDENCE_NON_AUTHORITATIVE" &&
         event.reasonCode === "mock_evidence_non_authoritative" &&
         event.blockLayer === "evidence" &&
@@ -3208,6 +3486,53 @@ async function verifyBackendBridge() {
   );
   const bootstrap = await getJson("/api/tripp/bootstrap", bridgeUrl);
   const taskSnapshot = await getJson("/api/tripp/tasks", bridgeUrl);
+  const managedConnection = await postJson(
+    "/api/tripp/connections",
+    {
+      name: "Managed Bridge",
+      provider: "backend",
+      mode: "backend_managed",
+      model: "tripp-adapter/backend",
+      enabled: true,
+      purposes: ["default_prompt_testing", "default_chat", "warden"],
+    },
+    bridgeUrl,
+  );
+  const managedTest = await postJson(`/api/tripp/connections/${encodeURIComponent(managedConnection.connection?.id || "")}/test`, {}, bridgeUrl);
+  const managedReply = await postJson(
+    "/api/tripp/reply",
+    { prompt: "managed bridge smoke", mode: "CHAT", sessionId: "verify-managed-bridge" },
+    bridgeUrl,
+  );
+  const wardenReply = await postJson(
+    "/api/tripp/prompt-test",
+    { prompt: "warden route smoke", lane: "warden" },
+    bridgeUrl,
+  );
+  const coderConnection = await postJson(
+    "/api/tripp/connections",
+    {
+      name: "Coder API Route",
+      provider: "custom",
+      mode: "api_key",
+      model: "coder-api-model",
+      baseUrl: `${bridgeUrl}/api/tripp/mock-provider/prompt`,
+      apiKey: "coder-token",
+      enabled: true,
+      purposes: ["coder_primary"],
+    },
+    bridgeUrl,
+  );
+  const coderReply = await postJson(
+    "/api/tripp/prompt-test",
+    { prompt: "coder route smoke", lane: "coder_primary" },
+    bridgeUrl,
+  );
+  const bridgeFallbackReply = await postJson(
+    "/api/tripp/prompt-test",
+    { prompt: "fallback route smoke", lane: "coder_secondary" },
+    bridgeUrl,
+  );
   const persisted = bootstrap.sessions.find((session) => session.id === created.session.id);
   const pass =
     status.reachable === true &&
@@ -3215,7 +3540,35 @@ async function verifyBackendBridge() {
     reply.messages?.some((message) => message.body === "bridge received: backend contract smoke") &&
     reply.tasks?.some((task) => task.origin === "backend" && task.agentId === "tripp.drone.one") &&
     taskSnapshot.tasks?.some((task) => task.origin === "backend" && task.agentId === "tripp.drone.one") &&
-    persisted?.transcript?.some((message) => message.body === "bridge received: backend contract smoke");
+    persisted?.transcript?.some((message) => message.body === "bridge received: backend contract smoke") &&
+    managedConnection.connection?.mode === "backend_managed" &&
+    managedConnection.connection?.provider === "backend" &&
+    managedConnection.connection?.supportsBackendManaged === true &&
+    managedConnection.connection?.hasToken === false &&
+    managedConnection.connection?.managedDescription?.includes("No provider key is entered in the browser") &&
+    managedTest.status === "connected" &&
+    managedReply.status?.connectionName === "Managed Bridge" &&
+    managedReply.status?.provider === "backend" &&
+    managedReply.status?.lane === "default_prompt_testing" &&
+    managedReply.messages?.some((message) => message.body.includes("bridge received: managed bridge smoke")) &&
+    managedReply.messages?.some((message) => message.body.includes("Route: default_prompt_testing via Managed Bridge (backend, tripp-adapter/backend).")) &&
+    wardenReply.status === "connected" &&
+    wardenReply.lane === "warden" &&
+    wardenReply.connection?.name === "Managed Bridge" &&
+    wardenReply.routeSummary?.includes("Lane: warden") &&
+    coderConnection.connection?.mode === "api_key" &&
+    coderConnection.connection?.purposes?.includes("coder_primary") &&
+    coderReply.status === "connected" &&
+    coderReply.lane === "coder_primary" &&
+    coderReply.connection?.name === "Coder API Route" &&
+    coderReply.provider === "custom" &&
+    coderReply.model === "coder-api-model" &&
+    coderReply.routeSummary?.includes("Provider: custom") &&
+    bridgeFallbackReply.status === "connected" &&
+    bridgeFallbackReply.requestedLane === "coder_secondary" &&
+    bridgeFallbackReply.lane === "default_prompt_testing" &&
+    bridgeFallbackReply.fallbackUsed === true &&
+    bridgeFallbackReply.routeSummary?.includes("Fallback: No usable connection is assigned to coder_secondary");
   console.log(`${pass ? "PASS" : "FAIL"} backend bridge: health -> reply -> persisted transcript`);
   return pass;
 }

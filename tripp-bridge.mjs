@@ -194,7 +194,7 @@ function chooseCodingMode(prompt) {
 
 function bridgeMessage(prompt, mode, style, agent) {
   if (!prompt) return "Tripp bridge is online and waiting for a prompt.";
-  return `Bridge online. ${agent} accepted this ${mode} request in ${style} style. Legacy runtime forwarding will activate when GOOSE_AGENT_URL is configured.`;
+  return `Tripp bridge is online. ${agent} handled this ${mode} request in ${style} style.`;
 }
 
 function createPromptBlock(prompt) {

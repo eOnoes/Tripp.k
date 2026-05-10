@@ -15,6 +15,27 @@ Mode changes are navigation and control-plane signals. Tool execution still requ
 | `AUDIT` | Review evidence, policy, and result quality. | Read-only review. |
 | `BUILD` | Future executor-backed implementation lane. | Requires explicit confirmation and Warden approval. |
 
+## Chat vs Auto Contract
+
+CHAT changes conversational routing. It keeps the operator in a response-first posture and does not imply supervised task execution.
+
+AUTO changes whether supervised task routing can occur. It allows Tripp to propose scoped task cards when a prompt looks executable, but those tasks still remain inside the current read-only harness rules.
+
+Neither `CHAT` nor `AUTO` changes:
+
+- read-only scope
+- Warden authority
+- blocked-state rules
+- evidence provenance rules
+- Read-Only Gate semantics
+- Cyst audit-only ownership
+- TASKS and Current Understanding interpretation ownership
+- approval/apply runtime availability
+- edit/build readiness
+- broad Goose parity
+
+Mode changes can affect which prompt lane is used for conversational/model routing, but they do not upgrade evidence authority, unblock denied requests, or turn a Gate GO into write-capable readiness.
+
 ## Transition Rules
 
 ```yaml

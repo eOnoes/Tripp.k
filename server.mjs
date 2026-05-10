@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
+import { readFirstBootResetMetadata, resetFirstBootState } from "./lib/tripp-first-boot-reset.mjs";
 
 const root = resolve(import.meta.dirname);
 loadLocalEnv(root);
@@ -17,6 +18,8 @@ const taskStoreFile = join(runtimeDir, "tasks.json");
 const sessionStoreFile = join(runtimeDir, "sessions.json");
 const cystStoreFile = join(runtimeDir, "cyst-events.json");
 const settingsStoreFile = join(runtimeDir, "settings.json");
+const connectionStoreFile = join(runtimeDir, "connections.json");
+const connectionSecretStoreFile = join(runtimeDir, "connection-secrets.json");
 const backendUrl = normalizeBackendUrl(process.env.TRIPP_BACKEND_URL);
 const backendSecret = process.env.TRIPP_BACKEND_SECRET || process.env.GOOSE_SERVER__SECRET_KEY || "";
 const backendReplyEnabled = process.env.TRIPP_ENABLE_BACKEND_REPLY === "true";
@@ -25,6 +28,9 @@ const taskQueue = loadTaskQueue();
 const sessionStore = loadSessionStore();
 const cystEventStore = loadCystEventStore();
 const settingsStore = loadSettingsStore();
+const connectionStore = loadConnectionStore();
+const connectionSecretStore = loadConnectionSecretStore();
+let appliedFirstBootResetVersion = null;
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -100,6 +106,72 @@ async function handleTrippApi(request, response, url) {
   if (request.method === "POST" && url.pathname === "/api/tripp/settings") {
     const payload = await readJson(request);
     sendJson(response, updateSettings(payload));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/dev/reset-first-boot") {
+    const result = resetFirstBootState({ root, runtimeDir });
+    resetFirstBootRuntimeState();
+    sendJson(response, result);
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/tripp/connections") {
+    sendJson(response, readConnectionsPublic());
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/connections") {
+    const payload = await readJson(request);
+    sendJson(response, upsertConnection(payload));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/connections/routing") {
+    const payload = await readJson(request);
+    sendJson(response, updateConnectionRouting(payload));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/connections/account-link/start") {
+    const payload = await readJson(request);
+    sendJson(response, startAccountLink(payload));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname.startsWith("/api/tripp/connections/")) {
+    const parts = url.pathname.split("/");
+    const connectionId = decodeURIComponent(parts.at(-2) || "");
+    const action = decodeURIComponent(parts.at(-1) || "");
+    if (action === "test") {
+      sendJson(response, await testConnectionById(connectionId));
+      return;
+    }
+    if (action === "default-prompt") {
+      sendJson(response, setDefaultPromptConnection(connectionId));
+      return;
+    }
+  }
+
+  if (request.method === "DELETE" && url.pathname.startsWith("/api/tripp/connections/")) {
+    const connectionId = decodeURIComponent(url.pathname.split("/").at(-1) || "");
+    sendJson(response, deleteConnection(connectionId));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/prompt-test") {
+    const payload = await readJson(request);
+    sendJson(response, await createPromptTestReply(payload));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tripp/mock-provider/prompt") {
+    const payload = await readJson(request);
+    sendJson(response, {
+      status: "connected",
+      text: `Mock provider response for ${String(payload?.model || "model")}: ${String(payload?.prompt || "").slice(0, 120)}`,
+      usage: { inputTokens: String(payload?.prompt || "").length, outputTokens: 42 },
+    });
     return;
   }
 
@@ -239,6 +311,7 @@ async function handleTrippApi(request, response, url) {
 }
 
 function readBootstrap() {
+  applyFirstBootResetMetadataToMemory();
   const bootstrap = JSON.parse(readFileSync(bootstrapFile, "utf8"));
   const sessions = ensureSessionStore(bootstrap);
   const health = readHealth();
@@ -265,6 +338,8 @@ function readBootstrap() {
     },
     tasks: taskQueue,
     settings: settingsStore,
+    connections: readConnectionsPublic(),
+    firstBootReset: readFirstBootResetMetadata({ root, runtimeDir }),
   };
 }
 
@@ -297,7 +372,9 @@ function readHealth() {
       swarm: "manifest-local",
       permissions: "policy-local",
       codingModes: "policy-local",
-      workspace: "repo-local-readonly",
+    connections: "runtime-local",
+    firstBootReset: "runtime-local-dev",
+    workspace: "repo-local-readonly",
       munch: "mock-contract",
       executorAdapter: "tripp-readonly-v0.1",
     },
@@ -2230,12 +2307,17 @@ async function createReply(payload) {
   const tool = chooseTool(prompt);
   const kind = chooseTaskKind(prompt, tool);
 
+  const promptBlock = createPromptBlock(prompt);
+  if (!promptBlock && mode === "CHAT") {
+    const promptTestReply = await tryCreateConnectionPromptReply(payload, prompt, mode);
+    if (promptTestReply) return promptTestReply;
+  }
+
   if (backendUrl && backendReplyEnabled && !shouldKeepLocalAdapterTask(mode, kind, tool)) {
     const backendReply = await tryCreateBackendReply(payload);
     if (backendReply) return backendReply;
   }
 
-  const promptBlock = createPromptBlock(prompt);
   const task = !promptBlock && mode === "AUTO" ? createTask({ prompt, tool, kind, sessionId: payload?.sessionId }) : null;
 
   const messages =
@@ -2285,6 +2367,46 @@ async function createReply(payload) {
     task,
     trace: task?.trace || [],
     messages,
+    session,
+  };
+}
+
+async function tryCreateConnectionPromptReply(payload, prompt, mode) {
+  const route = resolvePromptConnectionRoute(payload?.lane || "default_prompt_testing", payload?.connectionId);
+  const { connection, lane, requestedLane, fallbackUsed, fallbackReason } = route;
+  if (!connection) return null;
+  const started = Date.now();
+  const result = await callConnection(connection, prompt);
+  const statusText = result.status === "connected" ? "CONNECTED" : String(result.status || "FAILED").toUpperCase();
+  const routeLines = [
+    `Route: ${lane} via ${connection.name} (${connection.provider}, ${connection.model}).`,
+    fallbackUsed ? `Fallback used: requested ${requestedLane}; ${fallbackReason}` : null,
+  ].filter(Boolean).join("\n");
+  const body = result.status === "connected"
+    ? `${result.text}\n\n${routeLines}`
+    : `Prompt test failed with ${result.status}. ${result.error || "Check the connection settings."}`;
+  const messages = [{ kind: "agent", speaker: "tripp.model>", body }];
+  const session = recordSessionExchange(payload?.sessionId, prompt, messages);
+  return {
+    id: `connection-reply-${Date.now()}`,
+    mode,
+    status: {
+      connection: statusText,
+      connectionName: connection.name,
+      provider: connection.provider,
+      requestedLane,
+      lane,
+      fallbackUsed,
+      fallbackReason,
+      model: connection.model,
+      latency: `${Date.now() - started}ms`,
+      tokensIn: prompt.length,
+      tokensOut: result.text?.length || 0,
+    },
+    task: null,
+    tasks: [],
+    messages,
+    connection: sanitizeConnection(connection),
     session,
   };
 }
@@ -2846,6 +2968,590 @@ function loadSettingsStore() {
   }
 }
 
+function loadConnectionStore() {
+  try {
+    if (!existsSync(connectionStoreFile)) return { connections: [] };
+    const parsed = JSON.parse(readFileSync(connectionStoreFile, "utf8"));
+    return { connections: Array.isArray(parsed.connections) ? parsed.connections.map(normalizeConnectionRecord).filter(Boolean) : [] };
+  } catch {
+    return { connections: [] };
+  }
+}
+
+function loadConnectionSecretStore() {
+  try {
+    if (!existsSync(connectionSecretStoreFile)) return { secrets: {} };
+    const parsed = JSON.parse(readFileSync(connectionSecretStoreFile, "utf8"));
+    return { secrets: parsed && typeof parsed.secrets === "object" && !Array.isArray(parsed.secrets) ? parsed.secrets : {} };
+  } catch {
+    return { secrets: {} };
+  }
+}
+
+function normalizeConnectionRecord(value = {}) {
+  const provider = normalizeConnectionProvider(value.provider);
+  if (!provider) return null;
+  const mode = normalizeConnectionMode(value.mode, provider);
+  const support = providerModeSupport(provider);
+  const purposes = normalizeConnectionPurposes(value.purposes || value.purposeTags, value.isDefaultPromptTesting);
+  const id = String(value.id || `conn-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  return {
+    id,
+    name: String(value.name || defaultConnectionName(provider)).slice(0, 80),
+    provider,
+    mode,
+    model: String(value.model || defaultConnectionModel(provider)).slice(0, 120),
+    baseUrl: normalizeConnectionBaseUrl(value.baseUrl),
+    enabled: value.enabled !== false,
+    status: ["unknown", "connected", "failed", "disabled", "not_supported", "ready_for_linking", "managed"].includes(value.status) ? value.status : "unknown",
+    supportsAccountLink: support.account_linked,
+    supportsApiKey: support.api_key,
+    supportsLocalRuntime: support.local_runtime,
+    supportsBackendManaged: support.backend_managed,
+    managedLabel: String(value.managedLabel || defaultManagedLabel(provider, mode)).slice(0, 120),
+    managedDescription: String(value.managedDescription || defaultManagedDescription(provider, mode)).slice(0, 280),
+    lastCheckedAt: value.lastCheckedAt || null,
+    lastError: value.lastError || null,
+    isDefaultPromptTesting: purposes.includes("default_prompt_testing"),
+    purposes,
+    purposeTags: purposes,
+    createdAt: value.createdAt || new Date().toISOString(),
+    updatedAt: value.updatedAt || null,
+  };
+}
+
+function normalizeConnectionProvider(provider) {
+  const value = String(provider || "").toLowerCase();
+  return ["openai", "anthropic", "deepseek", "openrouter", "ollama", "custom", "backend"].includes(value) ? value : null;
+}
+
+function normalizeConnectionMode(mode, provider) {
+  const value = String(mode || "").toLowerCase();
+  if (["account_linked", "api_key", "local_runtime", "backend_managed"].includes(value)) return value;
+  if (provider === "backend") return "backend_managed";
+  return provider === "ollama" ? "local_runtime" : "api_key";
+}
+
+function providerModeSupport(provider) {
+  const defaults = { account_linked: false, api_key: true, local_runtime: false, backend_managed: false };
+  if (provider === "backend") return { account_linked: false, api_key: false, local_runtime: false, backend_managed: true };
+  if (provider === "ollama") return { account_linked: false, api_key: false, local_runtime: true, backend_managed: false };
+  if (provider === "custom") return { account_linked: false, api_key: true, local_runtime: true, backend_managed: false };
+  return defaults;
+}
+
+function defaultManagedLabel(provider, mode) {
+  if (mode !== "backend_managed") return "";
+  return provider === "backend" ? "Local Tripp bridge" : "Server-managed provider";
+}
+
+function defaultManagedDescription(provider, mode) {
+  if (mode !== "backend_managed") return "";
+  return "Managed by local/server-side Tripp backend. No provider key is entered in the browser for this connection.";
+}
+
+function normalizeConnectionPurposes(value, legacyDefault = false) {
+  const allowed = connectionPurposes();
+  const raw = Array.isArray(value) ? value : legacyDefault ? ["default_prompt_testing"] : [];
+  const normalized = raw.map((item) => String(item || "").trim()).filter((item) => allowed.includes(item));
+  if (legacyDefault && !normalized.includes("default_prompt_testing")) normalized.push("default_prompt_testing");
+  return [...new Set(normalized)];
+}
+
+function connectionPurposes() {
+  return [
+    "default_prompt_testing",
+    "default_chat",
+    "warden",
+    "read_only_planning",
+    "synthesis",
+    "coder_primary",
+    "coder_secondary",
+    "verifier",
+    "fallback",
+  ];
+}
+
+function defaultConnectionName(provider) {
+  return provider === "ollama" ? "Local Ollama" : `${provider || "Custom"} connection`;
+}
+
+function defaultConnectionModel(provider) {
+  if (provider === "openai") return "gpt-4.1-mini";
+  if (provider === "anthropic") return "claude-3-5-haiku-latest";
+  if (provider === "deepseek") return "deepseek-chat";
+  if (provider === "openrouter") return "openrouter/auto";
+  if (provider === "ollama") return "llama3.1";
+  if (provider === "backend") return "tripp-adapter/backend";
+  return "model";
+}
+
+function normalizeConnectionBaseUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw.replace(/\/+$/, "");
+}
+
+function readConnectionsPublic() {
+  applyFirstBootResetMetadataToMemory();
+  const connections = connectionStore.connections.map(sanitizeConnection);
+  return {
+    available: true,
+    connections,
+    defaultPromptConnectionId: connectionForLane("default_prompt_testing", connections)?.id || null,
+    laneRouting: laneRoutingSnapshot(connections),
+    supportedPurposes: connectionPurposes(),
+    providerSupport: Object.fromEntries(["openai", "anthropic", "deepseek", "openrouter", "ollama", "custom", "backend"].map((provider) => [provider, providerModeSupport(provider)])),
+    scopeNote: "Connections configure model access only. They do not change Tripp's current read-only scope.",
+    reset: readFirstBootResetMetadata({ root, runtimeDir }),
+  };
+}
+
+function resetFirstBootRuntimeState() {
+  connectionStore.connections = [];
+  connectionSecretStore.secrets = {};
+  taskQueue.length = 0;
+  sessionStore.sessions = [];
+  cystEventStore.events = [];
+  appliedFirstBootResetVersion = readFirstBootResetMetadata({ root, runtimeDir }).resetVersion;
+}
+
+function applyFirstBootResetMetadataToMemory() {
+  const metadata = readFirstBootResetMetadata({ root, runtimeDir });
+  if (!metadata.resetVersion || metadata.resetVersion === appliedFirstBootResetVersion) return;
+  connectionStore.connections = [];
+  connectionSecretStore.secrets = {};
+  taskQueue.length = 0;
+  sessionStore.sessions = [];
+  cystEventStore.events = [];
+  appliedFirstBootResetVersion = metadata.resetVersion;
+}
+
+function sanitizeConnection(connection) {
+  const secret = connectionSecretStore.secrets[connection.id] || "";
+  return {
+    ...connection,
+    displayMode: connectionModeLabel(connection.mode),
+    modeSupportStatus: connectionModeSupported(connection.provider, connection.mode) ? "supported" : "not_supported",
+    hasToken: Boolean(secret),
+    maskedToken: maskSecret(secret),
+  };
+}
+
+function connectionModeLabel(mode) {
+  if (mode === "account_linked") return "Account-linked connection";
+  if (mode === "local_runtime") return "Local runtime connection";
+  if (mode === "backend_managed") return "Backend-managed connection";
+  return "API-key connection";
+}
+
+function connectionModeSupported(provider, mode) {
+  return Boolean(providerModeSupport(provider)[mode]);
+}
+
+function isUsableConnection(connection) {
+  return Boolean(
+    connection &&
+    connection.enabled &&
+    connection.status !== "disabled" &&
+    connection.status !== "not_supported" &&
+    connectionModeSupported(connection.provider, connection.mode),
+  );
+}
+
+function laneRoutingSnapshot(connections = connectionStore.connections.map(sanitizeConnection)) {
+  return Object.fromEntries(
+    connectionPurposes().map((lane) => {
+      const connection = connectionForLane(lane, connections);
+      return [lane, connection ? { id: connection.id, name: connection.name, provider: connection.provider, mode: connection.mode, model: connection.model } : null];
+    }),
+  );
+}
+
+function connectionForLane(lane, connections = connectionStore.connections) {
+  return connections.find((connection) => connection.enabled && (connection.purposes || []).includes(lane)) ||
+    (lane === "default_prompt_testing" ? connections.find((connection) => connection.enabled && connection.isDefaultPromptTesting) : null) ||
+    null;
+}
+
+function usableConnectionForLane(lane, connections = connectionStore.connections) {
+  return connections.find((connection) => isUsableConnection(connection) && (connection.purposes || []).includes(lane)) ||
+    (lane === "default_prompt_testing" ? connections.find((connection) => isUsableConnection(connection) && connection.isDefaultPromptTesting) : null) ||
+    null;
+}
+
+function maskSecret(secret) {
+  const value = String(secret || "");
+  if (!value) return "";
+  if (value.length <= 8) return "****";
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+function upsertConnection(payload = {}) {
+  const provider = normalizeConnectionProvider(payload.provider);
+  if (!provider) return { error: "Unsupported provider type.", status: "failed" };
+  const existing = payload.id ? connectionStore.connections.find((connection) => connection.id === payload.id) : null;
+  const now = new Date().toISOString();
+  const id = existing?.id || `conn-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const record = normalizeConnectionRecord({
+    ...existing,
+    ...payload,
+    id,
+    provider,
+    status: payload.enabled === false
+      ? "disabled"
+      : normalizeConnectionMode(payload.mode || existing?.mode, provider) === "backend_managed" && connectionModeSupported(provider, normalizeConnectionMode(payload.mode || existing?.mode, provider))
+        ? existing?.status || "managed"
+        : connectionModeSupported(provider, normalizeConnectionMode(payload.mode || existing?.mode, provider)) ? existing?.status || "unknown" : "not_supported",
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+    isDefaultPromptTesting: Boolean(payload.isDefaultPromptTesting || existing?.isDefaultPromptTesting || payload.purposes?.includes?.("default_prompt_testing")),
+  });
+  if (!record) return { error: "Connection could not be normalized.", status: "failed" };
+
+  if (String(payload.apiKey || payload.token || "").trim()) {
+    connectionSecretStore.secrets[id] = String(payload.apiKey || payload.token).trim();
+    saveConnectionSecretStore();
+  }
+
+  const index = connectionStore.connections.findIndex((connection) => connection.id === id);
+  if (record.isDefaultPromptTesting) {
+    connectionStore.connections.forEach((connection) => {
+      connection.isDefaultPromptTesting = false;
+      connection.purposes = (connection.purposes || []).filter((purpose) => purpose !== "default_prompt_testing");
+      connection.purposeTags = connection.purposes;
+    });
+  }
+  if (index >= 0) connectionStore.connections[index] = record;
+  else connectionStore.connections.push(record);
+  if (!connectionStore.connections.some((connection) => connection.isDefaultPromptTesting) && record.enabled) {
+    record.isDefaultPromptTesting = true;
+    if (!record.purposes.includes("default_prompt_testing")) record.purposes.unshift("default_prompt_testing");
+    record.purposeTags = record.purposes;
+  }
+  saveConnectionStore();
+  return { connection: sanitizeConnection(record), connections: readConnectionsPublic().connections, laneRouting: laneRoutingSnapshot() };
+}
+
+function setDefaultPromptConnection(connectionId) {
+  const connection = connectionStore.connections.find((item) => item.id === connectionId);
+  if (!connection) return { error: "Connection not found.", status: "failed" };
+  if (!connection.enabled) return { error: "Disabled connections cannot be the default prompt-testing connection.", status: "failed" };
+  connectionStore.connections.forEach((item) => {
+    item.isDefaultPromptTesting = item.id === connectionId;
+    item.purposes = item.id === connectionId
+      ? [...new Set([...(item.purposes || []), "default_prompt_testing"])]
+      : (item.purposes || []).filter((purpose) => purpose !== "default_prompt_testing");
+    item.purposeTags = item.purposes;
+  });
+  connection.updatedAt = new Date().toISOString();
+  saveConnectionStore();
+  return { connection: sanitizeConnection(connection), connections: readConnectionsPublic().connections, laneRouting: laneRoutingSnapshot() };
+}
+
+function updateConnectionRouting(payload = {}) {
+  const assignments = Array.isArray(payload.assignments)
+    ? payload.assignments
+    : payload.lane
+      ? [{ lane: payload.lane, connectionId: payload.connectionId }]
+      : [];
+  const allowed = connectionPurposes();
+  for (const assignment of assignments) {
+    const lane = String(assignment.lane || "");
+    if (!allowed.includes(lane)) continue;
+    connectionStore.connections.forEach((connection) => {
+      const purposes = new Set(connection.purposes || []);
+      if (connection.id === assignment.connectionId) purposes.add(lane);
+      else purposes.delete(lane);
+      connection.purposes = [...purposes];
+      connection.purposeTags = connection.purposes;
+      connection.isDefaultPromptTesting = connection.purposes.includes("default_prompt_testing");
+    });
+  }
+  saveConnectionStore();
+  return readConnectionsPublic();
+}
+
+function startAccountLink(payload = {}) {
+  const provider = normalizeConnectionProvider(payload.provider);
+  if (!provider) return { status: "failed", error: "Unsupported provider type." };
+  return {
+    status: "not_supported",
+    provider,
+    supportsAccountLink: false,
+    message: "Account linking is not currently supported for this provider. Use provider API key or local runtime mode instead.",
+    scopeNote: "Connections configure model access only. They do not change Tripp's current read-only scope.",
+  };
+}
+
+function deleteConnection(connectionId) {
+  const before = connectionStore.connections.length;
+  connectionStore.connections = connectionStore.connections.filter((connection) => connection.id !== connectionId);
+  delete connectionSecretStore.secrets[connectionId];
+  if (!connectionStore.connections.some((connection) => connection.isDefaultPromptTesting)) {
+    const nextDefault = connectionStore.connections.find((connection) => connection.enabled);
+    if (nextDefault) nextDefault.isDefaultPromptTesting = true;
+  }
+  saveConnectionStore();
+  saveConnectionSecretStore();
+  return { deleted: before !== connectionStore.connections.length, connections: readConnectionsPublic().connections, laneRouting: laneRoutingSnapshot() };
+}
+
+async function testConnectionById(connectionId) {
+  const connection = connectionStore.connections.find((item) => item.id === connectionId);
+  if (!connection) return { status: "failed", error: "Connection not found." };
+  const result = await testConnection(connection);
+  connection.status = result.status === "connected" ? "connected" : connection.enabled ? "failed" : "disabled";
+  if (result.status === "not_supported") connection.status = "not_supported";
+  connection.lastCheckedAt = new Date().toISOString();
+  connection.lastError = result.status === "connected" ? null : result.error || result.status;
+  saveConnectionStore();
+  return { ...result, connection: sanitizeConnection(connection) };
+}
+
+async function testConnection(connection) {
+  if (!connection.enabled) return { status: "failed", error: "Connection is disabled." };
+  if (!connectionModeSupported(connection.provider, connection.mode)) {
+    return { status: "not_supported", error: `${connectionModeLabel(connection.mode)} is not currently supported for ${connection.provider}.` };
+  }
+  if (connection.mode === "backend_managed") {
+    return await testBackendManagedConnection(connection);
+  }
+  if (connection.mode === "account_linked") {
+    return { status: "not_supported", error: "Account linking is not currently supported for this provider." };
+  }
+  const secret = connectionSecretStore.secrets[connection.id] || "";
+  if (connection.mode === "api_key" && ["openai", "anthropic", "deepseek", "openrouter", "custom"].includes(connection.provider) && !secret) {
+    return { status: "auth_error", error: "API key or token is required." };
+  }
+  if (!connection.model) return { status: "model_not_found", error: "Model is required." };
+  return callConnection(connection, "Respond with CONNECTION_OK for a Tripp read-only prompt test.", { testOnly: true });
+}
+
+function defaultBaseUrl(connection) {
+  if (connection.baseUrl) return connection.baseUrl;
+  if (connection.provider === "openai") return "https://api.openai.com/v1";
+  if (connection.provider === "anthropic") return "https://api.anthropic.com/v1";
+  if (connection.provider === "deepseek") return "https://api.deepseek.com";
+  if (connection.provider === "openrouter") return "https://openrouter.ai/api/v1";
+  if (connection.provider === "ollama") return "http://127.0.0.1:11434";
+  return "";
+}
+
+async function testBackendManagedConnection(connection) {
+  if (!backendUrl || !backendReplyEnabled) {
+    return { status: "endpoint_unreachable", error: "Backend-managed provider access is not available from the local Tripp backend." };
+  }
+  const status = await readBackendStatus();
+  if (!status.reachable) return { status: "endpoint_unreachable", error: "Backend-managed provider endpoint is unreachable." };
+  return {
+    status: "connected",
+    text: `${connection.managedLabel || "Backend-managed connection"} is reachable.`,
+    managedLabel: connection.managedLabel || "Local Tripp bridge",
+  };
+}
+
+async function callBackendManagedConnection(connection, prompt, testOnly = false) {
+  if (!backendUrl || !backendReplyEnabled) {
+    return { status: "endpoint_unreachable", error: "Backend-managed provider access is not available from the local Tripp backend." };
+  }
+  const sessionId = `backend-managed-${Date.now()}`;
+  const backendResponse = await backendFetch(`/sessions/${encodeURIComponent(sessionId)}/reply`, {
+    method: "POST",
+    body: JSON.stringify({ message: prompt, mode: testOnly ? "CHAT" : "CHAT", sessionId }),
+  });
+  if (!backendResponse.ok) return { status: "endpoint_unreachable", error: "Backend-managed provider endpoint is unreachable." };
+  const body = await backendResponse.json().catch(() => ({}));
+  const mappedMessages = mapBackendMessages(body);
+  const operatorMessages = mappedMessages.filter((message) => message.kind !== "tool");
+  const text = operatorMessages.map((message) => message.body).filter(Boolean).join("\n") || mapBackendReply(body);
+  return {
+    status: "connected",
+    text: String(text || "Backend-managed provider responded.").slice(0, 2000),
+    usage: mapBackendUsage(body),
+  };
+}
+
+async function callConnection(connection, prompt, { testOnly = false } = {}) {
+  if (!connectionModeSupported(connection.provider, connection.mode)) {
+    return { status: "not_supported", error: `${connectionModeLabel(connection.mode)} is not currently supported for ${connection.provider}.` };
+  }
+  if (connection.mode === "backend_managed") return await callBackendManagedConnection(connection, prompt, testOnly);
+  if (connection.mode === "account_linked") return { status: "not_supported", error: "Account linking is not currently supported for this provider." };
+  const baseUrl = defaultBaseUrl(connection);
+  if (!baseUrl) return { status: "endpoint_unreachable", error: "Base URL is required." };
+  if (connection.model.toLowerCase().includes("missing")) return { status: "model_not_found", error: "Model was not found." };
+  const secret = connectionSecretStore.secrets[connection.id] || "";
+
+  try {
+    if (connection.provider === "openai") return await callOpenAiConnection(connection, baseUrl, secret, prompt, testOnly);
+    if (connection.provider === "anthropic") return await callAnthropicConnection(connection, baseUrl, secret, prompt, testOnly);
+    if (connection.provider === "deepseek" || connection.provider === "openrouter") return await callOpenAiConnection(connection, baseUrl, secret, prompt, testOnly);
+    if (connection.provider === "ollama") return await callOllamaConnection(connection, baseUrl, prompt, testOnly);
+    return await callCustomConnection(connection, baseUrl, secret, prompt, testOnly);
+  } catch (error) {
+    if (error?.status === 401 || error?.status === 403) return { status: "auth_error", error: "Credentials were rejected." };
+    if (error?.status === 404) return { status: "model_not_found", error: "Model or endpoint was not found." };
+    return { status: "endpoint_unreachable", error: "Endpoint was unreachable or returned an unsafe response." };
+  }
+}
+
+async function callOpenAiConnection(connection, baseUrl, secret, prompt, testOnly) {
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    signal: AbortSignal.timeout(8000),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+    body: JSON.stringify({
+      model: connection.model,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: testOnly ? 16 : 256,
+    }),
+  });
+  return parseProviderResponse(response, (body) => body?.choices?.[0]?.message?.content || "");
+}
+
+async function callAnthropicConnection(connection, baseUrl, secret, prompt, testOnly) {
+  const response = await fetch(`${baseUrl}/messages`, {
+    method: "POST",
+    signal: AbortSignal.timeout(8000),
+    headers: { "Content-Type": "application/json", "x-api-key": secret, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({
+      model: connection.model,
+      max_tokens: testOnly ? 16 : 256,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  return parseProviderResponse(response, (body) => body?.content?.map((item) => item.text || "").join("\n") || "");
+}
+
+async function callOllamaConnection(connection, baseUrl, prompt, testOnly) {
+  const response = await fetch(`${baseUrl}/api/generate`, {
+    method: "POST",
+    signal: AbortSignal.timeout(8000),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: connection.model, prompt, stream: false, options: { num_predict: testOnly ? 16 : 256 } }),
+  });
+  return parseProviderResponse(response, (body) => body?.response || "");
+}
+
+async function callCustomConnection(connection, baseUrl, secret, prompt, testOnly) {
+  const response = await fetch(baseUrl, {
+    method: "POST",
+    signal: AbortSignal.timeout(8000),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+    body: JSON.stringify({ provider: connection.provider, model: connection.model, prompt, testOnly }),
+  });
+  return parseProviderResponse(response, (body) => body?.text || body?.message || body?.content || "");
+}
+
+async function parseProviderResponse(response, extractText) {
+  if (response.status === 401 || response.status === 403) throw { status: response.status };
+  if (response.status === 404) throw { status: 404 };
+  if (!response.ok) throw { status: response.status };
+  const body = await response.json().catch(() => ({}));
+  return {
+    status: "connected",
+    text: String(extractText(body) || "Connection responded.").slice(0, 2000),
+    usage: body.usage || null,
+  };
+}
+
+function defaultPromptConnection() {
+  return usableConnectionForLane("default_prompt_testing") ||
+    connectionStore.connections.find((connection) => isUsableConnection(connection) && connection.status === "connected") ||
+    connectionStore.connections.find((connection) => isUsableConnection(connection)) ||
+    null;
+}
+
+function resolvePromptConnectionRoute(requestedLaneValue, connectionId = null) {
+  const requestedLane = String(requestedLaneValue || "default_prompt_testing");
+  if (connectionId) {
+    const connection = connectionStore.connections.find((item) => item.id === connectionId);
+    return {
+      connection: isUsableConnection(connection) ? connection : null,
+      requestedLane,
+      lane: requestedLane,
+      fallbackUsed: false,
+      fallbackReason: null,
+    };
+  }
+
+  const directConnection = usableConnectionForLane(requestedLane);
+  if (directConnection) {
+    return {
+      connection: directConnection,
+      requestedLane,
+      lane: requestedLane,
+      fallbackUsed: false,
+      fallbackReason: null,
+    };
+  }
+
+  const fallbackConnection = defaultPromptConnection();
+  if (!fallbackConnection) {
+    return {
+      connection: null,
+      requestedLane,
+      lane: requestedLane,
+      fallbackUsed: false,
+      fallbackReason: "No usable connection is configured for the requested lane or prompt-testing fallback.",
+    };
+  }
+
+  const fallbackLane = (fallbackConnection.purposes || []).includes("default_prompt_testing")
+    ? "default_prompt_testing"
+    : (fallbackConnection.purposes || [])[0] || "fallback";
+  return {
+    connection: fallbackConnection,
+    requestedLane,
+    lane: fallbackLane,
+    fallbackUsed: fallbackLane !== requestedLane,
+    fallbackReason: `No usable connection is assigned to ${requestedLane}; routed through ${fallbackLane}.`,
+  };
+}
+
+async function createPromptTestReply(payload = {}) {
+  const route = resolvePromptConnectionRoute(payload.lane || "default_prompt_testing", payload.connectionId);
+  const { connection, requestedLane, lane, fallbackUsed, fallbackReason } = route;
+  const prompt = String(payload.prompt || "").trim();
+  if (!connection) {
+    return {
+      status: "failed",
+      requestedLane,
+      lane,
+      fallbackUsed,
+      fallbackReason,
+      error: "No usable prompt-testing connection is configured.",
+      scopeNote: "Connections configure model access only. They do not change Tripp's current read-only scope.",
+    };
+  }
+  if (!prompt) return { status: "failed", error: "Prompt is required." };
+  const started = Date.now();
+  const result = await callConnection(connection, prompt);
+  return {
+    status: result.status,
+    error: result.status === "connected" ? null : result.error || result.status,
+    text: result.text || "",
+    connection: sanitizeConnection(connection),
+    provider: connection.provider,
+    requestedLane,
+    lane,
+    fallbackUsed,
+    fallbackReason,
+    model: connection.model,
+    latency: `${Date.now() - started}ms`,
+    scopeNote: "Prompt testing remains separate from Read-Only Gate, write-capable actions, and approval/apply concepts.",
+    routeSummary: [
+      `Lane: ${lane}`,
+      fallbackUsed ? `Requested lane: ${requestedLane}` : null,
+      fallbackUsed ? `Fallback: ${fallbackReason}` : null,
+      `Connection: ${connection.name}`,
+      `Provider: ${connection.provider}`,
+      `Model: ${connection.model}`,
+    ].filter(Boolean).join("; "),
+  };
+}
+
 function normalizeSettings(value = {}) {
   const defaults = defaultSettings();
   const contextLimit = clampNumber(value.compact?.contextLimit, 16000, 512000, defaults.compact.contextLimit);
@@ -2892,6 +3598,16 @@ function saveSessionStore() {
 function saveCystEventStore() {
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(cystStoreFile, `${JSON.stringify({ events: cystEventStore.events.slice(0, 100) }, null, 2)}\n`, "utf8");
+}
+
+function saveConnectionStore() {
+  mkdirSync(runtimeDir, { recursive: true });
+  writeFileSync(connectionStoreFile, `${JSON.stringify({ connections: connectionStore.connections.slice(0, 25) }, null, 2)}\n`, "utf8");
+}
+
+function saveConnectionSecretStore() {
+  mkdirSync(runtimeDir, { recursive: true });
+  writeFileSync(connectionSecretStoreFile, `${JSON.stringify({ secrets: connectionSecretStore.secrets }, null, 2)}\n`, "utf8");
 }
 
 function saveSettingsStore() {
@@ -3161,6 +3877,24 @@ function ensureSessionStore(bootstrap) {
     return sessionStore.sessions;
   }
 
+  const reset = readFirstBootResetMetadata({ root, runtimeDir });
+  if (reset.resetVersion && !existsSync(sessionStoreFile)) {
+    sessionStore.sessions = [
+      {
+        id: `first-boot-${reset.resetVersion}`,
+        title: "First boot setup",
+        age: "now",
+        messages: 0,
+        active: true,
+        transcript: [],
+        createdAt: reset.resetAt || new Date().toISOString(),
+        updatedAt: reset.resetAt || new Date().toISOString(),
+      },
+    ];
+    saveSessionStore();
+    return sessionStore.sessions;
+  }
+
   sessionStore.sessions = bootstrap.sessions.map((session, index) => ({
     ...session,
     id: `session-${index}`,
@@ -3297,13 +4031,13 @@ function createPatchPlan(task) {
       targetFile: "tripp-terminal-data.json",
       operation: "replace",
       expected:
-        '      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
+        '      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO read-only tasks, and prompt testing."',
       expectedText:
-        '      "body": "Welcome to Tripp. Terminal. I am the Tripp AI Agent, ready to assist you. Type a command or question to begin."',
+        '      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO read-only tasks, and prompt testing."',
       replacement:
-        '      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
+        '      "body": "Tripp.g is online. The supervised harness is ready for prompt testing, read-only planning, and gated review."',
       replacementText:
-        '      "body": "Tripp.g is online. The supervised harness is ready for chat, AUTO tasks, and operator-approved edits."',
+        '      "body": "Tripp.g is online. The supervised harness is ready for prompt testing, read-only planning, and gated review."',
     };
   }
 
@@ -3708,7 +4442,7 @@ function mapBackendReply(value) {
   if (value?.message) return String(value.message);
   if (value?.content) return String(value.content);
   if (value?.text) return String(value.text);
-  return "Backend reply received. Event streaming mapper is the next integration step.";
+  return "Tripp backend-managed route is online.";
 }
 
 function createPromptBlock(prompt) {
