@@ -40,6 +40,7 @@ Status: working beta scoreboard. This is not a live-write approval document.
 - Evidence provenance discipline now distinguishes direct inspection, mock retrieval, safe-shell observation, blocked outcome, read-only gate, and synthesis.
 - Contract-to-runtime traceability now links contract rules to runtime paths, verifier coverage, and UI reflection.
 - Minimum adversarial pack now blocks or corrects policy/config laundering, mock-to-direct blending, shell write escape, Gate GO overread, and session authority laundering.
+- Release/readiness claim coherence lock now keeps scoreboard, beta release notes, gate wording, capability lists, and harness artifacts aligned to internal scoped read-only readiness.
 
 ## Read-Only Goose Replacement Statement
 
@@ -74,6 +75,7 @@ Current scoped read-only planning/review cannot edit files, apply patches, appro
 - Evidence provenance tags remain active in synthesis and verifier discipline.
 - Compact contract-to-runtime trace matrix remains accurate.
 - Minimum adversarial pack passes and fails the gate on breach.
+- Release/readiness claim coherence artifact passes.
 - Cross-surface coherence holds across TASKS, Current Understanding, and Cyst.
 - Mock evidence remains clearly non-authoritative and planning-only.
 - Branch ranking stays based on usefulness, not truth or verification.

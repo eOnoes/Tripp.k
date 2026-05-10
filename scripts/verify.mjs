@@ -193,6 +193,7 @@ try {
   const contractRuntimeTraceDoc = readFileSync(new URL("../docs/read-only-contract-runtime-trace-v0.1.md", import.meta.url), "utf8");
   const traceabilityFreshnessDoc = readFileSync(new URL("../docs/read-only-traceability-freshness-v0.1.md", import.meta.url), "utf8");
   const cystVisualTruthDoc = readFileSync(new URL("../docs/read-only-cyst-visual-truth-v0.1.md", import.meta.url), "utf8");
+  const releaseClaimCoherenceDoc = readFileSync(new URL("../docs/read-only-release-claim-coherence-lock-v0.1.md", import.meta.url), "utf8");
   const kimiComparisonDoc = readFileSync(new URL("../docs/kimi-swarm-comparison-integration-v0.1.md", import.meta.url), "utf8");
   const adversarialPackDoc = readFileSync(new URL("../docs/read-only-adversarial-pack-v0.1.md", import.meta.url), "utf8");
   const readOnly90GoNoGo = readFileSync(new URL("../docs/read-only-90-go-no-go-checklist-v0.1.md", import.meta.url), "utf8");
@@ -462,6 +463,7 @@ try {
     readinessScoreboard.includes("Operator-independence pack artifact passes.") &&
     readinessScoreboard.includes("Evidence provenance tags remain active in synthesis and verifier discipline.") &&
     readinessScoreboard.includes("Minimum adversarial pack passes and fails the gate on breach.") &&
+    readinessScoreboard.includes("Release/readiness claim coherence artifact passes.") &&
     readinessScoreboard.includes("does not include edit/build replacement, live writes, approval/apply workflows, or broad Goose parity") &&
     readinessScoreboard.includes("Edit/build replacement remains a separate milestone.") &&
     readinessScoreboard.includes("Current write lifecycle work is design-only") &&
@@ -478,6 +480,7 @@ try {
     readinessScoreboard.includes("Warden-vs-adapter ambiguity acceptance now proves a distinct enforcement-boundary ambiguity shape.") &&
     readinessScoreboard.includes("Longer-session repeatability acceptance now covers inspection, retrieval, analysis, safe shell, blocked shell, git status, and gate review.") &&
     readinessScoreboard.includes("Operator-independence artifact now proves the beta harness can answer inspected, learned, uncertain, blocked, and next-direction questions without normal UI clutter.") &&
+    readinessScoreboard.includes("Release/readiness claim coherence lock now keeps scoreboard, beta release notes, gate wording, capability lists, and harness artifacts aligned to internal scoped read-only readiness.") &&
     readinessScoreboard.includes("Branch ranking stays based on usefulness, not truth or verification.") &&
     readinessScoreboard.includes("Operator-independence artifact passes.") &&
     readinessScoreboard.includes("Longer-session repeatability harness passes.") &&
@@ -799,6 +802,17 @@ try {
     cystVisualTruthDoc.includes("Correct-scope adversarial rows are visually distinct from both hard-block rows and ordinary completed rows.") &&
     cystVisualTruthDoc.includes("artifactType: \"cyst_visual_truth_check\"") &&
     cystVisualTruthDoc.includes("cyst_visual_truth_artifact_is_harness_only_not_product_ui") &&
+    releaseClaimCoherenceDoc.includes("Read-Only Release Claim Coherence Lock v0.1") &&
+    releaseClaimCoherenceDoc.includes("90% reflects internal, scoped readiness for read-only planning/review within Tripp.g's current acceptance and red-team gates.") &&
+    releaseClaimCoherenceDoc.includes("This readiness estimate remains internal, scoped, and gate-based.") &&
+    releaseClaimCoherenceDoc.includes("capability statement must stay paired with score wording") &&
+    releaseClaimCoherenceDoc.includes("Gate GO must never expand beyond read-only harness readiness") &&
+    releaseClaimCoherenceDoc.includes("Mock or planning-only evidence must remain non-authoritative and unable to authorize file changes.") &&
+    releaseClaimCoherenceDoc.includes("TASKS remains the per-task interpretation surface.") &&
+    releaseClaimCoherenceDoc.includes("Current Understanding remains the session synthesis surface.") &&
+    releaseClaimCoherenceDoc.includes("Cyst remains audit/timeline truth only.") &&
+    releaseClaimCoherenceDoc.includes("Future write lifecycle docs: stay design-only and cannot imply current runtime mutation capability.") &&
+    releaseClaimCoherenceDoc.includes("scoreboard_release_docs_and_capability_list_use_consistent_internal_scoped_gate_based_wording") &&
     !/\b(?:write support in progress|mutation path exists but is blocked|nearly ready for implementation|edit-ready|next phase)\b/i.test(post85Roadmap + readinessScoreboard) &&
     futureWriteContract.includes("Future Write Lifecycle Contract v0.1") &&
     futureWriteContract.includes("design-only contract") &&
@@ -2409,6 +2423,33 @@ try {
     failures.push({ name: "Cyst visual truth artifact" });
   }
 
+  const releaseClaimCoherenceArtifact = createReleaseClaimCoherenceArtifact({
+    readinessScoreboard,
+    betaReleaseNotes,
+    readOnly90GoNoGo,
+    betaRegressionHarness,
+    releaseClaimCoherenceDoc,
+    futureWriteContract,
+    traceabilityFreshnessDoc,
+    currentUnderstandingAntiLaundering,
+    cystVisualTruthDoc,
+    appScript,
+    appHtml,
+  });
+  const releaseClaimCoherencePass =
+    releaseClaimCoherenceArtifact.artifactType === "release_claim_coherence_check" &&
+    releaseClaimCoherenceArtifact.mode === "read_only_beta_harness" &&
+    releaseClaimCoherenceArtifact.overallStatus === "pass" &&
+    Object.values(releaseClaimCoherenceArtifact.checks).every((check) => check.status === "pass") &&
+    releaseClaimCoherenceArtifact.summary === "Release/readiness surfaces stayed internal, scoped, gate-based, and read-only in the beta harness." &&
+    !/certified|validated replacement|goose no longer needed|ready to proceed|implementation-ready|edit-ready|write-ready/i.test(releaseClaimCoherenceArtifact.summary) &&
+    !appScript.includes("release_claim_coherence_check") &&
+    !appHtml.includes("release_claim_coherence_check");
+  console.log(`${releaseClaimCoherencePass ? "PASS" : "FAIL"} beta: release claim coherence artifact`);
+  if (!releaseClaimCoherencePass) {
+    failures.push({ name: "release claim coherence artifact" });
+  }
+
   const operatorIndependenceArtifact = createOperatorIndependenceArtifact({
     sessionId: longSessionId,
     scenarioId: "longer_readonly_repeatability",
@@ -2784,6 +2825,95 @@ function createCystVisualTruthArtifact({ events, taskIds, appScript, appCss }) {
     overallStatus: Object.values(checks).every((item) => item.status === "pass") ? "pass" : "fail",
     checks,
     summary: "Cyst adversarial rows remained audit-only and visually distinct in the beta harness.",
+  };
+}
+
+function createReleaseClaimCoherenceArtifact({
+  readinessScoreboard,
+  betaReleaseNotes,
+  readOnly90GoNoGo,
+  betaRegressionHarness,
+  releaseClaimCoherenceDoc,
+  futureWriteContract,
+  traceabilityFreshnessDoc,
+  currentUnderstandingAntiLaundering,
+  cystVisualTruthDoc,
+  appScript,
+  appHtml,
+}) {
+  const releaseSurfaces = [
+    readinessScoreboard,
+    betaReleaseNotes,
+    readOnly90GoNoGo,
+    betaRegressionHarness,
+    releaseClaimCoherenceDoc,
+    futureWriteContract,
+    traceabilityFreshnessDoc,
+    currentUnderstandingAntiLaundering,
+    cystVisualTruthDoc,
+  ].join("\n");
+  const forbiddenClaimPattern = /\b(?:Goose-equivalent|ready for next phase|nearly replaces Goose|autonomous reviewer|implementation-ready|edit-ready|write-ready|ready to proceed|validated replacement|goose no longer needed)\b/i;
+  const checks = {
+    scoreboardScope: createHarnessCheck(
+      readinessScoreboard.includes("90% reflects internal, scoped readiness for read-only planning/review within Tripp.g's current acceptance and red-team gates.") &&
+        readinessScoreboard.includes("This readiness estimate remains internal, scoped, and gate-based.") &&
+        readinessScoreboard.includes("Capability Statement") &&
+        readinessScoreboard.includes("Current scoped read-only planning/review cannot edit files"),
+      "Scoreboard keeps the score internal, scoped, gate-based, read-only, and paired with capability limits.",
+      ["Scoreboard"],
+    ),
+    releaseLimitations: createHarnessCheck(
+      betaReleaseNotes.includes("Current behavior is read-only. Tripp.g does not enable live writes, edit/build workflows, or approval/apply flows in this beta.") &&
+        betaReleaseNotes.includes("Mock or planning-only retrieval is non-authoritative. It can support review and narrowing, but it cannot authorize file changes.") &&
+        betaReleaseNotes.includes("This beta does not include live writes, edit/build replacement, approval/apply capability, or general reasoning parity with Goose."),
+      "Release notes repeat read-only scope, known limitations, and mock/planning-only evidence limits.",
+      ["Release notes"],
+    ),
+    gateScope: createHarnessCheck(
+      readOnly90GoNoGo.includes("Gate GO overread") &&
+        readOnly90GoNoGo.includes("This readiness estimate remains internal, scoped, and gate-based.") &&
+        betaReleaseNotes.includes("Read-Only Gate GO / NO GO reflects current read-only harness readiness only."),
+      "Gate GO / NO GO wording remains scoped to read-only harness readiness across release artifacts.",
+      ["Read-Only Gate"],
+    ),
+    surfaceRoles: createHarnessCheck(
+      betaReleaseNotes.includes("TASKS provides per-task conclusions and outcome interpretation.") &&
+        betaReleaseNotes.includes("Current Understanding summarizes the recent read-only planning thread.") &&
+        betaReleaseNotes.includes("Cyst records audit/timeline truth and blocked/allowed event history.") &&
+        betaReleaseNotes.includes("Read-Only Gate reports formal read-only harness status."),
+      "Surface-role guidance remains consistent across release docs.",
+      ["TASKS", "Current Understanding", "Cyst", "Read-Only Gate"],
+    ),
+    harnessOnlyArtifacts: createHarnessCheck(
+      betaRegressionHarness.includes("The artifact must not render in normal product UI, Current Understanding, or Cyst.") &&
+        cystVisualTruthDoc.includes("artifactType: \"cyst_visual_truth_check\"") &&
+        cystVisualTruthDoc.includes("It must not render as normal product UI.") &&
+        releaseClaimCoherenceDoc.includes("Harness artifacts: operator independence, traceability freshness, anti-laundering, and Cyst visual truth remain harness evidence only.") &&
+        !appScript.includes("release_claim_coherence_check") &&
+        !appHtml.includes("release_claim_coherence_check"),
+      "Readiness artifacts remain beta-harness evidence and do not become normal product UI.",
+      ["Harness artifacts"],
+    ),
+    writeSeparation: createHarnessCheck(
+      readinessScoreboard.includes("Replace Goose for edit/build work") &&
+        readinessScoreboard.includes("Edit/build replacement remains a separate milestone.") &&
+        futureWriteContract.includes("This contract is design-only and is not active in the current read-only harness.") &&
+        futureWriteContract.includes("No runtime mutation path is enabled by this document."),
+      "Edit/build work remains separate, design-only, and outside the current runtime scope.",
+      ["Scoreboard", "Future write lifecycle"],
+    ),
+    noScopeInflation: createHarnessCheck(
+      !forbiddenClaimPattern.test(releaseSurfaces),
+      "Release/readiness surfaces avoid broad replacement, autonomy, and write-readiness claim language.",
+      ["Release surfaces"],
+    ),
+  };
+  return {
+    artifactType: "release_claim_coherence_check",
+    mode: "read_only_beta_harness",
+    overallStatus: Object.values(checks).every((item) => item.status === "pass") ? "pass" : "fail",
+    checks,
+    summary: "Release/readiness surfaces stayed internal, scoped, gate-based, and read-only in the beta harness.",
   };
 }
 
