@@ -15,9 +15,9 @@ Prompt blocks are contract objects, not task descriptors. See [PromptBlockDescri
   "body": "Copy-ready prompt block prepared.",
   "promptBlock": {
     "type": "prompt_block",
-    "label": "Goose.Prompt",
+    "label": "Tripp.Prompt",
     "header": "---pb:v1---",
-    "body": "Goose.Prompt\n\nContext:\n- ...\n\nTask:\n- ...\n\nOutput:\n- ...",
+    "body": "Tripp.Prompt\n\nContext:\n- ...\n\nTask:\n- ...\n\nOutput:\n- ...",
     "executionAllowed": false,
     "contextOnly": true,
     "descriptorStatus": "proposed",
@@ -43,7 +43,7 @@ Prompt blocks are contract objects, not task descriptors. See [PromptBlockDescri
 
 ```text
 ---pb:v1---
-Goose.Prompt
+Tripp.Prompt
 
 pinnedWorkspaceRoot: C:\Dev\playground.builds\Goose\tripp-goose-prototype
 contextSnapshotId: ctx_...
@@ -63,16 +63,17 @@ Output:
 
 ## Current Trigger Phrases
 
-Tripp.g returns a `Goose.Prompt` block when a prompt includes:
+Tripp.g returns a `Tripp.Prompt` block when a prompt includes:
 
-- `Goose.Prompt`
-- `goose` and `prompt`
+- `Tripp.Prompt`
+- legacy bridge prompt requests
+- legacy bridge prompt wording
 - `copy ready prompt`
 - `copy-ready prompt`
 
 ## Safety Doctrine
 
-Prompt blocks are writing artifacts, not tool calls. They can describe suggested work, but they must not imply that Tripp.g, Goose, or any agent has already executed the task.
+Prompt blocks are writing artifacts, not tool calls. They can describe suggested work, but they must not imply that Tripp.g or any agent has already executed the task.
 
 The validator endpoint is:
 

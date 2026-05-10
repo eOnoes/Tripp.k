@@ -386,7 +386,7 @@
                       <div><dt>CONF</dt><dd>${escapeHtml(task.routingDecision?.confidenceRequired || "medium")}</dd></div>
                       <div><dt>PERMIT</dt><dd>${escapeHtml(task.permission?.decision || "unknown")}</dd></div>
                       <div><dt>LIFE</dt><dd>${escapeHtml(task.lifecycle?.state || "unknown")} · ${escapeHtml(task.lifecycle?.descriptorStatus || "proposed")}</dd></div>
-                      <div><dt>STYLE</dt><dd>${escapeHtml(task.codingMode || "goose")}</dd></div>
+                      <div><dt>STYLE</dt><dd>${escapeHtml(task.codingMode || "tripp")}</dd></div>
                       <div><dt>SESSION</dt><dd>${escapeHtml(task.sessionId || "none")}</dd></div>
                       <div><dt>TARGET</dt><dd>${escapeHtml(task.target || "none")}</dd></div>
                       <div><dt>PATCH</dt><dd>${escapeHtml(task.patchPlan?.file || "none")}</dd></div>
@@ -1440,13 +1440,13 @@
     return `
       <section class="adapter-detail ${escapeHtml(adapter.status || "unknown")}">
         <header>
-          <strong>Goose Adapter</strong>
+          <strong>Tripp Read-Only Adapter</strong>
           <span>${escapeHtml(adapter.status || "unknown")}</span>
         </header>
         <dl>
           <div><dt>TOOL</dt><dd>${escapeHtml(adapter.tool || "none")}</dd></div>
           <div><dt>WARDEN</dt><dd>${escapeHtml(adapter.wardenState || "unknown")}</dd></div>
-          <div><dt>ROUTE</dt><dd>${escapeHtml(adapter.route || "none")}</dd></div>
+          <div><dt>ROUTE</dt><dd>${escapeHtml(formatAdapterRoute(adapter.route))}</dd></div>
           <div><dt>CALL</dt><dd>${escapeHtml(adapter.invoked ? "invoked" : "not invoked")}</dd></div>
           <div><dt>CYST</dt><dd>${escapeHtml(adapter.cysToken || "none")}</dd></div>
           <div><dt>TYPE</dt><dd>${escapeHtml(adapter.resultType || adapter.errorCode || "none")}</dd></div>
@@ -1454,6 +1454,11 @@
         <p>${escapeHtml(adapter.summary || "")}</p>
       </section>
     `;
+  }
+
+  function formatAdapterRoute(route) {
+    if (!route) return "none";
+    return route;
   }
 
   function renderRetrieval(retrieval) {
@@ -2333,8 +2338,8 @@ function createLocalReply(payload) {
 function createLocalPromptBlock(prompt) {
   const lower = String(prompt || "").toLowerCase();
   const wantsPrompt =
-    lower.includes("goose.prompt") ||
-    (lower.includes("goose") && lower.includes("prompt")) ||
+    lower.includes("tripp.prompt") ||
+    (lower.includes("tripp") && lower.includes("prompt")) ||
     lower.includes("copy ready prompt") ||
     lower.includes("copy-ready prompt");
 
@@ -2344,11 +2349,11 @@ function createLocalPromptBlock(prompt) {
 
   return {
     type: "prompt_block",
-    label: "Goose.Prompt",
+    label: "Tripp.Prompt",
     header: "---pb:v1---",
     body: [
       "---pb:v1---",
-      "Goose.Prompt",
+      "Tripp.Prompt",
       "",
       "pinnedWorkspaceRoot: static-fallback",
       `contextSnapshotId: ${contextSnapshotId}`,
@@ -2359,7 +2364,7 @@ function createLocalPromptBlock(prompt) {
       "Context:",
       "- Tripp.g is the user-facing harness shell.",
       "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
-      "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
+      "- Treat TripCore.Munch.g as retrieval/narrowing support and Tripp read-only adapter tools as execution support.",
       "",
       "Task:",
       "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",

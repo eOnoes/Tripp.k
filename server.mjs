@@ -280,7 +280,7 @@ function readHealth() {
       codingModes: "policy-local",
       workspace: "repo-local-readonly",
       munch: "mock-contract",
-      executorAdapter: "goose-readonly-v0.1",
+      executorAdapter: "tripp-readonly-v0.1",
     },
     contract: backendContract(),
     munch: readMunchHealth(),
@@ -1078,7 +1078,7 @@ function runWardenPromptBlockTrial() {
     budget: { maxTokens: 500 },
     allowedTools: [],
     trace: { traceId: "trial-prompt-block-deny", source: "supervisor", ownerId: "tripp.supervisor" },
-    body: "---pb:v1---\nGoose.Prompt",
+    body: "---pb:v1---\nTripp.Prompt",
     pinnedWorkspaceRoot: root,
     contextSnapshotId: "trial-context",
   };
@@ -1112,7 +1112,7 @@ function runWardenPromptBlockTrial() {
 function runAdapterReadTrial(id, tool, args) {
   const descriptor = createTrialDescriptor(id, tool, args);
   const warden = wardenPrecheck(descriptor);
-  const route = { id: `route-${id}`, destination: "goose.adapter", tool };
+  const route = { id: `route-${id}`, destination: "tripp.readonly.adapter", tool };
   descriptor.trace.wardenDecision = warden.terminalState;
   const adapter = warden.allowed ? gooseAdapterCall(route, descriptor) : null;
   const expectBlocked = id.includes("blocked");
@@ -1128,7 +1128,7 @@ function runAdapterReadTrial(id, tool, args) {
     pass,
     expected: expectBlocked ? "WARDEN_PASS then adapter block without invocation" : "WARDEN_PASS then adapter ok with Cyst event",
     expectedWarden: "WARDEN_PASS",
-    expectedRoute: "goose.adapter",
+    expectedRoute: "tripp.readonly.adapter",
     expectedAdapterInvoked: !expectBlocked,
     expectedCystEvents: ["adapter_invocation"],
     expectedFinalState: expectBlocked ? "blocked_before_execution" : "executed",
@@ -1312,7 +1312,7 @@ function gooseAdapterCall(route = {}, descriptor = {}) {
   const redaction = redactAdapterArgs(descriptor.args || {});
   const cystBase = {
     eventType: "adapter_invocation",
-    adapter: "goose.adapter",
+    adapter: "tripp.readonly.adapter",
     descriptorId: descriptor.id || null,
     traceId,
     ownerId: descriptor.trace?.ownerId || descriptor.trace?.owner || null,
@@ -1443,8 +1443,8 @@ function validateGooseAdapterGates(route, descriptor, tool) {
   if (!route?.id || !route?.destination) {
     return { status: "denied", error: createAdapterError("ROUTER_MISSING", "Router route is missing.", descriptor) };
   }
-  if (route.destination !== "goose.adapter") {
-    return { status: "blocked", error: createAdapterError("ROUTE_DESTINATION_MISMATCH", "Route destination is not goose.adapter.", descriptor) };
+  if (!["tripp.readonly.adapter", "goose.adapter"].includes(route.destination)) {
+    return { status: "blocked", error: createAdapterError("ROUTE_DESTINATION_MISMATCH", "Route destination is not the Tripp read-only adapter.", descriptor) };
   }
   const blocked = blockedGooseTool(tool);
   if (blocked) {
@@ -1473,12 +1473,12 @@ function blockedGooseTool(tool) {
   const blocked = {
     "Developer.edit": ["GOOSE_EDIT_BLOCKED", "Developer.edit is blocked in read-only adapter v0.1."],
     "Developer.write": ["GOOSE_WRITE_BLOCKED", "Developer.write is blocked in read-only adapter v0.1."],
-    "Summon.delegate": ["GOOSE_DELEGATE_BLOCKED", "Delegation is blocked in the Goose adapter."],
-    "Apps.createApp": ["GOOSE_APP_CREATE_BLOCKED", "App creation is blocked in the Goose adapter."],
-    "Apps.iterateApp": ["GOOSE_APP_ITERATE_BLOCKED", "App mutation is blocked in the Goose adapter."],
-    "Apps.deleteApp": ["GOOSE_APP_DELETE_BLOCKED", "App deletion is blocked in the Goose adapter."],
-    "Extensionmanager.manageExtensions": ["EXTENSION_MANAGE_BLOCKED", "Extension management is blocked in the Goose adapter."],
-    git_commit: ["GIT_WRITE_BLOCKED", "Git write operations are blocked in the Goose adapter."],
+    "Summon.delegate": ["GOOSE_DELEGATE_BLOCKED", "Delegation is blocked in the Tripp read-only adapter."],
+    "Apps.createApp": ["GOOSE_APP_CREATE_BLOCKED", "App creation is blocked in the Tripp read-only adapter."],
+    "Apps.iterateApp": ["GOOSE_APP_ITERATE_BLOCKED", "App mutation is blocked in the Tripp read-only adapter."],
+    "Apps.deleteApp": ["GOOSE_APP_DELETE_BLOCKED", "App deletion is blocked in the Tripp read-only adapter."],
+    "Extensionmanager.manageExtensions": ["EXTENSION_MANAGE_BLOCKED", "Extension management is blocked in the Tripp read-only adapter."],
+    git_commit: ["GIT_WRITE_BLOCKED", "Git write operations are blocked in the Tripp read-only adapter."],
   };
   if (!blocked[tool]) return null;
   return { code: blocked[tool][0], message: blocked[tool][1] };
@@ -1750,7 +1750,7 @@ function createAdapterResult({ status, tool, invoked, result = null, error = nul
     error,
     trace: {
       traceId,
-      adapter: "goose.adapter",
+      adapter: "tripp.readonly.adapter",
       tool,
       argsRedacted,
       resultStatus: status,
@@ -2013,12 +2013,12 @@ function validateModeTransition(modeTransition, policy) {
 
 function readCodingModes() {
   return {
-    defaultMode: "goose",
+    defaultMode: "tripp",
     modes: [
       {
-        id: "goose",
-        label: "Goose-style",
-        description: "General autonomous chat plus supervised tool work.",
+        id: "tripp",
+        label: "Tripp-native",
+        description: "General read-only planning plus supervised tool work.",
       },
       {
         id: "cline",
@@ -2303,7 +2303,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.adapter = createTaskAdapterEvidence(adapter);
     task.excerpt = adapter?.result?.shaped?.content || "";
     task.result = adapter?.status === "ok"
-      ? `Read-only excerpt prepared from ${target.relative} through goose.adapter.`
+      ? `Read-only excerpt prepared from ${target.relative} through Tripp read-only adapter.`
       : "Inspection blocked. No approved repo-local target file was detected.";
     task.permission = permissionDecision(tool, adapter?.status === "ok" ? "allow" : "gated", adapter?.error?.code || "repo-local read-only inspection");
   }
@@ -2313,7 +2313,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.adapter = createTaskAdapterEvidence(adapter);
     task.excerpt = adapter?.result?.shaped?.stdout || "";
     task.result = adapter?.status === "ok"
-      ? "Safe git status snapshot captured through goose.adapter. No repository mutation was performed."
+      ? "Safe git status snapshot captured through Tripp read-only adapter. No repository mutation was performed."
       : "Git status blocked by the read-only adapter.";
     task.permission = permissionDecision(tool, adapter?.status === "ok" ? "allow" : "gated", adapter?.error?.code || "git status is read-only");
   }
@@ -2330,7 +2330,7 @@ function createTask({ prompt, tool, kind, sessionId }) {
     task.status = adapter?.status === "ok" ? "completed" : "gated";
     task.excerpt = adapter?.result?.shaped?.stdout || "";
     task.result = adapter?.status === "ok"
-      ? `Safe shell command completed through goose.adapter: ${command.label}`
+      ? `Safe shell command completed through Tripp read-only adapter: ${command.label}`
       : "Shell request gated. Only read-only allowlisted commands can auto-run.";
     task.permission = permissionDecision(tool, adapter?.status === "ok" ? "allow" : "gated", adapter?.error?.code || "command is outside the read-only shell allowlist");
   }
@@ -2469,7 +2469,7 @@ function runTaskAdapterCall(task, targetTool, args) {
 
   const route = {
     id: `route-${task.id}`,
-    destination: "goose.adapter",
+    destination: "tripp.readonly.adapter",
     tool: targetTool,
   };
   return { ...gooseAdapterCall(route, descriptor), warden, route };
@@ -2506,7 +2506,7 @@ function createTaskAdapterEvidence(adapter) {
     resultType: adapter.result?.shaped?.type || null,
     summary: adapter.result?.shaped?.summary || adapter.error?.message || "",
     wardenState: adapter.warden?.terminalState || adapter.error?.wardenDecision || "unknown",
-    route: adapter.route?.destination || "goose.adapter",
+    route: adapter.route?.destination || "tripp.readonly.adapter",
     cysToken: adapter.cystEvent?.cysToken || adapter.trace?.cysToken || null,
     redactionLog: adapter.redactionLog || [],
   };
@@ -3526,7 +3526,7 @@ function chooseCodingMode(prompt, kind, tool) {
   if (lower.includes("augment") || lower.includes("suggest") || lower.includes("assist")) {
     return "augment";
   }
-  return "goose";
+  return "tripp";
 }
 
 function describeFileRole(file) {
@@ -3695,8 +3695,8 @@ function mapBackendReply(value) {
 function createPromptBlock(prompt) {
   const lower = String(prompt || "").toLowerCase();
   const wantsPrompt =
-    lower.includes("goose.prompt") ||
-    (lower.includes("goose") && lower.includes("prompt")) ||
+    lower.includes("tripp.prompt") ||
+    (lower.includes("tripp") && lower.includes("prompt")) ||
     lower.includes("copy ready prompt") ||
     lower.includes("copy-ready prompt");
 
@@ -3705,7 +3705,7 @@ function createPromptBlock(prompt) {
   const contextSnapshotId = `ctx_${Date.now()}`;
   const body = [
     "---pb:v1---",
-    "Goose.Prompt",
+    "Tripp.Prompt",
     "",
     `pinnedWorkspaceRoot: ${root}`,
     `contextSnapshotId: ${contextSnapshotId}`,
@@ -3716,7 +3716,7 @@ function createPromptBlock(prompt) {
     "Context:",
     "- Tripp.g is the user-facing harness shell.",
     "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
-    "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
+    "- Treat TripCore.Munch.g as retrieval/narrowing support and Tripp read-only adapter tools as execution support.",
     "",
     "Task:",
     "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
@@ -3730,7 +3730,7 @@ function createPromptBlock(prompt) {
 
   return normalizePromptBlock({
     type: "prompt_block",
-    label: "Goose.Prompt",
+    label: "Tripp.Prompt",
     body,
     header: "---pb:v1---",
     executionAllowed: false,

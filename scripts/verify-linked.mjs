@@ -50,7 +50,7 @@ try {
     sessionId: session.session.id,
   });
   const promptBlockReply = await postJson(`${appUrl}/api/tripp/reply`, {
-    prompt: "write a Goose.Prompt for the next schema audit",
+    prompt: "write a Tripp.Prompt for the next schema audit",
     mode: "CHAT",
     sessionId: session.session.id,
   });
@@ -82,7 +82,7 @@ try {
           message.promptBlock?.header === "---pb:v1---" &&
           message.promptBlock?.executionAllowed === false &&
           message.promptBlock?.contextOnly === true &&
-          message.promptBlock?.label === "Goose.Prompt" &&
+          message.promptBlock?.label === "Tripp.Prompt" &&
           message.promptBlock?.body?.startsWith("---pb:v1---"),
       ) && !promptBlockReply.tasks?.length,
     ],

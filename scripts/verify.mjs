@@ -57,7 +57,7 @@ try {
     adapterShellReply.task?.adapter?.status === "ok" &&
     adapterShellReply.task?.adapter?.tool === "Developer.shell" &&
     adapterShellReply.task?.adapter?.cysToken?.startsWith("cyst_");
-  console.log(`${adapterTaskPass ? "PASS" : "FAIL"} tasks: AUTO read-only uses goose adapter`);
+  console.log(`${adapterTaskPass ? "PASS" : "FAIL"} tasks: AUTO read-only uses Tripp adapter`);
   if (!adapterTaskPass) {
     failures.push({ name: "adapter-backed tasks" });
   }
@@ -116,7 +116,7 @@ try {
     health.capabilities?.codingModes === "policy-local" &&
     health.capabilities?.workspace === "repo-local-readonly" &&
     health.capabilities?.munch === "mock-contract" &&
-    health.capabilities?.executorAdapter === "goose-readonly-v0.1";
+    health.capabilities?.executorAdapter === "tripp-readonly-v0.1";
   console.log(`${healthPass ? "PASS" : "FAIL"} health: adapter capabilities`);
   if (!healthPass) {
     failures.push({ name: "health" });
@@ -158,7 +158,8 @@ try {
     sessionId: "verify-coding-mode-session",
   });
   const codingModePass =
-    codingModes.defaultMode === "goose" &&
+    codingModes.defaultMode === "tripp" &&
+    codingModes.modes?.some((mode) => mode.id === "tripp" && mode.label === "Tripp-native") &&
     codingModes.modes?.some((mode) => mode.id === "cline") &&
     clineReply.task?.codingMode === "cline" &&
     clineReply.task?.patchPlan?.file === "tripp-terminal-data.json";
@@ -201,6 +202,7 @@ try {
   const post90HardeningRoadmap = readFileSync(new URL("../docs/read-only-post-90-hardening-roadmap-v0.1.md", import.meta.url), "utf8");
   const futureWriteContract = readFileSync(new URL("../docs/future-write-lifecycle-contract-v0.1.md", import.meta.url), "utf8");
   const claimRegressionScript = readFileSync(new URL("./verify-claim-regression.mjs", import.meta.url), "utf8");
+  const promptBlockFormatDoc = readFileSync(new URL("../docs/prompt-block-format-v0.1.md", import.meta.url), "utf8");
   const readOnly80Gate = readFileSync(new URL("../docs/read-only-80-percent-gate-v0.1.md", import.meta.url), "utf8");
   const readOnly85Gate = readFileSync(new URL("../docs/read-only-85-percent-gate-v0.1.md", import.meta.url), "utf8");
   const conclusionSource = extractFunctionRange(appScript, "renderTaskConclusion", "renderWorkspace");
@@ -444,6 +446,14 @@ try {
     appCss.includes(".go-no-go") &&
     appCss.includes(".go-no-go.no_go") &&
     appCss.includes(".go-no-go small + small") &&
+    !appScript.includes("Goose Adapter") &&
+    !appScript.includes("Goose.Prompt") &&
+    !appScript.includes("Goose-style") &&
+    !serverSource.includes("Goose.Prompt") &&
+    !serverSource.includes("Goose-style") &&
+    !serverSource.includes("goose-readonly-v0.1") &&
+    promptBlockFormatDoc.includes("Tripp.Prompt") &&
+    !promptBlockFormatDoc.includes("Goose.Prompt") &&
     readinessScoreboard.includes("Primary read-only console beta") &&
     readinessScoreboard.includes("Replace Goose for structured/moderately ambiguous and broader everyday read-only planning/review") &&
     readinessScoreboard.includes("Replace Goose for edit/build work") &&
@@ -1103,7 +1113,7 @@ try {
   }
 
   const promptBlockReply = await postJson("/api/tripp/reply", {
-    prompt: "write a Goose.Prompt for the next schema audit",
+    prompt: "write a Tripp.Prompt for the next schema audit",
     mode: "CHAT",
     sessionId: "verify-prompt-block",
   });
@@ -1115,7 +1125,7 @@ try {
         message.promptBlock?.header === "---pb:v1---" &&
         message.promptBlock?.executionAllowed === false &&
         message.promptBlock?.contextOnly === true &&
-        message.promptBlock?.label === "Goose.Prompt" &&
+        message.promptBlock?.label === "Tripp.Prompt" &&
         message.promptBlock?.body?.startsWith("---pb:v1---"),
     ) && !promptBlockReply.task;
   console.log(`${promptBlockPass ? "PASS" : "FAIL"} prompts: copy-ready block without task`);
@@ -1142,7 +1152,7 @@ try {
     descriptor: {
       type: "prompt_block",
       intent: "handoff",
-      target: "goose",
+      target: "tripp",
       constraints: [],
       budget: { maxTokens: 500 },
       allowedTools: [],
@@ -1287,7 +1297,7 @@ try {
     },
     args: { tool: "read", path: "README.md", token: "secret-value" },
   };
-  const adapterRoute = { id: "route-adapter", destination: "goose.adapter", tool: "Developer.read" };
+  const adapterRoute = { id: "route-adapter", destination: "tripp.readonly.adapter", tool: "Developer.read" };
   const adapterRead = await postJson("/api/tripp/executor/goose-adapter", {
     route: adapterRoute,
     descriptor: adapterBaseDescriptor,
@@ -1341,9 +1351,9 @@ try {
     adapterShellEscape.invoked === false &&
     adapterShellChain.error?.code === "SHELL_COMMAND_BLOCKED" &&
     adapterShellChain.invoked === false;
-  console.log(`${adapterPass ? "PASS" : "FAIL"} executor: goose adapter read-only gates`);
+  console.log(`${adapterPass ? "PASS" : "FAIL"} executor: Tripp adapter read-only gates`);
   if (!adapterPass) {
-    failures.push({ name: "goose adapter" });
+    failures.push({ name: "Tripp adapter" });
   }
 
   const cystSnapshot = await getJson("/api/tripp/cyst/events");

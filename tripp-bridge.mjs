@@ -78,7 +78,7 @@ async function createReply(sessionId, payload) {
           {
             kind: "agent",
             speaker: "tripp.prompt>",
-            body: "Copy-ready Goose.Prompt block prepared.",
+            body: "Copy-ready Tripp.Prompt block prepared.",
             promptBlock,
           },
         ]
@@ -170,19 +170,19 @@ function chooseCodingMode(prompt) {
   const lower = prompt.toLowerCase();
   if (lower.includes("cline") || lower.includes("patch") || lower.includes("edit")) return "cline";
   if (lower.includes("augment") || lower.includes("suggest")) return "augment";
-  return "goose";
+  return "tripp";
 }
 
 function bridgeMessage(prompt, mode, style, agent) {
   if (!prompt) return "Tripp bridge is online and waiting for a prompt.";
-  return `Bridge online. ${agent} accepted this ${mode} request in ${style} style. Goose binary is detected; direct Goose forwarding will activate when GOOSE_AGENT_URL is configured.`;
+  return `Bridge online. ${agent} accepted this ${mode} request in ${style} style. Legacy runtime forwarding will activate when GOOSE_AGENT_URL is configured.`;
 }
 
 function createPromptBlock(prompt) {
   const lower = String(prompt || "").toLowerCase();
   const wantsPrompt =
-    lower.includes("goose.prompt") ||
-    (lower.includes("goose") && lower.includes("prompt")) ||
+    lower.includes("tripp.prompt") ||
+    (lower.includes("tripp") && lower.includes("prompt")) ||
     lower.includes("copy ready prompt") ||
     lower.includes("copy-ready prompt");
 
@@ -191,7 +191,7 @@ function createPromptBlock(prompt) {
   const contextSnapshotId = `ctx_${Date.now()}`;
   const body = [
     "---pb:v1---",
-    "Goose.Prompt",
+    "Tripp.Prompt",
     "",
     `pinnedWorkspaceRoot: ${root}`,
     `contextSnapshotId: ${contextSnapshotId}`,
@@ -202,7 +202,7 @@ function createPromptBlock(prompt) {
     "Context:",
     "- Tripp.g is the user-facing harness shell.",
     "- Keep all findings evidence-backed and avoid changing files unless explicitly asked.",
-    "- Treat TripCore.Munch.g as retrieval/narrowing support and native Goose tools as execution support.",
+    "- Treat TripCore.Munch.g as retrieval/narrowing support and Tripp read-only adapter tools as execution support.",
     "",
     "Task:",
     "- Review the current Tripp.g direction and produce one concise, implementation-ready recommendation.",
@@ -216,7 +216,7 @@ function createPromptBlock(prompt) {
 
   return {
     type: "prompt_block",
-    label: "Goose.Prompt",
+    label: "Tripp.Prompt",
     header: "---pb:v1---",
     body,
     executionAllowed: false,

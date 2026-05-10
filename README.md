@@ -86,7 +86,7 @@ Inspect tasks are read-only, auto-complete without acknowledgement, and can show
 `git status` tasks are also read-only and auto-complete; mutating git actions such as commit are recorded as gated without an approval/apply click-through.
 Shell tasks auto-run only a small read-only allowlist such as `node --version`, `npm --version`, and repo file listing; other shell requests are recorded as gated.
 Permission decisions are exposed through `GET /api/tripp/permissions` and copied onto task cards as `permission.decision` with a short reason.
-Coding behavior modes are exposed through `GET /api/tripp/coding-modes`; tasks are tagged with `codingMode` such as `goose`, `cline`, or `augment`.
+Coding behavior modes are exposed through `GET /api/tripp/coding-modes`; tasks are tagged with `codingMode` such as `tripp`, `cline`, or `augment`.
 Analysis tasks are read-only, auto-complete for approved repo-local files, and show a short excerpt plus lightweight findings in the task detail.
 Task and session history are persisted locally under `.tripp-runtime/`, which is ignored by Git.
 The UI displays friendly runtime names while the adapter keeps raw backend identifiers internally.
