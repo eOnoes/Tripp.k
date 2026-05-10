@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
@@ -31,6 +31,20 @@ const settingsStore = loadSettingsStore();
 const connectionStore = loadConnectionStore();
 const connectionSecretStore = loadConnectionSecretStore();
 let appliedFirstBootResetVersion = null;
+
+// ─── OAuth Configuration ───
+const oauthTokenDir = resolve(process.env.TRIPP_OAUTH_TOKEN_DIR || join(runtimeDir, "oauth-tokens"));
+const oauthSessions = new Map(); // sessionId → { state, codeVerifier, redirectUri, startedAt }
+
+const CHATGPT_CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
+const CHATGPT_CODEX_ISSUER = "https://auth.openai.com";
+const CHATGPT_CODEX_REDIRECT_URI = "http://localhost:1455/auth/callback";
+const CHATGPT_CODEX_SCOPES = ["openid", "profile", "email", "offline_access"];
+
+// Ensure OAuth token directory exists
+if (!existsSync(oauthTokenDir)) {
+  mkdirSync(oauthTokenDir, { recursive: true });
+}
 
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -307,7 +321,253 @@ async function handleTrippApi(request, response, url) {
     return;
   }
 
+  // ─── OAuth Routes ───
+  if (request.method === "GET" && url.pathname === "/api/tripp/oauth-providers") {
+    sendJson(response, readOAuthProvidersPublic());
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/tripp/oauth/")) {
+    await handleOAuthApi(request, response, url);
+    return;
+  }
+
   sendJson(response, { error: "Unknown Tripp API route." }, 404);
+}
+
+// ─── OAuth Implementation ───
+
+function readOAuthProvidersPublic() {
+  return {
+    providers: [
+      {
+        id: "chatgpt_codex",
+        name: "ChatGPT (Codex)",
+        description: "Use your ChatGPT Plus/Pro subscription for GPT-5 Codex models via OAuth",
+        authenticated: existsSync(join(oauthTokenDir, "chatgpt_codex.json")),
+        models: ["gpt-5.4", "gpt-5.3-codex"],
+      },
+    ],
+  };
+}
+
+async function handleOAuthApi(request, response, url) {
+  const parts = url.pathname.split("/");
+  const providerId = decodeURIComponent(parts.at(-2) || "");
+  const action = decodeURIComponent(parts.at(-1) || "");
+
+  if (request.method === "POST" && action === "start") {
+    const session = startOAuthSession(providerId);
+    sendJson(response, {
+      status: "started",
+      sessionId: session.sessionId,
+      authorizeUrl: session.authorizeUrl,
+      redirectUri: session.redirectUri,
+    });
+    return;
+  }
+
+  if (request.method === "GET" && action === "callback") {
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    const error = url.searchParams.get("error");
+
+    if (error) {
+      response.writeHead(400, { "Content-Type": "text/html" });
+      response.end(`<html><body><h2>Authentication Failed</h2><p>${error}</p><p>You can close this window.</p></body></html>`);
+      return;
+    }
+
+    if (!code) {
+      response.writeHead(400, { "Content-Type": "text/html" });
+      response.end(`<html><body><h2>Missing Code</h2><p>No authorization code received.</p></body></html>`);
+      return;
+    }
+
+    // Find session by state
+    let session = null;
+    for (const [sid, s] of oauthSessions) {
+      if (s.state === state) {
+        session = { ...s, sessionId: sid };
+        break;
+      }
+    }
+
+    if (!session) {
+      response.writeHead(400, { "Content-Type": "text/html" });
+      response.end(`<html><body><h2>Session Expired</h2><p>Your authentication session has expired. Please try again.</p></body></html>`);
+      return;
+    }
+
+    try {
+      const tokens = await exchangeCodeForTokens(code, session.codeVerifier, session.redirectUri);
+      saveOAuthTokens(providerId, tokens);
+      oauthSessions.delete(session.sessionId);
+
+      response.writeHead(200, { "Content-Type": "text/html" });
+      response.end(`<html><body><h2>Authentication Successful</h2><p>You can close this window and return to Tripp.g.</p><script>setTimeout(()=>window.close(),2000)</script></body></html>`);
+    } catch (e) {
+      console.error("OAuth callback error:", e);
+      response.writeHead(500, { "Content-Type": "text/html" });
+      response.end(`<html><body><h2>Authentication Failed</h2><p>${e.message}</p><p>You can close this window.</p></body></html>`);
+    }
+    return;
+  }
+
+  if (request.method === "GET" && action === "status") {
+    const tokens = loadOAuthTokens(providerId);
+    sendJson(response, {
+      provider: providerId,
+      authenticated: !!tokens,
+      expiresAt: tokens?.expiresAt || null,
+    });
+    return;
+  }
+
+  if (request.method === "POST" && action === "logout") {
+    clearOAuthTokens(providerId);
+    sendJson(response, { status: "logged_out", provider: providerId });
+    return;
+  }
+
+  if (request.method === "POST" && action === "token") {
+    const tokens = loadOAuthTokens(providerId);
+    if (!tokens) {
+      sendJson(response, { error: "Not authenticated" }, 401);
+      return;
+    }
+    sendJson(response, { accessToken: tokens.accessToken, accountId: tokens.accountId });
+    return;
+  }
+
+  sendJson(response, { error: "Unknown OAuth action" }, 404);
+}
+
+function startOAuthSession(providerId) {
+  const sessionId = randomBytes(16).toString("hex");
+  const state = randomBytes(16).toString("hex");
+  const codeVerifier = randomBytes(32).toString("base64url");
+  const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+
+  const redirectUri = CHATGPT_CODEX_REDIRECT_URI;
+  const authUrl = new URL(`${CHATGPT_CODEX_ISSUER}/oauth/authorize`);
+  authUrl.searchParams.set("client_id", CHATGPT_CODEX_CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", redirectUri);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", CHATGPT_CODEX_SCOPES.join(" "));
+  authUrl.searchParams.set("state", state);
+  authUrl.searchParams.set("code_challenge", codeChallenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  authUrl.searchParams.set("id_token_add_organizations", "true");
+  authUrl.searchParams.set("codex_cli_simplified_flow", "true");
+  authUrl.searchParams.set("originator", "tripp");
+
+  const session = {
+    providerId,
+    state,
+    codeVerifier,
+    redirectUri,
+    authorizeUrl: authUrl.toString(),
+    startedAt: Date.now(),
+  };
+
+  oauthSessions.set(sessionId, session);
+
+  // Auto-cleanup after 10 minutes
+  setTimeout(() => {
+    oauthSessions.delete(sessionId);
+  }, 10 * 60 * 1000);
+
+  return { sessionId, authorizeUrl: authUrl.toString(), redirectUri };
+}
+
+async function exchangeCodeForTokens(code, codeVerifier, redirectUri) {
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: CHATGPT_CODEX_CLIENT_ID,
+    code,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
+  }).toString();
+
+  return new Promise((resolve, reject) => {
+    const req = require("node:https").request(
+      `${CHATGPT_CODEX_ISSUER}/oauth/token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Length": Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (!res.statusCode || res.statusCode >= 400) {
+              reject(new Error(`Token exchange failed: ${res.statusCode} ${parsed.error || data}`));
+              return;
+            }
+
+            const expiresAt = parsed.expires_in ? new Date(Date.now() + parsed.expires_in * 1000).toISOString() : null;
+
+            // Extract account ID from JWT id_token
+            let accountId = null;
+            if (parsed.id_token) {
+              try {
+                const payload = parsed.id_token.split(".")[1];
+                const decoded = JSON.parse(Buffer.from(payload, "base64url").toString());
+                accountId = decoded.chatgpt_account_id || decoded["https://api.openai.com/auth"]?.chatgpt_account_id || decoded.organizations?.[0]?.id || null;
+              } catch {
+                // ignore JWT parse errors
+              }
+            }
+
+            resolve({
+              accessToken: parsed.access_token,
+              refreshToken: parsed.refresh_token,
+              idToken: parsed.id_token,
+              expiresAt,
+              accountId,
+            });
+          } catch (e) {
+            reject(new Error(`Invalid token response: ${e.message}`));
+          }
+        });
+      }
+    );
+    req.on("error", (e) => reject(e));
+    req.write(body);
+    req.end();
+  });
+}
+
+function saveOAuthTokens(providerId, tokens) {
+  const path = join(oauthTokenDir, `${providerId}.json`);
+  if (!existsSync(oauthTokenDir)) {
+    mkdirSync(oauthTokenDir, { recursive: true });
+  }
+  writeFileSync(path, JSON.stringify(tokens, null, 2));
+}
+
+function loadOAuthTokens(providerId) {
+  const path = join(oauthTokenDir, `${providerId}.json`);
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function clearOAuthTokens(providerId) {
+  const path = join(oauthTokenDir, `${providerId}.json`);
+  if (existsSync(path)) {
+    const { unlinkSync } = require("node:fs");
+    unlinkSync(path);
+  }
 }
 
 function readBootstrap() {
