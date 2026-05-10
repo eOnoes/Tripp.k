@@ -299,7 +299,27 @@
       `;
     }
 
-    return renderRichText(message.body);
+    return `${renderRichText(message.body)}${renderMessageRouteMeta(message.routeMeta)}`;
+  }
+
+  function renderMessageRouteMeta(routeMeta) {
+    if (!routeMeta || typeof routeMeta !== "object") return "";
+    const parts = [
+      routeMeta.lane ? ["Lane", routeMeta.lane] : null,
+      routeMeta.connectionName ? ["Connection", routeMeta.connectionName] : null,
+      routeMeta.provider ? ["Provider", routeMeta.provider] : null,
+      routeMeta.model ? ["Model", routeMeta.model] : null,
+    ].filter(Boolean);
+    if (!parts.length) return "";
+    const fallback = routeMeta.fallbackUsed
+      ? `<span class="route-warn">Fallback: ${escapeHtml(routeMeta.fallbackReason || routeMeta.requestedLane || "used")}</span>`
+      : "";
+    return `
+      <footer class="message-route" aria-label="Prompt route metadata">
+        ${parts.map(([label, value]) => `<span><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</span>`).join("")}
+        ${fallback}
+      </footer>
+    `;
   }
 
   function renderRichText(body = "") {
@@ -311,14 +331,21 @@
 
     while ((match = fencePattern.exec(text))) {
       const before = text.slice(cursor, match.index).trim();
-      if (before) parts.push(`<p>${escapeHtml(before)}</p>`);
+      if (before) parts.push(`<p>${renderInlineRichText(before)}</p>`);
       parts.push(renderPromptBlock({ label: match[1] || "text", body: match[2].trim() }));
       cursor = fencePattern.lastIndex;
     }
 
     const after = text.slice(cursor).trim();
-    if (after) parts.push(`<p>${escapeHtml(after)}</p>`);
-    return parts.length ? parts.join("") : `<p>${escapeHtml(text)}</p>`;
+    if (after) parts.push(`<p>${renderInlineRichText(after)}</p>`);
+    return parts.length ? parts.join("") : `<p>${renderInlineRichText(text)}</p>`;
+  }
+
+  function renderInlineRichText(value = "") {
+    return escapeHtml(value)
+      .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
   }
 
   function renderPromptBlock(block) {

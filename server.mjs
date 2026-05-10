@@ -2378,14 +2378,11 @@ async function tryCreateConnectionPromptReply(payload, prompt, mode) {
   const started = Date.now();
   const result = await callConnection(connection, prompt);
   const statusText = result.status === "connected" ? "CONNECTED" : String(result.status || "FAILED").toUpperCase();
-  const routeLines = [
-    `Route: ${lane} via ${connection.name} (${connection.provider}, ${connection.model}).`,
-    fallbackUsed ? `Fallback used: requested ${requestedLane}; ${fallbackReason}` : null,
-  ].filter(Boolean).join("\n");
   const body = result.status === "connected"
-    ? `${result.text}\n\n${routeLines}`
+    ? cleanTranscriptReply(result.text)
     : `Prompt test failed with ${result.status}. ${result.error || "Check the connection settings."}`;
-  const messages = [{ kind: "agent", speaker: "tripp.model>", body }];
+  const routeMeta = createRouteMeta({ connection, lane, requestedLane, fallbackUsed, fallbackReason });
+  const messages = [{ kind: "agent", speaker: "tripp.model>", body, routeMeta }];
   const session = recordSessionExchange(payload?.sessionId, prompt, messages);
   return {
     id: `connection-reply-${Date.now()}`,
@@ -2409,6 +2406,28 @@ async function tryCreateConnectionPromptReply(payload, prompt, mode) {
     connection: sanitizeConnection(connection),
     session,
   };
+}
+
+function createRouteMeta({ connection, lane, requestedLane, fallbackUsed, fallbackReason }) {
+  return {
+    lane,
+    requestedLane,
+    fallbackUsed: fallbackUsed === true,
+    fallbackReason: fallbackReason || null,
+    connectionName: connection.name,
+    provider: connection.provider,
+    mode: connection.mode,
+    model: connection.model,
+  };
+}
+
+function cleanTranscriptReply(value) {
+  return String(value || "Model connection responded.")
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s+([.,!?;:])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim() || "Model connection responded.";
 }
 
 function shouldKeepLocalAdapterTask(mode, kind, tool) {

@@ -324,6 +324,56 @@ button {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
+.terminal-message p strong {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.terminal-message p em {
+  color: var(--text);
+  font-style: italic;
+}
+
+.terminal-message p code {
+  padding: 1px 5px;
+  border: 1px solid rgba(180, 255, 0, 0.22);
+  background: rgba(180, 255, 0, 0.06);
+  color: var(--lime);
+  font-size: 12px;
+}
+
+.message-route {
+  margin: 8px 0 0 40px;
+  width: min(920px, calc(100% - 40px));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.message-route span {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px;
+  border: 1px solid rgba(180, 255, 0, 0.22);
+  background: rgba(180, 255, 0, 0.04);
+}
+
+.message-route strong {
+  color: var(--lime);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.message-route .route-warn {
+  border-color: rgba(255, 196, 0, 0.35);
+  color: var(--text);
+}
+
 .prompt-block {
   margin: 0 0 0 40px;
   width: min(920px, calc(100% - 40px));

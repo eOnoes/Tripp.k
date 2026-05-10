@@ -1351,7 +1351,11 @@ try {
     routedPrompt.messages?.some(
       (message) =>
         message.speaker === "tripp.model>" &&
-        message.body.includes("Route: default_prompt_testing via Prompt Test Local (custom, tripp-mock-model)."),
+        message.routeMeta?.lane === "default_prompt_testing" &&
+        message.routeMeta?.connectionName === "Prompt Test Local" &&
+        message.routeMeta?.provider === "custom" &&
+        message.routeMeta?.model === "tripp-mock-model" &&
+        !message.body.includes("Route:"),
     ) &&
     !connectionPayloadText.includes("ChatGPT subscription") &&
     !connectionPayloadText.includes("Sign in with ChatGPT") &&
@@ -3551,7 +3555,14 @@ async function verifyBackendBridge() {
     managedReply.status?.provider === "backend" &&
     managedReply.status?.lane === "default_prompt_testing" &&
     managedReply.messages?.some((message) => message.body.includes("bridge received: managed bridge smoke")) &&
-    managedReply.messages?.some((message) => message.body.includes("Route: default_prompt_testing via Managed Bridge (backend, tripp-adapter/backend).")) &&
+    managedReply.messages?.some(
+      (message) =>
+        message.routeMeta?.lane === "default_prompt_testing" &&
+        message.routeMeta?.connectionName === "Managed Bridge" &&
+        message.routeMeta?.provider === "backend" &&
+        message.routeMeta?.model === "tripp-adapter/backend" &&
+        !message.body.includes("Route:"),
+    ) &&
     wardenReply.status === "connected" &&
     wardenReply.lane === "warden" &&
     wardenReply.connection?.name === "Managed Bridge" &&

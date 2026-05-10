@@ -7,6 +7,23 @@ if (-not $bridgePort) { $bridgePort = "4317" }
 $appPort = $env:PORT
 if (-not $appPort) { $appPort = "4177" }
 
+function Stop-TrippPort {
+  param([string]$Port)
+
+  $listeners = netstat -ano | Select-String "127.0.0.1:$Port\s+.*LISTENING"
+  foreach ($listener in $listeners) {
+    $parts = ($listener.ToString() -split "\s+") | Where-Object { $_ }
+    $pidValue = $parts[-1]
+    if ($pidValue -and $pidValue -match "^\d+$") {
+      Stop-Process -Id ([int]$pidValue) -Force -ErrorAction SilentlyContinue
+    }
+  }
+}
+
+Stop-TrippPort $bridgePort
+Stop-TrippPort $appPort
+Start-Sleep -Milliseconds 300
+
 $env:TRIPP_BACKEND_URL = "http://127.0.0.1:$bridgePort"
 $env:TRIPP_ENABLE_BACKEND_REPLY = "true"
 
