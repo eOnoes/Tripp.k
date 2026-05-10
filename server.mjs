@@ -4090,7 +4090,7 @@ function diagnosticCodeForProviderResult(result) {
 function oauthProviderConfigs() {
   const callbackPort = Number(process.env.CHATGPT_CODEX_CALLBACK_PORT || process.env.TRIPP_OAUTH_CALLBACK_PORT || 1455);
   const callbackHost = process.env.CHATGPT_CODEX_CALLBACK_HOST || "127.0.0.1";
-  const callbackPath = process.env.CHATGPT_CODEX_CALLBACK_PATH || "/callback";
+  const callbackPath = process.env.CHATGPT_CODEX_CALLBACK_PATH || "/auth/callback";
   const redirectUri = process.env.CHATGPT_CODEX_REDIRECT_URI || `http://localhost:${callbackPort}${callbackPath}`;
   return [
     {
@@ -4099,8 +4099,8 @@ function oauthProviderConfigs() {
       displayName: "ChatGPT (Codex)",
       clientId: process.env.CHATGPT_CODEX_CLIENT_ID || "app_EMoamEEZ73f0CkXaXp7hrann",
       issuer: process.env.CHATGPT_CODEX_ISSUER || "https://auth.openai.com",
-      authorizationEndpoint: process.env.CHATGPT_CODEX_AUTH_URL || "https://auth.openai.com/authorize",
-      tokenEndpoint: process.env.CHATGPT_CODEX_TOKEN_URL || "https://auth.openai.com/token",
+      authorizationEndpoint: process.env.CHATGPT_CODEX_AUTH_URL || "https://auth.openai.com/oauth/authorize",
+      tokenEndpoint: process.env.CHATGPT_CODEX_TOKEN_URL || "https://auth.openai.com/oauth/token",
       redirectUri,
       callbackHost,
       callbackPort,
@@ -4115,7 +4115,14 @@ function oauthProviderConfigs() {
 }
 
 function parseOAuthExtraParams(value) {
-  if (!value) return {};
+  if (!value) {
+    // Default extra params for ChatGPT Codex (matches Goose)
+    return {
+      id_token_add_organizations: "true",
+      codex_cli_simplified_flow: "true",
+      originator: "tripp",
+    };
+  }
   try {
     const parsed = JSON.parse(value);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
