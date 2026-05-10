@@ -152,7 +152,7 @@
   };
 
   const state = {
-    mode: data.status.mode || "CHAT",
+    mode: data.status.mode || "AGENT",
     activeRail: "terminal",
     opsExpanded: false,
     opsTab: "workspace",
